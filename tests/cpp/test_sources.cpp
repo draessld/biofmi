@@ -3,6 +3,8 @@
 #include <sstream>
 #include <iostream>
 #include <cassert>
+#include <filesystem>
+#include <fstream>
 
 void test_simple_sources() {
     std::cout << "Test 1: Simple sEDS parsing... ";
@@ -259,6 +261,117 @@ void test_roundtrip() {
     std::cout << "PASSED\n";
 }
 
+void test_save_sources_to_file() {
+    std::cout << "Test 12: Save sources to file... ";
+
+    // Create EDS with sources
+    std::stringstream eds_ss("{A}{B,C}");
+    std::stringstream seds_ss("{1}{2}{1,2}");
+    biofmi::EDS eds(eds_ss, seds_ss);
+
+    // Save to file
+    std::filesystem::path temp_path = std::filesystem::temp_directory_path() / "test_seds_save.seds";
+    eds.save_sources(temp_path);
+
+    // Verify file exists and read it back
+    assert(std::filesystem::exists(temp_path));
+    std::ifstream ifs(temp_path);
+    std::string content;
+    std::getline(ifs, content);
+    ifs.close();
+
+    assert(content == "{1}{2}{1,2}");
+
+    // Clean up
+    std::filesystem::remove(temp_path);
+
+    std::cout << "PASSED\n";
+}
+
+void test_load_sources_from_file() {
+    std::cout << "Test 13: Load sources from file... ";
+
+    // Create EDS without sources
+    std::stringstream eds_ss("{AC}{,A,T}{GT}");
+    biofmi::EDS eds(eds_ss);
+    assert(!eds.has_sources());
+
+    // Create a temporary file with sEDS content
+    std::filesystem::path temp_path = std::filesystem::temp_directory_path() / "test_seds_load.seds";
+    std::ofstream ofs(temp_path);
+    ofs << "{0}{1}{2}{3}{0}";
+    ofs.close();
+
+    // Load sources from file
+    eds.load_sources(temp_path);
+
+    assert(eds.has_sources());
+    const auto& sources = eds.get_sources();
+    assert(sources.size() == 5);
+    assert(sources[0].count(0) == 1);
+    assert(sources[1].count(1) == 1);
+    assert(sources[2].count(2) == 1);
+    assert(sources[3].count(3) == 1);
+    assert(sources[4].count(0) == 1);
+
+    // Clean up
+    std::filesystem::remove(temp_path);
+
+    std::cout << "PASSED\n";
+}
+
+void test_roundtrip_sources_file() {
+    std::cout << "Test 14: Roundtrip sources (save → load)... ";
+
+    // Create original EDS with sources
+    std::stringstream eds_ss1("{ACGT}{A,ACA}{CGT}");
+    std::stringstream seds_ss("{0}{1,2}{3}{0}");
+    biofmi::EDS eds1(eds_ss1, seds_ss);
+
+    // Save sources to file
+    std::filesystem::path temp_path = std::filesystem::temp_directory_path() / "test_seds_roundtrip.seds";
+    eds1.save_sources(temp_path);
+
+    // Create new EDS and load sources from file
+    std::stringstream eds_ss2("{ACGT}{A,ACA}{CGT}");
+    biofmi::EDS eds2(eds_ss2);
+    eds2.load_sources(temp_path);
+
+    // Compare
+    const auto& sources1 = eds1.get_sources();
+    const auto& sources2 = eds2.get_sources();
+
+    assert(sources1.size() == sources2.size());
+    for (size_t i = 0; i < sources1.size(); i++) {
+        assert(sources1[i] == sources2[i]);
+    }
+
+    // Clean up
+    std::filesystem::remove(temp_path);
+
+    std::cout << "PASSED\n";
+}
+
+void test_load_sources_nonexistent_file() {
+    std::cout << "Test 15: Load sources from nonexistent file (should fail)... ";
+
+    std::stringstream eds_ss("{A}");
+    biofmi::EDS eds(eds_ss);
+
+    std::filesystem::path nonexistent = "/nonexistent/path/to/file.seds";
+
+    bool caught = false;
+    try {
+        eds.load_sources(nonexistent);
+    } catch (const std::runtime_error& e) {
+        std::string msg = e.what();
+        caught = (msg.find("Failed to open") != std::string::npos);
+    }
+
+    assert(caught);
+    std::cout << "PASSED\n";
+}
+
 int main() {
     std::cout << "Running sEDS (source) parsing tests...\n\n";
 
@@ -274,6 +387,10 @@ int main() {
         test_invalid_missing_bracket();
         test_save_without_sources();
         test_roundtrip();
+        test_save_sources_to_file();
+        test_load_sources_from_file();
+        test_roundtrip_sources_file();
+        test_load_sources_nonexistent_file();
 
         std::cout << "\n✓ All source tests passed!\n";
         return 0;
