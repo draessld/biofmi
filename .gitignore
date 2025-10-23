@@ -122,3 +122,5 @@ Thumbs.db
 
 # Session and local notes (keep Claude config)
 .claude/session-notes.md
+.claude
+.claudeignore
