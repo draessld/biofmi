@@ -6,8 +6,23 @@
 
 namespace biofmi {
 
+// Stream-based constructor
 EDS::EDS(std::istream& is) : is_empty_(false), has_sources_(false) {
     parse(is);
+}
+
+// String-based constructor
+EDS::EDS(const std::string& eds_string) : is_empty_(false), has_sources_(false) {
+    std::stringstream ss(eds_string);
+    parse(ss);
+}
+
+// String-based constructor with sources
+EDS::EDS(const std::string& eds_string, const std::string& seds_string) : is_empty_(false), has_sources_(false) {
+    std::stringstream eds_ss(eds_string);
+    std::stringstream seds_ss(seds_string);
+    parse(eds_ss);
+    parse_sources(seds_ss);
 }
 
 void EDS::parse(std::istream& is) {
@@ -26,6 +41,10 @@ void EDS::parse(std::istream& is) {
         m_ = 0;
         return;
     }
+
+    // Normalize compact format to full bracketed format
+    // This allows both "ACGT{A,ACA}CGT" and "{ACGT}{A,ACA}{CGT}" to work
+    input = normalize_eds_format(input);
 
     // Parse EDS format: {str1,str2,...}{str3}{str4,str5}...
     size_t pos = 0;
@@ -96,10 +115,48 @@ void EDS::parse(std::istream& is) {
     }
 }
 
-// Constructor with EDS + sEDS
+// Constructor with EDS + sEDS streams
 EDS::EDS(std::istream& eds_stream, std::istream& seds_stream) : is_empty_(false), has_sources_(false) {
     parse(eds_stream);
     parse_sources(seds_stream);
+}
+
+// Mixed input constructor: string EDS + stream sEDS
+EDS::EDS(const std::string& eds_string, std::istream& seds_stream) : is_empty_(false), has_sources_(false) {
+    std::stringstream eds_ss(eds_string);
+    parse(eds_ss);
+    parse_sources(seds_stream);
+}
+
+// Mixed input constructor: string EDS + file sEDS
+EDS::EDS(const std::string& eds_string, const std::filesystem::path& seds_path) : is_empty_(false), has_sources_(false) {
+    std::stringstream eds_ss(eds_string);
+    parse(eds_ss);
+
+    std::ifstream seds_ifs(seds_path);
+    if (!seds_ifs) {
+        throw std::runtime_error("Failed to open sEDS file: " + seds_path.string());
+    }
+    parse_sources(seds_ifs);
+}
+
+// Mixed input constructor: file EDS + string sEDS
+EDS::EDS(const std::filesystem::path& eds_path, const std::string& seds_string) : is_empty_(false), has_sources_(false) {
+    std::ifstream eds_ifs(eds_path);
+    if (!eds_ifs) {
+        throw std::runtime_error("Failed to open EDS file: " + eds_path.string());
+    }
+    parse(eds_ifs);
+
+    std::stringstream seds_ss(seds_string);
+    parse_sources(seds_ss);
+}
+
+// Mixed input constructor: stream EDS + string sEDS
+EDS::EDS(std::istream& eds_stream, const std::string& seds_string) : is_empty_(false), has_sources_(false) {
+    parse(eds_stream);
+    std::stringstream seds_ss(seds_string);
+    parse_sources(seds_ss);
 }
 
 // Load EDS from file
@@ -109,6 +166,21 @@ EDS EDS::load(const std::filesystem::path& path) {
         throw std::runtime_error("Failed to open file: " + path.string());
     }
     return EDS(ifs);
+}
+
+// Load EDS from file with sources from file
+EDS EDS::load(const std::filesystem::path& eds_path, const std::filesystem::path& seds_path) {
+    std::ifstream eds_ifs(eds_path);
+    if (!eds_ifs) {
+        throw std::runtime_error("Failed to open EDS file: " + eds_path.string());
+    }
+
+    std::ifstream seds_ifs(seds_path);
+    if (!seds_ifs) {
+        throw std::runtime_error("Failed to open sEDS file: " + seds_path.string());
+    }
+
+    return EDS(eds_ifs, seds_ifs);
 }
 
 // Load sources from sEDS stream
@@ -123,6 +195,12 @@ void EDS::load_sources(const std::filesystem::path& path) {
         throw std::runtime_error("Failed to open file: " + path.string());
     }
     parse_sources(ifs);
+}
+
+// Load sources from sEDS string
+void EDS::load_sources(const std::string& seds_string) {
+    std::stringstream ss(seds_string);
+    parse_sources(ss);
 }
 
 // Parse sEDS format: {{path_ids},{path_ids},...}
@@ -386,27 +464,38 @@ void EDS::print(std::ostream& os) const {
     }
 }
 
-void EDS::save(std::ostream& os) const {
-    // Output EDS format: {str1,str2,...}{str3}{str4,str5}...
-    for (const auto& set : sets_) {
-        os << "{";
+void EDS::save(std::ostream& os, OutputFormat format) const {
+    // Output EDS format
+    for (size_t i = 0; i < sets_.size(); i++) {
+        const auto& set = sets_[i];
+
+        // Determine if we should use brackets for this set
+        bool use_brackets = (format == OutputFormat::FULL) || is_degenerate_[i];
+
+        if (use_brackets) {
+            os << "{";
+        }
+
         bool first = true;
         for (const auto& str : set) {
             if (!first) os << ",";
             os << str;
             first = false;
         }
-        os << "}";
+
+        if (use_brackets) {
+            os << "}";
+        }
     }
     os << "\n";
 }
 
-void EDS::save(const std::filesystem::path& path) const {
+void EDS::save(const std::filesystem::path& path, OutputFormat format) const {
     std::ofstream ofs(path);
     if (!ofs) {
         throw std::runtime_error("Failed to open file for writing: " + path.string());
     }
-    save(ofs);
+    save(ofs, format);
 }
 
 void EDS::save_sources(std::ostream& os) const {
@@ -448,6 +537,58 @@ String EDS::extract(Position pos, Length len, const std::vector<int>& changes) c
 double EDS::calculate_size_in_bytes() const {
     // TODO: Implement
     return 0.0;
+}
+
+std::string EDS::normalize_eds_format(const std::string& input) const {
+    /*
+     * Normalize compact EDS format to full bracketed format
+     * Examples:
+     *   "ACGT{A,ACA}CGT" -> "{ACGT}{A,ACA}{CGT}"
+     *   "{ACGT}{A,ACA}{CGT}" -> "{ACGT}{A,ACA}{CGT}" (no change)
+     *   "A{C,G}T" -> "{A}{C,G}{T}"
+     */
+
+    std::string result;
+    std::string current_string;
+    size_t i = 0;
+    int brace_depth = 0;
+
+    while (i < input.length()) {
+        char ch = input[i];
+
+        if (ch == SET_OPEN) {
+            // If we have accumulated non-bracketed characters, wrap them
+            if (!current_string.empty() && brace_depth == 0) {
+                result += "{" + current_string + "}";
+                current_string.clear();
+            }
+            result += ch;
+            brace_depth++;
+            i++;
+        }
+        else if (ch == SET_CLOSE) {
+            result += ch;
+            brace_depth--;
+            i++;
+        }
+        else if (brace_depth > 0) {
+            // Inside brackets, pass through as-is
+            result += ch;
+            i++;
+        }
+        else {
+            // Outside brackets, accumulate characters
+            current_string += ch;
+            i++;
+        }
+    }
+
+    // If there are remaining non-bracketed characters at the end, wrap them
+    if (!current_string.empty() && brace_depth == 0) {
+        result += "{" + current_string + "}";
+    }
+
+    return result;
 }
 
 } // namespace biofmi

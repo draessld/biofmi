@@ -379,6 +379,167 @@ void test_print_statistics_output() {
     std::cout << "PASSED\n";
 }
 
+void test_string_constructor() {
+    std::cout << "Test 18: String constructor... ";
+
+    std::string eds_str = "{ACGT}{A,ACA}{CGT}";
+    biofmi::EDS eds(eds_str);
+
+    assert(eds.length() == 3);
+    assert(eds.cardinality() == 4);
+    const auto& sets = eds.get_sets();
+    assert(sets[0][0] == "ACGT");
+    assert(sets[1][0] == "A");
+    assert(sets[1][1] == "ACA");
+
+    std::cout << "PASSED\n";
+}
+
+void test_string_with_sources() {
+    std::cout << "Test 19: String constructor with sources... ";
+
+    std::string eds_str = "{A}{B,C}";
+    std::string seds_str = "{1}{2}{1,2}";
+
+    biofmi::EDS eds(eds_str, seds_str);
+
+    assert(eds.cardinality() == 3);
+    assert(eds.has_sources());
+
+    const auto& sources = eds.get_sources();
+    assert(sources[0].count(1) == 1);
+    assert(sources[1].count(2) == 1);
+    assert(sources[2].size() == 2);
+
+    std::cout << "PASSED\n";
+}
+
+void test_mixed_inputs() {
+    std::cout << "Test 20: Mixed input types (file + string, string + file)... ";
+
+    // Create temporary file with EDS
+    std::filesystem::path temp_eds = std::filesystem::temp_directory_path() / "test_mixed_eds.eds";
+    std::ofstream ofs(temp_eds);
+    ofs << "{AC}{GT}";
+    ofs.close();
+
+    // Test: file EDS + string sEDS
+    biofmi::EDS eds1(temp_eds, "{0}{1}");
+    assert(eds1.cardinality() == 2);
+    assert(eds1.has_sources());
+
+    // Test: string EDS + file sEDS (create file first)
+    std::filesystem::path temp_seds = std::filesystem::temp_directory_path() / "test_mixed_seds.seds";
+    std::ofstream ofs2(temp_seds);
+    ofs2 << "{2}{3}";
+    ofs2.close();
+
+    biofmi::EDS eds2("{XY}{ZW}", temp_seds);
+    assert(eds2.cardinality() == 2);
+    assert(eds2.has_sources());
+
+    // Test: static load with two files
+    biofmi::EDS eds3 = biofmi::EDS::load(temp_eds, temp_seds);
+    assert(eds3.has_sources());
+
+    // Cleanup
+    std::filesystem::remove(temp_eds);
+    std::filesystem::remove(temp_seds);
+
+    std::cout << "PASSED\n";
+}
+
+void test_compact_format_parsing() {
+    std::cout << "Test 21: Compact format parsing... ";
+
+    // Compact format: no brackets on non-degenerate symbols
+    std::string compact = "ACGT{A,ACA}CGT{T,TG}";
+    biofmi::EDS eds(compact);
+
+    assert(eds.length() == 4);
+    assert(eds.cardinality() == 6);
+
+    const auto& sets = eds.get_sets();
+    assert(sets[0][0] == "ACGT");
+    assert(sets[1].size() == 2);
+    assert(sets[1][0] == "A");
+    assert(sets[1][1] == "ACA");
+    assert(sets[2][0] == "CGT");
+    assert(sets[3].size() == 2);
+
+    std::cout << "PASSED\n";
+}
+
+void test_compact_format_output() {
+    std::cout << "Test 22: Compact format output... ";
+
+    std::stringstream ss("{ACGT}{A,ACA}{CGT}{T,TG}");
+    biofmi::EDS eds(ss);
+
+    // Save in compact format
+    std::stringstream output;
+    eds.save(output, biofmi::EDS::OutputFormat::COMPACT);
+
+    std::string result = output.str();
+    // Remove newline
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+
+    // Should be: ACGT{A,ACA}CGT{T,TG}
+    assert(result == "ACGT{A,ACA}CGT{T,TG}");
+
+    std::cout << "PASSED\n";
+}
+
+void test_roundtrip_compact() {
+    std::cout << "Test 23: Roundtrip compact format (parse → save → parse)... ";
+
+    // Start with compact format
+    std::string compact = "ACGT{A,ACA}CGT";
+    biofmi::EDS eds1(compact);
+
+    // Save in compact format
+    std::stringstream saved;
+    eds1.save(saved, biofmi::EDS::OutputFormat::COMPACT);
+
+    // Parse saved compact format
+    biofmi::EDS eds2(saved.str());
+
+    // Compare
+    assert(eds1.length() == eds2.length());
+    assert(eds1.cardinality() == eds2.cardinality());
+
+    const auto& sets1 = eds1.get_sets();
+    const auto& sets2 = eds2.get_sets();
+
+    for (size_t i = 0; i < sets1.size(); i++) {
+        assert(sets1[i].size() == sets2[i].size());
+        for (size_t j = 0; j < sets1[i].size(); j++) {
+            assert(sets1[i][j] == sets2[i][j]);
+        }
+    }
+
+    std::cout << "PASSED\n";
+}
+
+void test_load_sources_string() {
+    std::cout << "Test 24: Load sources from string... ";
+
+    biofmi::EDS eds("{A}{B,C}");
+    assert(!eds.has_sources());
+
+    std::string seds_str = "{0}{1}{2}";
+    eds.load_sources(seds_str);
+
+    assert(eds.has_sources());
+    const auto& sources = eds.get_sources();
+    assert(sources.size() == 3);
+    assert(sources[0].count(0) == 1);
+
+    std::cout << "PASSED\n";
+}
+
 int main() {
     std::cout << "Running EDS parsing tests...\n\n";
 
@@ -400,6 +561,13 @@ int main() {
         test_statistics_all_regular();
         test_print_output();
         test_print_statistics_output();
+        test_string_constructor();
+        test_string_with_sources();
+        test_mixed_inputs();
+        test_compact_format_parsing();
+        test_compact_format_output();
+        test_roundtrip_compact();
+        test_load_sources_string();
 
         std::cout << "\n✓ All tests passed!\n";
         return 0;

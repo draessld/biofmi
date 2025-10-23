@@ -16,18 +16,37 @@ namespace biofmi {
  *
  * An EDS is a sequence where each position can contain multiple alternative strings.
  * Format: {str1,str2,...}{str3}{str4,str5}...
+ * Compact format (optional): str1{str2,str3}str4 (brackets only on degenerate symbols)
  * Empty strings are represented as empty entries between commas.
  */
 class EDS {
 public:
-    // Constructor from input stream
-    explicit EDS(std::istream& is);
-
-    // Constructor from EDS + sEDS streams
-    EDS(std::istream& eds_stream, std::istream& seds_stream);
+    // Output format options
+    enum class OutputFormat {
+        FULL,     // Always use brackets: {ACGT}{A,ACA}{CGT}
+        COMPACT   // Omit brackets on non-degenerate: ACGT{A,ACA}CGT
+    };
 
     // Default constructor
     EDS() : is_empty_(true), has_sources_(false) {}
+
+    // Stream-based constructors
+    explicit EDS(std::istream& is);
+    EDS(std::istream& eds_stream, std::istream& seds_stream);
+
+    // String-based constructors
+    explicit EDS(const std::string& eds_string);
+    EDS(const std::string& eds_string, const std::string& seds_string);
+
+    // File-based constructors
+    static EDS load(const std::filesystem::path& path);
+    static EDS load(const std::filesystem::path& eds_path, const std::filesystem::path& seds_path);
+
+    // Mixed input constructors (for flexibility)
+    EDS(const std::string& eds_string, std::istream& seds_stream);
+    EDS(const std::string& eds_string, const std::filesystem::path& seds_path);
+    EDS(const std::filesystem::path& eds_path, const std::string& seds_string);
+    EDS(std::istream& eds_stream, const std::string& seds_string);
 
     // Destructor
     ~EDS() = default;
@@ -61,15 +80,15 @@ public:
 
     // Output methods
     void print(std::ostream& os = std::cout) const;
-    void save(std::ostream& os) const;
-    void save(const std::filesystem::path& path) const;
+    void save(std::ostream& os, OutputFormat format = OutputFormat::FULL) const;
+    void save(const std::filesystem::path& path, OutputFormat format = OutputFormat::FULL) const;
     void save_sources(std::ostream& os) const;  // Save sEDS format
     void save_sources(const std::filesystem::path& path) const;  // Save sEDS to file
 
-    // Loading methods
-    static EDS load(const std::filesystem::path& path);  // Load EDS from file
+    // Loading methods (sources only - EDS loading is via constructors/static load)
     void load_sources(std::istream& is);  // Load sources from sEDS stream
     void load_sources(const std::filesystem::path& path);  // Load sources from sEDS file
+    void load_sources(const std::string& seds_string);  // Load sources from sEDS string
 
     // Pattern generation for benchmarking
     void generate_patterns(std::ostream& os, size_t count, Length pattern_length) const;
@@ -104,6 +123,7 @@ private:
     void parse_sources(std::istream& is);
     void calculate_statistics();
     double calculate_size_in_bytes() const;
+    std::string normalize_eds_format(const std::string& input) const;
 };
 
 } // namespace biofmi
