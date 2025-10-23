@@ -1,0 +1,124 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# C/C++
+*.o
+*.a
+*.so
+*.out
+*.exe
+*.dll
+*.dylib
+*.obj
+*.elf
+*.gch
+*.pch
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*.mod
+*.smod
+*.lai
+*.la
+*.lo
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Build directories
+build/
+bin/
+obj/
+out/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Documentation
+docs/_build/
+*.pdf.bak
+
+# Text files
+*.pdf
+
+# Data files (uncomment if you don't want to track data)
+# *.vcf
+# *.msa
+# *.fasta
+# *.fastq
+# *.bam
+# *.sam
+
+# Large experimental results
+results/
+experiments/output/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Session and local notes (keep Claude config)
+.claude/session-notes.md
