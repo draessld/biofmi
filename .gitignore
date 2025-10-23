@@ -115,6 +115,7 @@ experiments/output/
 *.temp
 tmp/
 temp/
+old_code/
 
 # OS files
 Thumbs.db
@@ -124,3 +125,6 @@ Thumbs.db
 .claude/session-notes.md
 .claude
 .claudeignore
+
+*.md
+~README.md
