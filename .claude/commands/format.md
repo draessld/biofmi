@@ -1,1 +1,0 @@
-Format $ARGUMENTS code according to project standards
