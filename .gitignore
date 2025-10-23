@@ -90,6 +90,12 @@ htmlcov/
 *.cover
 .hypothesis/
 
+# Compiled test executables (keep source .cpp files)
+tests/cpp/test_*
+!tests/cpp/test_*.cpp
+tests/python/test_*
+!tests/python/test_*.py
+
 # Documentation
 docs/_build/
 *.pdf.bak
