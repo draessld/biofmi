@@ -175,6 +175,39 @@ if [ -d "tests/cpp" ] && [ "$(ls -A tests/cpp/*.cpp 2>/dev/null)" ]; then
     echo ""
 fi
 
+# Function to detect biofmi alias in shell config files
+detect_biofmi_alias() {
+    local shell_configs=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.zshrc" "$HOME/.profile")
+    local found_in=()
+
+    for config in "${shell_configs[@]}"; do
+        if [ -f "$config" ]; then
+            if grep -q "^\s*alias\s\+biofmi=" "$config" 2>/dev/null; then
+                found_in+=("$config")
+            fi
+        fi
+    done
+
+    echo "${found_in[@]}"
+}
+
+# Function to remove biofmi alias from shell config files
+remove_biofmi_alias() {
+    local config_file="$1"
+
+    if [ -f "$config_file" ]; then
+        # Create backup
+        cp "$config_file" "${config_file}.backup_$(date +%Y%m%d_%H%M%S)"
+
+        # Remove lines with biofmi alias (handles various whitespace patterns)
+        sed -i.tmp '/^\s*alias\s\+biofmi=/d' "$config_file"
+        rm -f "${config_file}.tmp"
+
+        return 0
+    fi
+    return 1
+}
+
 # Create biofmi command in PATH
 echo -e "${BLUE}Installing biofmi command...${NC}"
 
@@ -190,40 +223,73 @@ else
     print_info "Created $BIN_DIR directory"
 fi
 
-# Create a wrapper script
-cat > "$BIN_DIR/biofmi" << 'BIOFMI_SCRIPT'
+# Check for existing biofmi alias
+echo -e "${BLUE}Checking for existing biofmi alias...${NC}"
+alias_files=($(detect_biofmi_alias))
+
+if [ ${#alias_files[@]} -gt 0 ]; then
+    print_info "Found biofmi alias in: ${alias_files[*]}"
+    echo ""
+    echo -e "${YELLOW}An alias named 'biofmi' exists in your shell configuration.${NC}"
+    echo -e "${YELLOW}This will conflict with the biofmi executable.${NC}"
+    echo ""
+
+    for config_file in "${alias_files[@]}"; do
+        print_info "Removing biofmi alias from $config_file"
+        if remove_biofmi_alias "$config_file"; then
+            print_status "Alias removed from $config_file (backup created)"
+        else
+            print_error "Failed to remove alias from $config_file"
+        fi
+    done
+
+    echo ""
+    echo -e "${YELLOW}Please restart your terminal or run:${NC}"
+    echo "  source ~/.bashrc  (or source ~/.zshrc)"
+    echo ""
+else
+    print_status "No conflicting biofmi alias found"
+fi
+
+echo ""
+
+# Remove old biofmi wrapper if it exists
+if [ -f "$BIN_DIR/biofmi" ]; then
+    print_info "Removing old biofmi wrapper"
+    rm -f "$BIN_DIR/biofmi"
+fi
+
+# Create a wrapper script with direct path substitution
+cat > "$BIN_DIR/biofmi" << BIOFMI_SCRIPT
 #!/usr/bin/env python3
 """BIO-FMI wrapper script - forwards to project run.py"""
 import sys
 import os
-from pathlib import Path
 
-# Find the project directory (where this script was installed from)
-# Store the installation path in the script itself during installation
-PROJECT_DIR = "PROJECT_DIR_PLACEHOLDER"
+# Project directory - set during installation
+PROJECT_DIR = "$SCRIPT_DIR"
 
+# Validate project directory exists
 if not os.path.exists(PROJECT_DIR):
     print(f"Error: BIO-FMI project not found at {PROJECT_DIR}", file=sys.stderr)
     print("Please reinstall by running ./INSTALL.sh from the project directory", file=sys.stderr)
     sys.exit(1)
 
-# Import and run the main CLI
+# Ensure project directory is first in sys.path
+if PROJECT_DIR in sys.path:
+    sys.path.remove(PROJECT_DIR)
 sys.path.insert(0, PROJECT_DIR)
+
+# Change to project directory
 os.chdir(PROJECT_DIR)
 
-# Import the main function from run.py
-import importlib.util
-spec = importlib.util.spec_from_file_location("run", os.path.join(PROJECT_DIR, "run.py"))
-run_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(run_module)
-
-# Run the main function
-if __name__ == "__main__":
-    sys.exit(run_module.main())
+# Directly execute run.py
+run_py_path = os.path.join(PROJECT_DIR, "run.py")
+with open(run_py_path, 'r') as f:
+    code = compile(f.read(), run_py_path, 'exec')
+    exec(code, {'__name__': '__main__', '__file__': run_py_path})
 BIOFMI_SCRIPT
 
-# Replace the placeholder with actual project directory
-sed -i "s|PROJECT_DIR_PLACEHOLDER|$SCRIPT_DIR|g" "$BIN_DIR/biofmi"
 chmod +x "$BIN_DIR/biofmi"
 
 print_status "Installed biofmi to $BIN_DIR/biofmi"

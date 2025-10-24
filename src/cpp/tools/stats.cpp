@@ -124,14 +124,15 @@ void print_standard(const EDS& eds, const std::filesystem::path& input_file, boo
         std::cout << "\n";
     }
 
-    if (eds.has_sources() || has_sources_file) {
-        std::cout << "Sources: " << (eds.has_sources() ? "Loaded" : "File provided but not loaded in METADATA_ONLY mode") << "\n";
-        if (eds.has_sources()) {
-            std::cout << "  Strings with source info:     " << std::setw(12) << format_number(eds.get_sources().size()) << "\n";
-        }
+    if (eds.has_sources()) {
+        std::cout << "Sources (pangenome paths):\n";
+        std::cout << "  Strings with source info:     " << std::setw(12) << format_number(eds.get_sources().size()) << "\n";
+        std::cout << "  Total paths (genomes):        " << std::setw(12) << format_number(stats.num_paths) << "\n";
+        std::cout << "  Max paths per string:         " << std::setw(12) << format_number(stats.max_paths_per_string) << "\n";
+        std::cout << "  Avg paths per string:         " << std::setw(12) << std::fixed << std::setprecision(2) << stats.avg_paths_per_string << "\n";
         std::cout << "\n";
-    } else {
-        std::cout << "Sources: Not loaded\n";
+    } else if (has_sources_file) {
+        std::cout << "Sources: File provided but parsing failed\n";
         std::cout << "\n";
     }
 
@@ -207,7 +208,16 @@ void print_json(const EDS& eds, const std::filesystem::path& input_file, bool ha
     std::cout << "  },\n";
     std::cout << "  \"sources\": {\n";
     std::cout << "    \"loaded\": " << (eds.has_sources() ? "true" : "false") << ",\n";
-    std::cout << "    \"file_provided\": " << (has_sources_file ? "true" : "false") << "\n";
+    std::cout << "    \"file_provided\": " << (has_sources_file ? "true" : "false") << ",\n";
+    if (eds.has_sources()) {
+        std::cout << "    \"num_paths\": " << stats.num_paths << ",\n";
+        std::cout << "    \"max_paths_per_string\": " << stats.max_paths_per_string << ",\n";
+        std::cout << "    \"avg_paths_per_string\": " << std::fixed << std::setprecision(2) << stats.avg_paths_per_string << "\n";
+    } else {
+        std::cout << "    \"num_paths\": 0,\n";
+        std::cout << "    \"max_paths_per_string\": 0,\n";
+        std::cout << "    \"avg_paths_per_string\": 0.0\n";
+    }
     std::cout << "  },\n";
     std::cout << "  \"recommendations\": {\n";
     std::cout << "    \"needs_transformation\": " << (stats.min_context_length < 5 ? "true" : "false") << ",\n";
@@ -254,6 +264,7 @@ int main(int argc, char** argv) {
             std::cout << "  biofmi-stats -i data.eds --full --verbose\n\n";
             std::cout << "Storage Modes:\n";
             std::cout << "  METADATA_ONLY (default): Uses ~10% memory of FULL mode, fast for large files\n";
+            std::cout << "                           Sources are loaded as metadata (minimal memory impact)\n";
             std::cout << "  FULL (--full):           Loads all strings into RAM, enables detailed inspection\n";
             return 0;
         }
@@ -275,13 +286,8 @@ int main(int argc, char** argv) {
                 std::cerr << "Error: Source file '" << sources_file << "' not found\n";
                 return 1;
             }
-            // Only load sources in FULL mode (METADATA_ONLY doesn't support it currently)
-            if (use_full_mode) {
-                eds = EDS::load(input_file, sources_file, mode);
-            } else {
-                // Load without sources, but note that source file was provided
-                eds = EDS::load(input_file, mode);
-            }
+            // Load with sources (works in both FULL and METADATA_ONLY modes)
+            eds = EDS::load(input_file, sources_file, mode);
         } else {
             eds = EDS::load(input_file, mode);
         }

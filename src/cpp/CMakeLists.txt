@@ -71,6 +71,24 @@ enable_testing()
 add_subdirectory(lib)
 add_subdirectory(tools)
 
+# Add test executables
+set(TEST_DIR ${CMAKE_SOURCE_DIR}/../../tests/cpp)
+
+# Test: EDS parsing
+add_executable(test_eds ${TEST_DIR}/test_eds.cpp)
+target_link_libraries(test_eds biofmi_lib)
+add_test(NAME test_eds COMMAND test_eds)
+
+# Test: Sources parsing
+add_executable(test_sources ${TEST_DIR}/test_sources.cpp)
+target_link_libraries(test_sources biofmi_lib)
+add_test(NAME test_sources COMMAND test_sources)
+
+# Test: Statistics
+add_executable(test_stats ${TEST_DIR}/test_stats.cpp)
+target_link_libraries(test_stats biofmi_lib)
+add_test(NAME test_stats COMMAND test_stats)
+
 # Print configuration summary
 message(STATUS "")
 message(STATUS "Configuration Summary:")

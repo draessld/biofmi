@@ -540,6 +540,159 @@ void test_load_sources_string() {
     std::cout << "PASSED\n";
 }
 
+void test_generate_patterns() {
+    std::cout << "Test 24: Generate patterns... ";
+
+    // Create a simple EDS
+    biofmi::EDS eds("{ACGT}{A,CA}{GG}");
+
+    // Generate patterns
+    std::stringstream output;
+    eds.generate_patterns(output, 5, 8);
+
+    // Check that we got 5 patterns
+    std::string line;
+    int count = 0;
+    while (std::getline(output, line)) {
+        if (!line.empty()) {
+            count++;
+            // Each pattern should be 8 characters long
+            assert(line.length() == 8);
+        }
+    }
+    assert(count == 5);
+
+    std::cout << "PASSED\n";
+}
+
+void test_generate_patterns_metadata_only() {
+    std::cout << "Test 25: Generate patterns throws in METADATA_ONLY mode... ";
+
+    // Create temp file
+    std::filesystem::path temp_file = std::filesystem::temp_directory_path() / "test_genpatterns.eds";
+    std::ofstream ofs(temp_file);
+    ofs << "{ACGT}{A,CA}";
+    ofs.close();
+
+    // Load in METADATA_ONLY mode
+    auto eds = biofmi::EDS::load(temp_file.string(), biofmi::EDS::StoringMode::METADATA_ONLY);
+
+    // Should throw
+    std::stringstream output;
+    bool threw = false;
+    try {
+        eds.generate_patterns(output, 1, 5);
+    } catch (const std::runtime_error& e) {
+        threw = true;
+        std::string msg = e.what();
+        assert(msg.find("FULL mode") != std::string::npos);
+    }
+    assert(threw);
+
+    std::filesystem::remove(temp_file);
+    std::cout << "PASSED\n";
+}
+
+void test_extract_basic() {
+    std::cout << "Test 26: Extract basic... ";
+
+    biofmi::EDS eds("{ACGT}{A,CA}{GG}{T,TT}");
+
+    // Extract: position 1-2, selecting first alternative from each
+    std::vector<int> changes = {0, 0};
+    std::string result = eds.extract(1, 2, changes);
+    assert(result == "AGG");  // {A} + {GG}
+
+    // Extract: position 1-2, selecting second alternative from first, first from second
+    changes = {1, 0};
+    result = eds.extract(1, 2, changes);
+    assert(result == "CAGG");  // {CA} + {GG}
+
+    // Extract: position 3, selecting second alternative
+    changes = {1};
+    result = eds.extract(3, 1, changes);
+    assert(result == "TT");  // {TT}
+
+    std::cout << "PASSED\n";
+}
+
+void test_extract_empty() {
+    std::cout << "Test 27: Extract with zero length... ";
+
+    biofmi::EDS eds("{ACGT}{A,CA}");
+    std::vector<int> changes = {};
+    std::string result = eds.extract(0, 0, changes);
+    assert(result == "");
+
+    std::cout << "PASSED\n";
+}
+
+void test_extract_invalid_change_index() {
+    std::cout << "Test 28: Extract with invalid change index... ";
+
+    biofmi::EDS eds("{ACGT}{A,CA}");
+
+    // Invalid index (only 0,1 valid for position 1)
+    std::vector<int> changes = {5};
+    bool threw = false;
+    try {
+        eds.extract(1, 1, changes);
+    } catch (const std::out_of_range& e) {
+        threw = true;
+    }
+    assert(threw);
+
+    std::cout << "PASSED\n";
+}
+
+void test_extract_wrong_changes_size() {
+    std::cout << "Test 29: Extract with wrong changes vector size... ";
+
+    biofmi::EDS eds("{ACGT}{A,CA}{GG}");
+
+    // Request 2 positions but provide 1 change
+    std::vector<int> changes = {0};
+    bool threw = false;
+    try {
+        eds.extract(0, 2, changes);
+    } catch (const std::invalid_argument& e) {
+        threw = true;
+        std::string msg = e.what();
+        assert(msg.find("changes vector size") != std::string::npos);
+    }
+    assert(threw);
+
+    std::cout << "PASSED\n";
+}
+
+void test_extract_metadata_only() {
+    std::cout << "Test 30: Extract throws in METADATA_ONLY mode... ";
+
+    // Create temp file
+    std::filesystem::path temp_file = std::filesystem::temp_directory_path() / "test_extract.eds";
+    std::ofstream ofs(temp_file);
+    ofs << "{ACGT}{A,CA}";
+    ofs.close();
+
+    // Load in METADATA_ONLY mode
+    auto eds = biofmi::EDS::load(temp_file.string(), biofmi::EDS::StoringMode::METADATA_ONLY);
+
+    // Should throw
+    std::vector<int> changes = {0};
+    bool threw = false;
+    try {
+        eds.extract(0, 1, changes);
+    } catch (const std::runtime_error& e) {
+        threw = true;
+        std::string msg = e.what();
+        assert(msg.find("FULL mode") != std::string::npos);
+    }
+    assert(threw);
+
+    std::filesystem::remove(temp_file);
+    std::cout << "PASSED\n";
+}
+
 int main() {
     std::cout << "Running EDS parsing tests...\n\n";
 
@@ -568,6 +721,13 @@ int main() {
         test_compact_format_output();
         test_roundtrip_compact();
         test_load_sources_string();
+        test_generate_patterns();
+        test_generate_patterns_metadata_only();
+        test_extract_basic();
+        test_extract_empty();
+        test_extract_invalid_change_index();
+        test_extract_wrong_changes_size();
+        test_extract_metadata_only();
 
         std::cout << "\n✓ All tests passed!\n";
         return 0;

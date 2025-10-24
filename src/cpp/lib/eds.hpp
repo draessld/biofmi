@@ -94,6 +94,11 @@ public:
         size_t num_common_chars;          // Total chars in non-degenerate symbols
         size_t total_change_size;         // Total chars in degenerate symbols
         size_t num_empty_strings;         // Count of empty string alternatives
+
+        // Source statistics (only meaningful if sources are loaded)
+        size_t num_paths;                 // Total number of distinct path IDs
+        size_t max_paths_per_string;      // Maximum paths in any single string
+        double avg_paths_per_string;      // Average paths per string
     };
 
     // Statistics (for backward compatibility, returns statistics portion of metadata)
@@ -105,6 +110,11 @@ public:
         size_t num_common_chars;
         size_t total_change_size;
         size_t num_empty_strings;
+
+        // Source statistics
+        size_t num_paths;
+        size_t max_paths_per_string;
+        double avg_paths_per_string;
     };
 
     const Metadata& get_metadata() const { return metadata_; }  // Get full metadata
@@ -167,7 +177,7 @@ private:
     void parse(std::istream& is);
     void parse_sources(std::istream& is);
     void calculate_statistics();
-    double calculate_size_in_bytes() const;
+    void calculate_source_statistics();
     std::string normalize_eds_format(const std::string& input) const;
 
     // Streaming helpers

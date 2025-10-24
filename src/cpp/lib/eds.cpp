@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
+#include <random>
 
 namespace biofmi {
 
@@ -358,6 +359,9 @@ void EDS::parse_sources(std::istream& is) {
     }
 
     has_sources_ = true;
+
+    // Calculate source statistics
+    calculate_source_statistics();
 }
 
 void EDS::calculate_statistics() {
@@ -369,6 +373,9 @@ void EDS::calculate_statistics() {
         metadata_.num_common_chars = 0;
         metadata_.total_change_size = 0;
         metadata_.num_empty_strings = 0;
+        metadata_.num_paths = 0;
+        metadata_.max_paths_per_string = 0;
+        metadata_.avg_paths_per_string = 0.0;
         return;
     }
 
@@ -433,6 +440,42 @@ void EDS::calculate_statistics() {
     }
 }
 
+void EDS::calculate_source_statistics() {
+    // Initialize source statistics
+    metadata_.num_paths = 0;
+    metadata_.max_paths_per_string = 0;
+    metadata_.avg_paths_per_string = 0.0;
+
+    if (!has_sources_ || sources_.empty()) {
+        return;
+    }
+
+    // Track all unique path IDs
+    std::set<int> all_paths;
+    size_t total_paths = 0;
+
+    for (const auto& source_set : sources_) {
+        // Track max paths in any single string
+        if (source_set.size() > metadata_.max_paths_per_string) {
+            metadata_.max_paths_per_string = source_set.size();
+        }
+
+        // Accumulate all unique paths
+        for (int path_id : source_set) {
+            all_paths.insert(path_id);
+        }
+
+        // Count total for average
+        total_paths += source_set.size();
+    }
+
+    // Calculate statistics
+    metadata_.num_paths = all_paths.size();
+    metadata_.avg_paths_per_string = sources_.size() > 0
+        ? static_cast<double>(total_paths) / sources_.size()
+        : 0.0;
+}
+
 EDS::Statistics EDS::get_statistics() const {
     // Return Statistics struct from Metadata (for backward compatibility)
     Statistics stats;
@@ -443,6 +486,9 @@ EDS::Statistics EDS::get_statistics() const {
     stats.num_common_chars = metadata_.num_common_chars;
     stats.total_change_size = metadata_.total_change_size;
     stats.num_empty_strings = metadata_.num_empty_strings;
+    stats.num_paths = metadata_.num_paths;
+    stats.max_paths_per_string = metadata_.max_paths_per_string;
+    stats.avg_paths_per_string = metadata_.avg_paths_per_string;
     return stats;
 }
 
@@ -587,17 +633,138 @@ void EDS::save_sources(const std::filesystem::path& path) const {
 }
 
 void EDS::generate_patterns(std::ostream& os, size_t count, Length pattern_length) const {
-    // TODO: Implement
+    // Only available in FULL mode
+    if (mode_ == StoringMode::METADATA_ONLY) {
+        throw std::runtime_error(
+            "generate_patterns() is only available in FULL mode. "
+            "Load EDS with StoringMode::FULL to use this function."
+        );
+    }
+
+    if (is_empty_ || n_ == 0) {
+        throw std::runtime_error("Cannot generate patterns from empty EDS");
+    }
+
+    if (pattern_length == 0) {
+        throw std::invalid_argument("Pattern length must be greater than 0");
+    }
+
+    // Use random number generator for reproducible results
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    for (size_t i = 0; i < count; ++i) {
+        String pattern;
+        Position current_pos = 0;
+        Length remaining_length = pattern_length;
+
+        // Generate pattern by randomly selecting from sets
+        while (remaining_length > 0 && current_pos < n_) {
+            const StringSet& set = sets_[current_pos];
+
+            if (set.empty()) {
+                // Skip empty sets (epsilon)
+                current_pos++;
+                continue;
+            }
+
+            // Randomly select one string from the set
+            std::uniform_int_distribution<size_t> set_dist(0, set.size() - 1);
+            size_t string_idx = set_dist(gen);
+            const String& selected = set[string_idx];
+
+            // Take what we need from this string
+            Length to_take = std::min(remaining_length, static_cast<Length>(selected.length()));
+            pattern.append(selected.substr(0, to_take));
+            remaining_length -= to_take;
+
+            if (remaining_length > 0) {
+                current_pos++;
+            } else {
+                break;
+            }
+        }
+
+        // If we couldn't generate full pattern length, pad or regenerate
+        if (pattern.length() < pattern_length) {
+            // Try wrapping around for short EDS
+            while (pattern.length() < pattern_length && n_ > 0) {
+                Position wrap_pos = pattern.length() % n_;
+                const StringSet& set = sets_[wrap_pos];
+
+                if (!set.empty()) {
+                    std::uniform_int_distribution<size_t> set_dist(0, set.size() - 1);
+                    size_t string_idx = set_dist(gen);
+                    const String& selected = set[string_idx];
+
+                    Length to_take = std::min(
+                        static_cast<Length>(pattern_length - pattern.length()),
+                        static_cast<Length>(selected.length())
+                    );
+                    pattern.append(selected.substr(0, to_take));
+                }
+            }
+        }
+
+        // Output the pattern
+        os << pattern << '\n';
+    }
 }
 
 String EDS::extract(Position pos, Length len, const std::vector<int>& changes) const {
-    // TODO: Implement
-    return "";
-}
+    // Only available in FULL mode
+    if (mode_ == StoringMode::METADATA_ONLY) {
+        throw std::runtime_error(
+            "extract() is only available in FULL mode. "
+            "Load EDS with StoringMode::FULL to use this function."
+        );
+    }
 
-double EDS::calculate_size_in_bytes() const {
-    // TODO: Implement
-    return 0.0;
+    if (is_empty_ || n_ == 0) {
+        throw std::runtime_error("Cannot extract from empty EDS");
+    }
+
+    if (pos >= n_) {
+        throw std::out_of_range("Start position exceeds EDS length");
+    }
+
+    if (len == 0) {
+        return "";
+    }
+
+    // Validate changes vector size
+    Position end_pos = std::min(pos + len, n_);
+    size_t expected_changes = end_pos - pos;
+
+    if (changes.size() != expected_changes) {
+        throw std::invalid_argument(
+            "changes vector size (" + std::to_string(changes.size()) +
+            ") must match range length (" + std::to_string(expected_changes) + ")"
+        );
+    }
+
+    // Extract substring by selecting alternatives according to changes vector
+    String result;
+    for (size_t i = 0; i < expected_changes; ++i) {
+        Position current_pos = pos + i;
+        int change_idx = changes[i];
+
+        const StringSet& set = sets_[current_pos];
+
+        // Validate change index
+        if (change_idx < 0 || static_cast<size_t>(change_idx) >= set.size()) {
+            throw std::out_of_range(
+                "Change index " + std::to_string(change_idx) +
+                " at position " + std::to_string(current_pos) +
+                " is out of range (set size: " + std::to_string(set.size()) + ")"
+            );
+        }
+
+        // Append the selected string
+        result.append(set[change_idx]);
+    }
+
+    return result;
 }
 
 std::string EDS::normalize_eds_format(const std::string& input) const {

@@ -134,3 +134,4 @@ Thumbs.db
 
 *.md
 ~README.md
+~src/cpp/tools/README.md
