@@ -6,19 +6,19 @@
 
 namespace biofmi {
 
-// Stream-based constructor
-EDS::EDS(std::istream& is) : is_empty_(false), has_sources_(false) {
+// Stream-based constructor (always FULL mode for streams)
+EDS::EDS(std::istream& is) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     parse(is);
 }
 
-// String-based constructor
-EDS::EDS(const std::string& eds_string) : is_empty_(false), has_sources_(false) {
+// String-based constructor (always FULL mode for strings)
+EDS::EDS(const std::string& eds_string) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     std::stringstream ss(eds_string);
     parse(ss);
 }
 
-// String-based constructor with sources
-EDS::EDS(const std::string& eds_string, const std::string& seds_string) : is_empty_(false), has_sources_(false) {
+// String-based constructor with sources (always FULL mode)
+EDS::EDS(const std::string& eds_string, const std::string& seds_string) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     std::stringstream eds_ss(eds_string);
     std::stringstream seds_ss(seds_string);
     parse(eds_ss);
@@ -52,12 +52,20 @@ void EDS::parse(std::istream& is) {
     N_ = 0;      // Total characters
     m_ = 0;      // Cardinality (total strings)
 
+    // Clear all data structures
     sets_.clear();
-    is_degenerate_.clear();
     set_sizes_.clear();
-    cum_set_sizes_.clear();
+    metadata_.base_positions.clear();
+    metadata_.symbol_sizes.clear();
+    metadata_.string_lengths.clear();
+    metadata_.cum_set_sizes.clear();
+    metadata_.is_degenerate.clear();
 
     while (pos < input.length()) {
+        // Record starting position of this symbol
+        std::streampos symbol_start = static_cast<std::streampos>(pos);
+        metadata_.base_positions.push_back(symbol_start);
+
         // Expect '{'
         if (input[pos] != SET_OPEN) {
             throw std::runtime_error("Expected '{' at position " + std::to_string(pos));
@@ -67,12 +75,21 @@ void EDS::parse(std::istream& is) {
         // Parse strings within this set
         StringSet current_set;
         std::string current_string;
+        size_t symbol_size = 0;
 
         while (pos < input.length() && input[pos] != SET_CLOSE) {
             if (input[pos] == SET_SEPARATOR) {
-                // End of current string, add to set
-                current_set.push_back(current_string);
-                N_ += current_string.length();
+                // End of current string
+                Length str_len = current_string.length();
+                metadata_.string_lengths.push_back(str_len);
+                N_ += str_len;
+                symbol_size++;
+
+                // Only store string if FULL mode
+                if (mode_ == StoringMode::FULL) {
+                    current_set.push_back(current_string);
+                }
+
                 current_string.clear();
                 pos++;
             } else {
@@ -83,8 +100,14 @@ void EDS::parse(std::istream& is) {
         }
 
         // Add last string in set (could be empty)
-        current_set.push_back(current_string);
-        N_ += current_string.length();
+        Length str_len = current_string.length();
+        metadata_.string_lengths.push_back(str_len);
+        N_ += str_len;
+        symbol_size++;
+
+        if (mode_ == StoringMode::FULL) {
+            current_set.push_back(current_string);
+        }
 
         // Expect '}'
         if (pos >= input.length() || input[pos] != SET_CLOSE) {
@@ -93,17 +116,22 @@ void EDS::parse(std::istream& is) {
         pos++; // Skip '}'
 
         // Validate set is not empty
-        if (current_set.empty()) {
+        if (symbol_size == 0) {
             throw std::runtime_error("Empty set at position " + std::to_string(pos));
         }
 
-        // Store set information
-        sets_.push_back(current_set);
-        set_sizes_.push_back(current_set.size());
-        cum_set_sizes_.push_back(m_);  // Cumulative count before adding this set
-        is_degenerate_.push_back(current_set.size() > 1);
+        // Store metadata
+        metadata_.symbol_sizes.push_back(symbol_size);
+        metadata_.cum_set_sizes.push_back(m_);  // Cumulative count before adding this set
+        metadata_.is_degenerate.push_back(symbol_size > 1);
 
-        m_ += current_set.size();
+        // Store full data if FULL mode
+        if (mode_ == StoringMode::FULL) {
+            sets_.push_back(current_set);
+            set_sizes_.push_back(current_set.size());
+        }
+
+        m_ += symbol_size;
         n_++;
     }
 
@@ -112,24 +140,26 @@ void EDS::parse(std::istream& is) {
         is_empty_ = true;
     } else {
         is_empty_ = false;
+        // Calculate statistics from metadata
+        calculate_statistics();
     }
 }
 
-// Constructor with EDS + sEDS streams
-EDS::EDS(std::istream& eds_stream, std::istream& seds_stream) : is_empty_(false), has_sources_(false) {
+// Constructor with EDS + sEDS streams (always FULL mode)
+EDS::EDS(std::istream& eds_stream, std::istream& seds_stream) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     parse(eds_stream);
     parse_sources(seds_stream);
 }
 
-// Mixed input constructor: string EDS + stream sEDS
-EDS::EDS(const std::string& eds_string, std::istream& seds_stream) : is_empty_(false), has_sources_(false) {
+// Mixed input constructor: string EDS + stream sEDS (always FULL mode)
+EDS::EDS(const std::string& eds_string, std::istream& seds_stream) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     std::stringstream eds_ss(eds_string);
     parse(eds_ss);
     parse_sources(seds_stream);
 }
 
-// Mixed input constructor: string EDS + file sEDS
-EDS::EDS(const std::string& eds_string, const std::filesystem::path& seds_path) : is_empty_(false), has_sources_(false) {
+// Mixed input constructor: string EDS + file sEDS (always FULL mode)
+EDS::EDS(const std::string& eds_string, const std::filesystem::path& seds_path) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     std::stringstream eds_ss(eds_string);
     parse(eds_ss);
 
@@ -140,8 +170,8 @@ EDS::EDS(const std::string& eds_string, const std::filesystem::path& seds_path) 
     parse_sources(seds_ifs);
 }
 
-// Mixed input constructor: file EDS + string sEDS
-EDS::EDS(const std::filesystem::path& eds_path, const std::string& seds_string) : is_empty_(false), has_sources_(false) {
+// Mixed input constructor: file EDS + string sEDS (uses FULL mode, file not kept open)
+EDS::EDS(const std::filesystem::path& eds_path, const std::string& seds_string) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     std::ifstream eds_ifs(eds_path);
     if (!eds_ifs) {
         throw std::runtime_error("Failed to open EDS file: " + eds_path.string());
@@ -152,35 +182,75 @@ EDS::EDS(const std::filesystem::path& eds_path, const std::string& seds_string) 
     parse_sources(seds_ss);
 }
 
-// Mixed input constructor: stream EDS + string sEDS
-EDS::EDS(std::istream& eds_stream, const std::string& seds_string) : is_empty_(false), has_sources_(false) {
+// Mixed input constructor: stream EDS + string sEDS (always FULL mode)
+EDS::EDS(std::istream& eds_stream, const std::string& seds_string) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
     parse(eds_stream);
     std::stringstream seds_ss(seds_string);
     parse_sources(seds_ss);
 }
 
-// Load EDS from file
-EDS EDS::load(const std::filesystem::path& path) {
+// Load EDS from file (with optional StoringMode)
+EDS EDS::load(const std::filesystem::path& path, StoringMode mode) {
+    EDS eds;
+    eds.mode_ = mode;
+    eds.is_empty_ = false;
+    eds.has_sources_ = false;
+
+    // For METADATA_ONLY, save path for later streaming
+    if (mode == StoringMode::METADATA_ONLY) {
+        eds.file_path_ = path;
+    }
+
     std::ifstream ifs(path);
     if (!ifs) {
         throw std::runtime_error("Failed to open file: " + path.string());
     }
-    return EDS(ifs);
+    eds.parse(ifs);
+
+    // For METADATA_ONLY, reopen file and keep stream open
+    if (mode == StoringMode::METADATA_ONLY) {
+        eds.stream_.open(path);
+        if (!eds.stream_) {
+            throw std::runtime_error("Failed to reopen file for streaming: " + path.string());
+        }
+    }
+
+    return eds;
 }
 
-// Load EDS from file with sources from file
-EDS EDS::load(const std::filesystem::path& eds_path, const std::filesystem::path& seds_path) {
+// Load EDS from file with sources from file (with optional StoringMode)
+EDS EDS::load(const std::filesystem::path& eds_path, const std::filesystem::path& seds_path, StoringMode mode) {
+    EDS eds;
+    eds.mode_ = mode;
+    eds.is_empty_ = false;
+    eds.has_sources_ = false;
+
+    // For METADATA_ONLY, save path for later streaming
+    if (mode == StoringMode::METADATA_ONLY) {
+        eds.file_path_ = eds_path;
+    }
+
     std::ifstream eds_ifs(eds_path);
     if (!eds_ifs) {
         throw std::runtime_error("Failed to open EDS file: " + eds_path.string());
     }
+    eds.parse(eds_ifs);
 
     std::ifstream seds_ifs(seds_path);
     if (!seds_ifs) {
         throw std::runtime_error("Failed to open sEDS file: " + seds_path.string());
     }
+    eds.parse_sources(seds_ifs);
 
-    return EDS(eds_ifs, seds_ifs);
+    // For METADATA_ONLY, reopen file and keep stream open
+    if (mode == StoringMode::METADATA_ONLY) {
+        eds.stream_.open(eds_path);
+        if (!eds.stream_) {
+            throw std::runtime_error("Failed to reopen file for streaming: " + eds_path.string());
+        }
+    }
+
+    return eds;
 }
 
 // Load sources from sEDS stream
@@ -292,111 +362,88 @@ void EDS::parse_sources(std::istream& is) {
 
 void EDS::calculate_statistics() {
     if (is_empty_) {
-        stats_.min_context_length = 0;
-        stats_.max_context_length = 0;
-        stats_.avg_context_length = 0.0;
-        stats_.num_degenerate_symbols = 0;
-        stats_.num_common_chars = 0;
-        stats_.total_change_size = 0;
-        stats_.num_empty_strings = 0;
+        metadata_.min_context_length = 0;
+        metadata_.max_context_length = 0;
+        metadata_.avg_context_length = 0.0;
+        metadata_.num_degenerate_symbols = 0;
+        metadata_.num_common_chars = 0;
+        metadata_.total_change_size = 0;
+        metadata_.num_empty_strings = 0;
         return;
     }
 
-    // Initialize statistics
-    stats_.min_context_length = UINT32_MAX;
-    stats_.max_context_length = 0;
-    stats_.num_degenerate_symbols = 0;
-    stats_.num_common_chars = 0;
-    stats_.total_change_size = 0;
-    stats_.num_empty_strings = 0;
+    // Initialize statistics in metadata
+    metadata_.min_context_length = UINT32_MAX;
+    metadata_.max_context_length = 0;
+    metadata_.num_degenerate_symbols = 0;
+    metadata_.num_common_chars = 0;
+    metadata_.total_change_size = 0;
+    metadata_.num_empty_strings = 0;
 
-    size_t total_length = 0;
-    size_t num_strings_counted = 0;
+    size_t total_context_length = 0;
+    size_t num_context_blocks = 0;
+    size_t string_idx = 0;
 
-    // Iterate through each set
-    for (size_t i = 0; i < sets_.size(); i++) {
-        const auto& set = sets_[i];
+    // Iterate through each symbol using metadata only
+    for (size_t i = 0; i < n_; i++) {
+        size_t symbol_size = metadata_.symbol_sizes[i];
+        bool is_degenerate = metadata_.is_degenerate[i];
 
-        // Count degenerate symbols (sets with more than one string)
-        if (is_degenerate_[i]) {
-            stats_.num_degenerate_symbols++;
-            // Total change size is the number of alternatives beyond the first
-            stats_.total_change_size += (set.size() - 1);
+        // Count degenerate symbols
+        if (is_degenerate) {
+            metadata_.num_degenerate_symbols++;
+            metadata_.total_change_size += (symbol_size - 1);
+        } else {
+            // Non-degenerate symbols are "context blocks"
+            // These are the common parts between degenerate positions
+            Length context_len = metadata_.string_lengths[string_idx];
+
+            if (context_len < metadata_.min_context_length) {
+                metadata_.min_context_length = context_len;
+            }
+            if (context_len > metadata_.max_context_length) {
+                metadata_.max_context_length = context_len;
+            }
+            total_context_length += context_len;
+            num_context_blocks++;
+
+            metadata_.num_common_chars += context_len;
         }
 
-        // Process each string in the set
-        for (const auto& str : set) {
-            Length len = str.length();
-
-            // Update min/max/avg context length
-            if (len < stats_.min_context_length) {
-                stats_.min_context_length = len;
+        // Count empty strings and process all strings in this symbol
+        for (size_t j = 0; j < symbol_size; j++) {
+            Length str_len = metadata_.string_lengths[string_idx];
+            if (str_len == 0) {
+                metadata_.num_empty_strings++;
             }
-            if (len > stats_.max_context_length) {
-                stats_.max_context_length = len;
-            }
-            total_length += len;
-            num_strings_counted++;
-
-            // Count empty strings
-            if (len == 0) {
-                stats_.num_empty_strings++;
-            }
-        }
-
-        // Calculate common characters in degenerate sets
-        if (is_degenerate_[i] && set.size() > 1) {
-            // Find the length of the shortest string in this set
-            size_t min_len = SIZE_MAX;
-            for (const auto& str : set) {
-                if (str.length() < min_len) {
-                    min_len = str.length();
-                }
-            }
-
-            // Count common prefix characters
-            for (size_t pos = 0; pos < min_len; pos++) {
-                char common_char = set[0][pos];
-                bool is_common = true;
-
-                for (size_t j = 1; j < set.size(); j++) {
-                    if (set[j][pos] != common_char) {
-                        is_common = false;
-                        break;
-                    }
-                }
-
-                if (is_common) {
-                    stats_.num_common_chars++;
-                } else {
-                    // Once we find a non-common character, stop checking
-                    // (only counting common prefix)
-                    break;
-                }
-            }
+            string_idx++;
         }
     }
 
     // Calculate average context length
-    if (num_strings_counted > 0) {
-        stats_.avg_context_length = static_cast<double>(total_length) / num_strings_counted;
+    if (num_context_blocks > 0) {
+        metadata_.avg_context_length = static_cast<double>(total_context_length) / num_context_blocks;
     } else {
-        stats_.avg_context_length = 0.0;
+        metadata_.avg_context_length = 0.0;
     }
 
-    // Handle edge case where all strings are empty
-    if (stats_.min_context_length == UINT32_MAX) {
-        stats_.min_context_length = 0;
+    // Handle edge case where all symbols are degenerate (no context blocks)
+    if (metadata_.min_context_length == UINT32_MAX) {
+        metadata_.min_context_length = 0;
     }
 }
 
 EDS::Statistics EDS::get_statistics() const {
-    // Note: calculate_statistics() modifies stats_, but get_statistics() is const
-    // We need to make this work by calling calculate_statistics() when needed
-    // For now, we'll calculate statistics on demand using const_cast
-    // A better approach would be to use mutable or calculate in constructor
-    const_cast<EDS*>(this)->calculate_statistics();
-    return stats_;
+    // Return Statistics struct from Metadata (for backward compatibility)
+    Statistics stats;
+    stats.min_context_length = metadata_.min_context_length;
+    stats.max_context_length = metadata_.max_context_length;
+    stats.avg_context_length = metadata_.avg_context_length;
+    stats.num_degenerate_symbols = metadata_.num_degenerate_symbols;
+    stats.num_common_chars = metadata_.num_common_chars;
+    stats.total_change_size = metadata_.total_change_size;
+    stats.num_empty_strings = metadata_.num_empty_strings;
+    return stats;
 }
 
 void EDS::print_statistics(std::ostream& os) const {
@@ -431,6 +478,13 @@ void EDS::print_statistics(std::ostream& os) const {
 }
 
 void EDS::print(std::ostream& os) const {
+    if (mode_ == StoringMode::METADATA_ONLY) {
+        throw std::runtime_error(
+            "Cannot print EDS in METADATA_ONLY mode. "
+            "Load with StoringMode::FULL to access string data for printing."
+        );
+    }
+
     if (is_empty_) {
         os << "(empty EDS)\n";
         return;
@@ -456,7 +510,7 @@ void EDS::print(std::ostream& os) const {
 
         os << "}";
 
-        if (is_degenerate_[i]) {
+        if (metadata_.is_degenerate[i]) {
             os << " [degenerate]";
         }
 
@@ -465,12 +519,19 @@ void EDS::print(std::ostream& os) const {
 }
 
 void EDS::save(std::ostream& os, OutputFormat format) const {
+    if (mode_ == StoringMode::METADATA_ONLY) {
+        throw std::runtime_error(
+            "Cannot save EDS in METADATA_ONLY mode. "
+            "Load with StoringMode::FULL to access string data for saving."
+        );
+    }
+
     // Output EDS format
     for (size_t i = 0; i < sets_.size(); i++) {
         const auto& set = sets_[i];
 
         // Determine if we should use brackets for this set
-        bool use_brackets = (format == OutputFormat::FULL) || is_degenerate_[i];
+        bool use_brackets = (format == OutputFormat::FULL) || metadata_.is_degenerate[i];
 
         if (use_brackets) {
             os << "{";
@@ -589,6 +650,71 @@ std::string EDS::normalize_eds_format(const std::string& input) const {
     }
 
     return result;
+}
+
+// Read symbol from stream (for METADATA_ONLY mode)
+StringSet EDS::read_symbol_from_stream(Position pos) const {
+    if (mode_ == StoringMode::FULL) {
+        // In FULL mode, return directly from sets_
+        return sets_[pos];
+    }
+
+    // METADATA_ONLY mode: stream from file
+    if (!stream_.is_open()) {
+        throw std::runtime_error("File stream not available for reading symbol");
+    }
+
+    // Seek to symbol position
+    stream_.clear();  // Clear any error flags
+    stream_.seekg(metadata_.base_positions[pos]);
+
+    if (!stream_) {
+        throw std::runtime_error("Failed to seek to position " + std::to_string(pos));
+    }
+
+    // Parse one symbol
+    StringSet result;
+    char ch;
+    std::string current_str;
+
+    // Expect '{'
+    if (!stream_.get(ch) || ch != SET_OPEN) {
+        throw std::runtime_error("Expected '{' at position " + std::to_string(pos));
+    }
+
+    // Parse strings in symbol
+    while (stream_.get(ch) && ch != SET_CLOSE) {
+        if (ch == SET_SEPARATOR) {
+            result.push_back(current_str);
+            current_str.clear();
+        } else if (!std::isspace(ch)) {  // Skip whitespace
+            current_str += ch;
+        }
+    }
+
+    // Add last string
+    result.push_back(current_str);
+
+    return result;
+}
+
+// Public accessor for read_symbol (works in both modes)
+StringSet EDS::read_symbol(Position pos) const {
+    if (pos >= n_) {
+        throw std::out_of_range("Position " + std::to_string(pos) + " out of range");
+    }
+    return read_symbol_from_stream(pos);
+}
+
+// get_sets() with error checking
+const std::vector<StringSet>& EDS::get_sets() const {
+    if (mode_ == StoringMode::METADATA_ONLY) {
+        throw std::runtime_error(
+            "Cannot access sets in METADATA_ONLY mode. "
+            "Use read_symbol(pos) for on-demand access, or load with StoringMode::FULL"
+        );
+    }
+    return sets_;
 }
 
 } // namespace biofmi

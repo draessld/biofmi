@@ -100,9 +100,19 @@ def cmd_locate(args, cli: BioFMICLI) -> int:
 
 def cmd_stats(args, cli: BioFMICLI) -> int:
     """Show statistics for EDS/l-EDS file"""
-    cpp_args = [str(args.input)]
+    cpp_args = ["-i", str(args.input)]
 
-    print(f"Computing statistics for {args.input}")
+    if args.sources:
+        cpp_args.extend(["-s", str(args.sources)])
+    if args.full:
+        cpp_args.append("--full")
+    if args.json:
+        cpp_args.append("--json")
+    if args.verbose:
+        cpp_args.append("--verbose")
+
+    if not args.json:
+        print(f"Computing statistics for {args.input}")
     return cli.run_cpp_tool("biofmi-stats", cpp_args)
 
 
@@ -188,6 +198,14 @@ For more information, see README.md
         help='Show statistics for EDS/l-EDS file')
     parser_stats.add_argument('input', type=Path,
         help='Input EDS or l-EDS file')
+    parser_stats.add_argument('-s', '--sources', type=Path,
+        help='Source file (.seds) - optional')
+    parser_stats.add_argument('-f', '--full', action='store_true',
+        help='Use FULL mode (load all strings into RAM)')
+    parser_stats.add_argument('-j', '--json', action='store_true',
+        help='Output in JSON format')
+    parser_stats.add_argument('-v', '--verbose', action='store_true',
+        help='Show detailed statistics')
 
     # Generate patterns command
     parser_genpatterns = subparsers.add_parser('genpatterns',

@@ -24,10 +24,10 @@ struct BioFMI::IndexData {
     std::vector<int> offsets;
 };
 
-BioFMI::BioFMI(const EDS& eds, Length context_length)
+BioFMI::BioFMI(EDS&& eds, Length context_length)
     : data_(std::make_unique<IndexData>()),
       context_length_(context_length),
-      eds_(eds) {
+      eds_(std::move(eds)) {
 }
 
 BioFMI::BioFMI(const std::filesystem::path& eds_file, Length context_length)

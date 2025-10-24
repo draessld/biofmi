@@ -29,8 +29,8 @@ public:
     // Result type: map from sequence ID to vector of (position, changes) pairs
     using ResultMap = std::unordered_map<int, std::vector<std::pair<Position, std::vector<int>>>>;
 
-    // Constructor: build index from EDS
-    BioFMI(const EDS& eds, Length context_length);
+    // Constructor: build index from EDS (takes ownership via move)
+    BioFMI(EDS&& eds, Length context_length);
 
     // Constructor: build index from file
     BioFMI(const std::filesystem::path& eds_file, Length context_length);
