@@ -11,7 +11,158 @@ import os
 from pathlib import Path
 from typing import Optional, List
 import json
+import logging
+import datetime
+import time
+import threading
 
+
+# ===================================================================
+# Logging Setup - FILE ONLY (no console output to preserve stdout/stderr)
+# ===================================================================
+
+def setup_logger():
+    """Setup file-only logger for performance tracking"""
+    logger = logging.getLogger('biofmi')
+    logger.setLevel(logging.DEBUG)
+
+    # Only add handler if not already configured (avoid duplicates)
+    if not logger.handlers:
+        # File handler only (NO console output)
+        log_file = Path(__file__).parent / 'log.log'
+        file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+        file_handler.setLevel(logging.DEBUG)
+
+        # Format: ISO 8601 timestamp + message
+        formatter = logging.Formatter(
+            fmt='%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        # Prevent propagation to root logger (avoid accidental console output)
+        logger.propagate = False
+
+    return logger
+
+
+def get_session_id():
+    """Generate unique session ID from timestamp (YYYYMMDD_HHMMSS_microseconds)"""
+    return datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+
+
+# Initialize logger
+logger = setup_logger()
+
+
+# ===================================================================
+# Performance Monitor - Track execution time and peak memory
+# ===================================================================
+
+class PerformanceMonitor:
+    """Monitor subprocess performance (time, peak memory)"""
+
+    def __init__(self):
+        self.start_time = None
+        self.end_time = None
+        self.peak_memory_bytes = 0
+        self.monitoring = True
+        self._psutil_available = False
+
+        # Check if psutil is available
+        try:
+            import psutil
+            self._psutil_available = True
+        except ImportError:
+            logger.warning("psutil not available - memory tracking disabled")
+
+    def _monitor_memory(self, process):
+        """Background thread to track peak memory"""
+        if not self._psutil_available:
+            return
+
+        import psutil
+
+        while self.monitoring:
+            try:
+                if process.is_running():
+                    mem = process.memory_info().rss
+                    self.peak_memory_bytes = max(self.peak_memory_bytes, mem)
+                    time.sleep(0.5)  # Check every 0.5 seconds
+                else:
+                    break
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                break
+            except Exception as e:
+                logger.debug(f"Memory monitoring error: {e}")
+                break
+
+    def run_and_monitor(self, cmd: List[str]) -> int:
+        """Execute command and monitor performance"""
+        self.start_time = time.time()
+
+        if self._psutil_available:
+            # Use psutil for monitoring
+            import psutil
+
+            try:
+                process = psutil.Popen(cmd)
+
+                # Start monitoring thread
+                monitor_thread = threading.Thread(
+                    target=self._monitor_memory,
+                    args=(process,),
+                    daemon=True
+                )
+                monitor_thread.start()
+
+                # Wait for completion
+                returncode = process.wait()
+                self.end_time = time.time()
+                self.monitoring = False
+                monitor_thread.join(timeout=1.0)
+
+                return returncode
+
+            except Exception as e:
+                logger.error(f"Error running with psutil: {e}")
+                # Fallback to subprocess
+                return subprocess.run(cmd, check=False).returncode
+        else:
+            # Fallback: no memory monitoring
+            result = subprocess.run(cmd, check=False)
+            self.end_time = time.time()
+            return result.returncode
+
+    @property
+    def duration(self):
+        """Execution duration in seconds"""
+        if self.start_time and self.end_time:
+            return self.end_time - self.start_time
+        return 0
+
+    @property
+    def peak_memory_mb(self):
+        """Peak memory usage in MB"""
+        return self.peak_memory_bytes / (1024 * 1024)
+
+    @property
+    def peak_memory_gb(self):
+        """Peak memory usage in GB"""
+        return self.peak_memory_bytes / (1024 * 1024 * 1024)
+
+    def format_memory(self):
+        """Format memory for display (auto-select MB or GB)"""
+        if self.peak_memory_gb >= 1.0:
+            return f"{self.peak_memory_gb:.2f}GB"
+        else:
+            return f"{self.peak_memory_mb:.1f}MB"
+
+
+# ===================================================================
+# Main CLI Class
+# ===================================================================
 
 class BioFMICLI:
     """Main CLI orchestrator for BIO-FMI tools"""
@@ -28,17 +179,37 @@ class BioFMICLI:
             sys.exit(1)
 
     def run_cpp_tool(self, tool_name: str, args: List[str]) -> int:
-        """Execute a C++ tool with given arguments"""
+        """Execute a C++ tool with performance monitoring and logging"""
         tool_path = self.cpp_tools_dir / tool_name
 
         if not tool_path.exists():
+            logger.error(f"Tool not found: {tool_name} at {tool_path}")
             print(f"Error: Tool '{tool_name}' not found at {tool_path}", file=sys.stderr)
             return 1
 
+        # Generate session ID for this invocation
+        session_id = get_session_id()
+
+        # Log command start
+        logger.info(f"[{session_id}] START {tool_name} | args={args}")
+
         try:
-            result = subprocess.run([str(tool_path)] + args, check=False)
-            return result.returncode
+            # Monitor performance
+            monitor = PerformanceMonitor()
+            returncode = monitor.run_and_monitor([str(tool_path)] + args)
+
+            # Log completion with metrics
+            logger.info(
+                f"[{session_id}] END {tool_name} | "
+                f"duration={monitor.duration:.2f}s | "
+                f"peak_memory={monitor.format_memory()} | "
+                f"exit_code={returncode}"
+            )
+
+            return returncode
+
         except Exception as e:
+            logger.error(f"[{session_id}] ERROR {tool_name} | exception={str(e)}", exc_info=True)
             print(f"Error executing {tool_name}: {e}", file=sys.stderr)
             return 1
 
@@ -268,6 +439,60 @@ def cmd_genpatterns(args, cli: BioFMICLI) -> int:
     return cli.run_cpp_tool("biofmi-genpatterns", cpp_args)
 
 
+def cmd_clean(args, cli: BioFMICLI) -> int:
+    """Clean log files and temporary data"""
+    import os
+    from pathlib import Path
+
+    # Get project root directory
+    project_dir = Path(__file__).parent
+    log_file = project_dir / "log.log"
+
+    # Track what was cleaned
+    cleaned_items = []
+    total_size = 0
+
+    # Clean log file
+    if log_file.exists():
+        size = log_file.stat().st_size
+
+        if args.show_content and size > 0:
+            # Show log content before cleaning
+            print("=== Current log.log content ===")
+            with open(log_file, 'r') as f:
+                content = f.read()
+                if content:
+                    print(content)
+                else:
+                    print("(empty)")
+            print("=" * 50)
+            print()
+
+        if not args.dry_run:
+            # Actually remove the file
+            log_file.unlink()
+            if size > 0:  # Only report if file had content
+                cleaned_items.append(f"log.log ({size} bytes)")
+                total_size += size
+        else:
+            if size > 0:
+                print(f"[DRY RUN] Would remove: log.log ({size} bytes)")
+            else:
+                print(f"[DRY RUN] Would remove: log.log (empty file)")
+
+    # Report results (only if we actually cleaned or if nothing to clean)
+    if cleaned_items:
+        print(f"✓ Cleaned {len(cleaned_items)} item(s):")
+        for item in cleaned_items:
+            print(f"  - {item}")
+        print(f"\nTotal space freed: {total_size:,} bytes ({total_size / 1024:.2f} KB)")
+    elif not args.dry_run and not cleaned_items:
+        # Normal mode but nothing was cleaned
+        print("✓ No log files to clean")
+
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="BIO-FMI: Indexing and querying elastic-degenerate strings",
@@ -360,6 +585,14 @@ For more information, see README.md
     parser_genpatterns.add_argument('-o', '--output', required=True, type=Path,
         help='Output file for patterns')
 
+    # Clean command
+    parser_clean = subparsers.add_parser('clean',
+        help='Clean log files and temporary data')
+    parser_clean.add_argument('--dry-run', action='store_true',
+        help='Show what would be removed without actually removing')
+    parser_clean.add_argument('--show-content', action='store_true',
+        help='Show log content before cleaning')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -375,7 +608,8 @@ For more information, see README.md
         'build': cmd_build,
         'locate': cmd_locate,
         'stats': cmd_stats,
-        'genpatterns': cmd_genpatterns
+        'genpatterns': cmd_genpatterns,
+        'clean': cmd_clean
     }
 
     return commands[args.command](args, cli)

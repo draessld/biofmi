@@ -32,9 +32,57 @@ int main(int argc, char** argv) {
 
         po::notify(vm);
 
-        // TODO: Implement pattern generation
-        std::cerr << "Pattern generation tool not yet implemented\n";
-        return 1;
+        // Validate input file exists
+        if (!std::filesystem::exists(input_file)) {
+            std::cerr << "Error: Input file does not exist: " << input_file << "\n";
+            return 1;
+        }
+
+        // Validate parameters
+        if (count == 0) {
+            std::cerr << "Error: Pattern count must be greater than 0\n";
+            return 1;
+        }
+
+        if (length == 0) {
+            std::cerr << "Error: Pattern length must be greater than 0\n";
+            return 1;
+        }
+
+        // Load EDS in FULL mode (required for pattern generation)
+        std::cerr << "Loading EDS file: " << input_file << "\n";
+        EDS eds = EDS::load(input_file, EDS::StoringMode::FULL);
+
+        if (eds.empty()) {
+            std::cerr << "Error: Cannot generate patterns from empty EDS\n";
+            return 1;
+        }
+
+        std::cerr << "Loaded EDS with " << eds.length() << " symbols, "
+                  << eds.cardinality() << " strings\n";
+
+        // Check if pattern length is reasonable
+        if (length > eds.size()) {
+            std::cerr << "Warning: Pattern length (" << length
+                      << ") is greater than total EDS size (" << eds.size() << ")\n";
+            std::cerr << "Patterns may be truncated or generation may fail\n";
+        }
+
+        // Open output file
+        std::ofstream outfile(output_file);
+        if (!outfile) {
+            std::cerr << "Error: Cannot open output file: " << output_file << "\n";
+            return 1;
+        }
+
+        // Generate patterns
+        std::cerr << "Generating " << count << " patterns of length " << length << "...\n";
+        eds.generate_patterns(outfile, count, length);
+
+        std::cerr << "Successfully generated " << count << " patterns\n";
+        std::cerr << "Output written to: " << output_file << "\n";
+
+        return 0;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";

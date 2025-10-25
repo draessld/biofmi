@@ -14,3 +14,6 @@ pytest-cov>=4.0.0
 
 # Optional: For better CLI experience
 colorama>=0.4.4
+
+# Performance monitoring (for logging execution metrics)
+psutil>=5.8.0

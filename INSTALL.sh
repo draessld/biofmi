@@ -177,7 +177,7 @@ fi
 
 # Function to detect biofmi alias in shell config files
 detect_biofmi_alias() {
-    local shell_configs=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.zshrc" "$HOME/.profile")
+    local shell_configs=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.zshrc" "$HOME/.profile" "$HOME/.bash_aliases" "$HOME/.zsh_aliases")
     local found_in=()
 
     for config in "${shell_configs[@]}"; do
@@ -243,9 +243,22 @@ if [ ${#alias_files[@]} -gt 0 ]; then
         fi
     done
 
+    # Try to unalias in current shell session (may not work if run in subshell)
+    if alias biofmi &>/dev/null; then
+        unalias biofmi 2>/dev/null && print_status "Removed biofmi alias from current session" || true
+    fi
+
     echo ""
-    echo -e "${YELLOW}Please restart your terminal or run:${NC}"
-    echo "  source ~/.bashrc  (or source ~/.zshrc)"
+    echo -e "${YELLOW}⚠️  Important: The alias has been removed from config files,${NC}"
+    echo -e "${YELLOW}    but your current terminal session may still have it cached.${NC}"
+    echo ""
+    echo -e "${GREEN}To activate the new biofmi command in current session:${NC}"
+    echo "  1. Close and reopen your terminal (recommended), OR"
+    echo "  2. Run: unalias biofmi && source ~/.bashrc  (or source ~/.zshrc)"
+    echo ""
+    echo -e "${BLUE}Then verify with:${NC}"
+    echo "  which biofmi    # Should show: $BIN_DIR/biofmi"
+    echo "  biofmi --help   # Should list all available commands"
     echo ""
 else
     print_status "No conflicting biofmi alias found"
@@ -334,8 +347,12 @@ fi
 echo "  biofmi build --help                # Build BIO-FMI index"
 echo "  biofmi locate --help               # Search patterns"
 echo "  biofmi stats --help                # Show statistics"
+echo "  biofmi genpatterns --help          # Generate random patterns"
+echo "  biofmi clean --help                # Clean log files"
 echo ""
 echo "Example workflow:"
+echo "  biofmi stats -i data/test/simple.eds --sources=auto"
+echo "  biofmi genpatterns -i data/test/simple.eds -o patterns.txt -n 100 -l 20"
 echo "  biofmi transform -i data/examples/sample.msa -l 5"
 echo "  biofmi build -i data/examples/sample.5.leds -l 5"
 echo "  biofmi locate -i data/examples/sample.5.leds.index -l 5 -p 'ACGT'"
