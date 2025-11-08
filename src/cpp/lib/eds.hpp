@@ -99,6 +99,10 @@ public:
         size_t num_paths;                 // Total number of distinct path IDs
         size_t max_paths_per_string;      // Maximum paths in any single string
         double avg_paths_per_string;      // Average paths per string
+
+        // Position checking support (computed from index data)
+        std::vector<Position> cum_common_positions;   // Cumulative common chars before each symbol (n+1 entries)
+        std::vector<int> cum_degenerate_counts;       // Cumulative degenerate strings before each symbol (n+1 entries)
     };
 
     // Statistics (for backward compatibility, returns statistics portion of metadata)
@@ -138,6 +142,11 @@ public:
 
     // Extract substring from EDS
     String extract(Position pos, Length len, const std::vector<int>& changes) const;
+
+    // Position checking: verify if pattern occurs at position with given degenerate string choices
+    bool check_position(Position common_pos,
+                       const std::vector<int>& degenerate_strings,
+                       const String& pattern) const;
 
     // Access to internal data
     const std::vector<StringSet>& get_sets() const;  // Throws if METADATA_ONLY mode
@@ -182,6 +191,22 @@ private:
 
     // Streaming helpers
     StringSet read_symbol_from_stream(Position pos) const;
+
+    // Position checking helpers
+    std::pair<size_t, size_t> decode_degenerate_string_number(int abs_string_num) const;
+    size_t find_symbol_at_common_position(Position common_pos, Position& offset_out) const;
+    String reconstruct_from_memory(size_t start_symbol,
+                                   Position offset_in_symbol,
+                                   const std::vector<int>& degenerate_strings,
+                                   Length pattern_length) const;
+    String reconstruct_from_file(size_t start_symbol,
+                                 Position offset_in_symbol,
+                                 const std::vector<int>& degenerate_strings,
+                                 Length pattern_length) const;
+    std::set<int> calculate_path_intersection(size_t start_symbol,
+                                              Position offset_in_symbol,
+                                              const std::vector<int>& degenerate_strings,
+                                              Length pattern_length) const;
 };
 
 } // namespace biofmi

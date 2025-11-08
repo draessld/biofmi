@@ -543,10 +543,47 @@ void test_load_sources_string() {
 void test_generate_patterns() {
     std::cout << "Test 24: Generate patterns... ";
 
-    // Create a simple EDS
+    // Create a simple EDS with enough length for varied patterns
     biofmi::EDS eds("{ACGT}{A,CA}{GG}");
 
     // Generate patterns
+    std::stringstream output;
+    eds.generate_patterns(output, 20, 8);
+
+    // Check that we got 20 patterns
+    std::string line;
+    int count = 0;
+    std::set<std::string> unique_patterns;
+    while (std::getline(output, line)) {
+        if (!line.empty()) {
+            count++;
+            // Each pattern should be 8 characters long
+            assert(line.length() == 8);
+            unique_patterns.insert(line);
+        }
+    }
+    assert(count == 20);
+
+    // With random starting positions, we should get at least some variety
+    // (not all patterns identical - which would happen if all started at position 0)
+    assert(unique_patterns.size() > 1);
+
+    std::cout << "PASSED\n";
+}
+
+void test_generate_patterns_metadata_only() {
+    std::cout << "Test 25: Generate patterns works in METADATA_ONLY mode... ";
+
+    // Create temp file
+    std::filesystem::path temp_file = std::filesystem::temp_directory_path() / "test_genpatterns.eds";
+    std::ofstream ofs(temp_file);
+    ofs << "{ACGT}{A,CA}{GG}";
+    ofs.close();
+
+    // Load in METADATA_ONLY mode
+    auto eds = biofmi::EDS::load(temp_file.string(), biofmi::EDS::StoringMode::METADATA_ONLY);
+
+    // Should work now (streaming from file)
     std::stringstream output;
     eds.generate_patterns(output, 5, 8);
 
@@ -562,39 +599,142 @@ void test_generate_patterns() {
     }
     assert(count == 5);
 
-    std::cout << "PASSED\n";
-}
-
-void test_generate_patterns_metadata_only() {
-    std::cout << "Test 25: Generate patterns throws in METADATA_ONLY mode... ";
-
-    // Create temp file
-    std::filesystem::path temp_file = std::filesystem::temp_directory_path() / "test_genpatterns.eds";
-    std::ofstream ofs(temp_file);
-    ofs << "{ACGT}{A,CA}";
-    ofs.close();
-
-    // Load in METADATA_ONLY mode
-    auto eds = biofmi::EDS::load(temp_file.string(), biofmi::EDS::StoringMode::METADATA_ONLY);
-
-    // Should throw
-    std::stringstream output;
-    bool threw = false;
-    try {
-        eds.generate_patterns(output, 1, 5);
-    } catch (const std::runtime_error& e) {
-        threw = true;
-        std::string msg = e.what();
-        assert(msg.find("FULL mode") != std::string::npos);
-    }
-    assert(threw);
-
     std::filesystem::remove(temp_file);
     std::cout << "PASSED\n";
 }
 
+void test_generate_patterns_are_valid() {
+    std::cout << "Test 26: Generated patterns are valid (check with check_position)... ";
+
+    // Create EDS with known structure
+    std::string eds_str = "{ACGT}{A,CA}{GG}{T,TG}";
+    biofmi::EDS eds(eds_str);
+
+    // Generate patterns
+    std::stringstream output;
+    eds.generate_patterns(output, 10, 6);
+
+    // For each generated pattern, verify it can be found in the EDS
+    std::string pattern;
+    int validated = 0;
+    while (std::getline(output, pattern)) {
+        if (pattern.empty()) continue;
+
+        bool found = false;
+
+        // Try all possible common positions
+        // Total common chars: ACGT(4) + GG(2) = 6
+        for (biofmi::Position common_pos = 0; common_pos < 6 && !found; common_pos++) {
+            // Try without degenerate strings first (regular symbols only)
+            try {
+                if (eds.check_position(common_pos, {}, pattern)) {
+                    found = true;
+                    break;
+                }
+            } catch (const std::invalid_argument&) {
+                // Pattern needs degenerate choices, continue to try with them
+            }
+
+            // Try with one degenerate choice (from symbol 1: {A,CA})
+            for (int deg1 = 0; deg1 < 2 && !found; deg1++) {
+                try {
+                    if (eds.check_position(common_pos, {deg1}, pattern)) {
+                        found = true;
+                        break;
+                    }
+                } catch (const std::invalid_argument&) {
+                    // Might need more degenerate choices
+                } catch (const std::out_of_range&) {
+                    // Invalid degenerate string number, skip
+                    continue;
+                }
+
+                // Try with two degenerate choices (symbol 1 and symbol 3: {T,TG})
+                for (int deg2 = 2; deg2 < 4 && !found; deg2++) {
+                    try {
+                        if (eds.check_position(common_pos, {deg1, deg2}, pattern)) {
+                            found = true;
+                            break;
+                        }
+                    } catch (const std::invalid_argument&) {
+                        // Wrong combination
+                    } catch (const std::out_of_range&) {
+                        // Invalid degenerate string number, skip
+                        continue;
+                    }
+                }
+            }
+        }
+
+        assert(found); // Every generated pattern must be findable
+        validated++;
+    }
+
+    assert(validated == 10); // All 10 patterns should be validated
+
+    std::cout << "PASSED\n";
+}
+
+void test_generate_patterns_validation_with_sources() {
+    std::cout << "Test 27: Generated patterns with sources are valid... ";
+
+    // Create EDS with sources
+    std::string eds_str = "{ACGT}{A,CA}{GG}";
+    std::string seds_str = "{0}{1}{2}{0}";
+    biofmi::EDS eds(eds_str, seds_str);
+
+    // Generate patterns
+    std::stringstream output;
+    eds.generate_patterns(output, 5, 5);
+
+    // For each generated pattern, verify it exists and has valid sources
+    std::string pattern;
+    int validated = 0;
+    while (std::getline(output, pattern)) {
+        if (pattern.empty()) continue;
+
+        bool found = false;
+
+        // Try all possible common positions (ACGT=4 + GG=2 = 6 common chars)
+        for (biofmi::Position common_pos = 0; common_pos < 6 && !found; common_pos++) {
+            // Try without degenerate choices
+            try {
+                if (eds.check_position(common_pos, {}, pattern)) {
+                    found = true;
+                    break;
+                }
+            } catch (const std::invalid_argument&) {
+                // Pattern needs degenerate choices
+            }
+
+            // Try with degenerate choice from {A,CA} (strings 0,1)
+            for (int deg = 0; deg < 2 && !found; deg++) {
+                try {
+                    if (eds.check_position(common_pos, {deg}, pattern)) {
+                        found = true;
+                        break;
+                    }
+                } catch (const std::invalid_argument&) {
+                    // Wrong combination
+                } catch (const std::out_of_range&) {
+                    // Invalid degenerate string number
+                    continue;
+                }
+            }
+        }
+
+        // Pattern must exist and have valid source intersection
+        assert(found);
+        validated++;
+    }
+
+    assert(validated == 5);
+
+    std::cout << "PASSED\n";
+}
+
 void test_extract_basic() {
-    std::cout << "Test 26: Extract basic... ";
+    std::cout << "Test 28: Extract basic... ";
 
     biofmi::EDS eds("{ACGT}{A,CA}{GG}{T,TT}");
 
@@ -617,7 +757,7 @@ void test_extract_basic() {
 }
 
 void test_extract_empty() {
-    std::cout << "Test 27: Extract with zero length... ";
+    std::cout << "Test 29: Extract with zero length... ";
 
     biofmi::EDS eds("{ACGT}{A,CA}");
     std::vector<int> changes = {};
@@ -628,7 +768,7 @@ void test_extract_empty() {
 }
 
 void test_extract_invalid_change_index() {
-    std::cout << "Test 28: Extract with invalid change index... ";
+    std::cout << "Test 30: Extract with invalid change index... ";
 
     biofmi::EDS eds("{ACGT}{A,CA}");
 
@@ -646,7 +786,7 @@ void test_extract_invalid_change_index() {
 }
 
 void test_extract_wrong_changes_size() {
-    std::cout << "Test 29: Extract with wrong changes vector size... ";
+    std::cout << "Test 31: Extract with wrong changes vector size... ";
 
     biofmi::EDS eds("{ACGT}{A,CA}{GG}");
 
@@ -666,7 +806,7 @@ void test_extract_wrong_changes_size() {
 }
 
 void test_extract_metadata_only() {
-    std::cout << "Test 30: Extract throws in METADATA_ONLY mode... ";
+    std::cout << "Test 32: Extract throws in METADATA_ONLY mode... ";
 
     // Create temp file
     std::filesystem::path temp_file = std::filesystem::temp_directory_path() / "test_extract.eds";
@@ -690,6 +830,310 @@ void test_extract_metadata_only() {
     assert(threw);
 
     std::filesystem::remove(temp_file);
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_basic() {
+    std::cout << "Test 33: check_position basic... ";
+
+    biofmi::EDS eds("{ACGT}{A,ACA}{CGT}{T,TG}");
+
+    // Pattern "ACG" at (0, {})
+    assert(eds.check_position(0, {}, "ACG") == true);
+
+    // Pattern "ACG" at (4, {0})
+    assert(eds.check_position(4, {0}, "ACG") == true);
+
+    // Pattern "ACG" at (6, {1})
+    assert(eds.check_position(6, {1}, "ACG") == true);
+
+    // Pattern "GTT" at (5, {2})
+    assert(eds.check_position(5, {2}, "GTT") == true);
+
+    // Pattern "GTT" at (5, {3})
+    assert(eds.check_position(5, {3}, "GTT") == true);
+
+    // Pattern "ACGTT" at (4, {0, 2})
+    assert(eds.check_position(4, {0, 2}, "ACGTT") == true);
+
+    // Pattern "ACGTT" at (4, {0, 3})
+    assert(eds.check_position(4, {0, 3}, "ACGTT") == true);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_negative() {
+    std::cout << "Test 34: check_position negative cases... ";
+
+    biofmi::EDS eds("{ACGT}{A,ACA}{CGT}{T,TG}");
+
+    // Wrong pattern
+    assert(eds.check_position(0, {}, "XYZ") == false);
+
+    // Pattern doesn't match
+    assert(eds.check_position(0, {}, "ACGTX") == false);
+
+    // Position beyond range
+    assert(eds.check_position(100, {}, "ACG") == false);
+
+    // Wrong degenerate string for position
+    assert(eds.check_position(4, {1}, "ACG") == false);  // Should be {0}, not {1}
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_errors() {
+    std::cout << "Test 35: check_position error handling... ";
+
+    biofmi::EDS eds("{ACGT}{A,ACA}{CGT}{T,TG}");
+
+    // Invalid degenerate string number
+    bool threw = false;
+    try {
+        eds.check_position(4, {999}, "ACG");
+    } catch (const std::out_of_range&) {
+        threw = true;
+    }
+    assert(threw);
+
+    // Not enough degenerate strings
+    threw = false;
+    try {
+        eds.check_position(4, {}, "ACGTT");  // Should need {0, 2} or similar
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    assert(threw);
+
+    // Wrong symbol for degenerate string
+    threw = false;
+    try {
+        // String 2 belongs to symbol 3, not symbol 1
+        eds.check_position(4, {2}, "ACG");
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    assert(threw);
+
+    // Negative degenerate string number
+    threw = false;
+    try {
+        eds.check_position(4, {-1}, "ACG");
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    assert(threw);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_metadata_only() {
+    std::cout << "Test 36: check_position in METADATA_ONLY mode... ";
+
+    // Create temp file
+    std::filesystem::path temp_file =
+        std::filesystem::temp_directory_path() / "test_check_pos.eds";
+    std::ofstream ofs(temp_file);
+    ofs << "{ACGT}{A,ACA}{CGT}{T,TG}";
+    ofs.close();
+
+    // Load in METADATA_ONLY mode
+    auto eds = biofmi::EDS::load(temp_file, biofmi::EDS::StoringMode::METADATA_ONLY);
+
+    // Should work same as FULL mode
+    assert(eds.check_position(0, {}, "ACG") == true);
+    assert(eds.check_position(4, {0}, "ACG") == true);
+    assert(eds.check_position(5, {2}, "GTT") == true);
+    assert(eds.check_position(0, {}, "XYZ") == false);
+
+    std::filesystem::remove(temp_file);
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_empty_pattern() {
+    std::cout << "Test 37: check_position with empty pattern... ";
+
+    biofmi::EDS eds("{ACGT}{A,ACA}");
+
+    // Empty pattern should always match
+    assert(eds.check_position(0, {}, "") == true);
+    assert(eds.check_position(3, {}, "") == true);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_empty_eds() {
+    std::cout << "Test 38: check_position with empty EDS... ";
+
+    biofmi::EDS eds("");
+
+    // Empty EDS should return false
+    assert(eds.check_position(0, {}, "ACG") == false);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_offset() {
+    std::cout << "Test 39: check_position with offset in symbol... ";
+
+    biofmi::EDS eds("{ACGT}{A,ACA}{CGT}{T,TG}");
+
+    // Start at position 1 ('C' in ACGT)
+    assert(eds.check_position(1, {}, "CG") == true);
+    assert(eds.check_position(1, {}, "CGT") == true);
+
+    // Start at position 2 ('G' in ACGT)
+    assert(eds.check_position(2, {}, "GT") == true);
+
+    // Start at position 3 ('T' in ACGT)
+    assert(eds.check_position(3, {}, "T") == true);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_pattern_spans_multiple() {
+    std::cout << "Test 40: check_position pattern spanning multiple symbols... ";
+
+    biofmi::EDS eds("{ACGT}{A,ACA}{CGT}{T,TG}");
+
+    // Full pattern spanning all symbols
+    assert(eds.check_position(0, {0, 2}, "ACGTACGTT") == true);
+    assert(eds.check_position(0, {0, 3}, "ACGTACGTTG") == true);
+    assert(eds.check_position(0, {1, 2}, "ACGTACACGTT") == true);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_with_sources_valid() {
+    std::cout << "Test 41: check_position with sources (valid paths)... ";
+
+    // EDS:  {ACGT}{A,ACA}{CGT}{T,TG}
+    // sEDS: {0}{1,3}{2}{0}{1}{2,3}
+    //       str0  str1  str2 str3 str4  str5
+    std::string eds_str = "{ACGT}{A,ACA}{CGT}{T,TG}";
+    std::string seds_str = "{0}{1,3}{2}{0}{1}{2,3}";
+
+    biofmi::EDS eds(eds_str, seds_str);
+
+    // Pattern "ACGTT" at (4, {0, 2})
+    // Uses string 0 "A" with sources {1,3}
+    // Uses string 2 "T" with sources {1}
+    // Intersection: {1,3} ∩ {1} = {1} ✓
+    assert(eds.check_position(4, {0, 2}, "ACGTT") == true);
+
+    // Pattern "ACGTG" at (4, {0, 3})
+    // Uses string 0 "A" with sources {1,3}
+    // Uses string 3 "TG" with sources {2,3}
+    // Intersection: {1,3} ∩ {2,3} = {3} ✓
+    assert(eds.check_position(4, {0, 3}, "ACGTTG") == true);
+
+    // Pattern "ACACGTT" at (4, {1, 2})
+    // Uses string 1 "ACA" with sources {2}
+    // Uses string 2 "T" with sources {1}
+    // Intersection: {2} ∩ {1} = {} EMPTY
+    assert(eds.check_position(4, {1, 2}, "ACACGTT") == false);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_with_sources_universal() {
+    std::cout << "Test 42: check_position with sources (universal marker)... ";
+
+    // EDS with universal markers
+    std::string eds_str = "{ACGT}{A,ACA}{CGT}";
+    std::string seds_str = "{0}{1}{2}{0}";
+
+    biofmi::EDS eds(eds_str, seds_str);
+
+    // Universal {0} should not restrict intersection
+    // Pattern "ACGTACGT" using string 0 "A"
+    // Sources: {0} ∩ {1} ∩ {0} = {1}
+    assert(eds.check_position(0, {0}, "ACGTACGT") == true);
+
+    // Pattern "ACGTACACGT" using string 1 "ACA"
+    // Sources: {0} ∩ {2} ∩ {0} = {2}
+    assert(eds.check_position(0, {1}, "ACGTACACGT") == true);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_without_sources() {
+    std::cout << "Test 43: check_position without sources loaded... ";
+
+    biofmi::EDS eds("{ACGT}{A,ACA}{CGT}{T,TG}");
+
+    // Without sources, any valid pattern should match
+    assert(eds.check_position(4, {0, 2}, "ACGTT") == true);
+    assert(eds.check_position(4, {1, 2}, "ACACGTT") == true);
+
+    // Pattern still needs to match the strings
+    assert(eds.check_position(4, {0, 2}, "WRONG") == false);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_sources_all_paths() {
+    std::cout << "Test 42: check_position sources with all universal... ";
+
+    // All strings have universal paths
+    std::string eds_str = "{ACGT}{A,ACA}";
+    std::string seds_str = "{0}{0}{0}";
+
+    biofmi::EDS eds(eds_str, seds_str);
+
+    // All intersections should be {0}
+    assert(eds.check_position(4, {0}, "A") == true);
+    assert(eds.check_position(4, {1}, "ACA") == true);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_sources_disjoint() {
+    std::cout << "Test 43: check_position sources disjoint paths... ";
+
+    // Create EDS where some combinations have disjoint paths
+    std::string eds_str = "{AC}{A,C}{GT}";
+    std::string seds_str = "{0}{1}{2}{0}";
+
+    biofmi::EDS eds(eds_str, seds_str);
+
+    // Valid: {0} ∩ {1} ∩ {0} = {1}
+    assert(eds.check_position(0, {0}, "ACAGT") == true);
+
+    // Valid: {0} ∩ {2} ∩ {0} = {2}
+    assert(eds.check_position(0, {1}, "ACCGT") == true);
+
+    std::cout << "PASSED\n";
+}
+
+void test_check_position_sources_metadata_only() {
+    std::cout << "Test 44: check_position with sources in METADATA_ONLY mode... ";
+
+    // Create temp files
+    std::filesystem::path temp_eds =
+        std::filesystem::temp_directory_path() / "test_check_pos_sources.eds";
+    std::filesystem::path temp_seds =
+        std::filesystem::temp_directory_path() / "test_check_pos_sources.seds";
+
+    std::ofstream ofs_eds(temp_eds);
+    ofs_eds << "{ACGT}{A,ACA}{CGT}{T,TG}";
+    ofs_eds.close();
+
+    std::ofstream ofs_seds(temp_seds);
+    ofs_seds << "{0}{1,3}{2}{0}{1}{2,3}";
+    ofs_seds.close();
+
+    // Load in METADATA_ONLY mode
+    auto eds = biofmi::EDS::load(temp_eds, temp_seds,
+                                 biofmi::EDS::StoringMode::METADATA_ONLY);
+
+    // Should work same as FULL mode with source validation
+    assert(eds.check_position(4, {0, 2}, "ACGTT") == true);   // Valid path
+    assert(eds.check_position(4, {1, 2}, "ACACGTT") == false); // Empty intersection
+
+    std::filesystem::remove(temp_eds);
+    std::filesystem::remove(temp_seds);
+
     std::cout << "PASSED\n";
 }
 
@@ -723,11 +1167,27 @@ int main() {
         test_load_sources_string();
         test_generate_patterns();
         test_generate_patterns_metadata_only();
+        test_generate_patterns_are_valid();
+        test_generate_patterns_validation_with_sources();
         test_extract_basic();
         test_extract_empty();
         test_extract_invalid_change_index();
         test_extract_wrong_changes_size();
         test_extract_metadata_only();
+        test_check_position_basic();
+        test_check_position_negative();
+        test_check_position_errors();
+        test_check_position_metadata_only();
+        test_check_position_empty_pattern();
+        test_check_position_empty_eds();
+        test_check_position_offset();
+        test_check_position_pattern_spans_multiple();
+        test_check_position_with_sources_valid();
+        test_check_position_with_sources_universal();
+        test_check_position_without_sources();
+        test_check_position_sources_all_paths();
+        test_check_position_sources_disjoint();
+        test_check_position_sources_metadata_only();
 
         std::cout << "\n✓ All tests passed!\n";
         return 0;
