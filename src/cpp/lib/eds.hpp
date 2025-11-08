@@ -148,6 +148,17 @@ public:
                        const std::vector<int>& degenerate_strings,
                        const String& pattern) const;
 
+    // Merging: merge two adjacent symbols (degenerate or non-degenerate)
+    // Example: {G,C} + {T} → {GT,CT}
+    // Example: {T} + {A,C,G} → {TA,TC,TG}
+    // Example: {G,C} + {T} + {A,C} would require two calls: merge(0,1) then merge(0,1) again
+    // Behavior depends on whether sources are loaded:
+    //   - WITHOUT sources: CARTESIAN merge (all combinations of alternatives)
+    //   - WITH sources: LINEAR merge (only combinations with valid source intersection)
+    // Returns new EDS with merged positions (original EDS unchanged)
+    // Throws: std::invalid_argument if positions not adjacent (pos2 != pos1 + 1)
+    EDS merge_adjacent(size_t pos1, size_t pos2) const;
+
     // Access to internal data
     const std::vector<StringSet>& get_sets() const;  // Throws if METADATA_ONLY mode
     const std::vector<bool>& get_is_degenerate() const { return metadata_.is_degenerate; }

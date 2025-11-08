@@ -215,20 +215,31 @@ class BioFMICLI:
 
 
 def cmd_transform(args, cli: BioFMICLI) -> int:
-    """Transform MSA/VCF/EDS to l-EDS format"""
+    """Transform MSA/VCF/EDS to EDS/l-EDS format"""
     cpp_args = [
-        "-i", str(args.input),
-        "-l", str(args.context_length),
-        "--method", args.method
+        "-i", str(args.input)
     ]
 
+    # Add context length (0 = no merging, >0 = create l-EDS)
+    cpp_args.extend(["-l", str(args.context_length)])
+
+    # Add method (linear/cartesian)
+    cpp_args.extend(["--method", args.method])
+
+    # Add output file if specified
     if args.output:
         cpp_args.extend(["-o", str(args.output)])
 
+    # Add sources file if specified
     if args.sources:
         cpp_args.extend(["-s", str(args.sources)])
 
-    print(f"Transforming {args.input} to l-EDS (context length: {args.context_length}, method: {args.method})")
+    # Print what we're doing
+    if args.context_length > 0:
+        print(f"Transforming {args.input} to l-EDS (l={args.context_length}, method={args.method})")
+    else:
+        print(f"Transforming {args.input} to EDS")
+
     return cli.run_cpp_tool("biofmi-transform", cpp_args)
 
 
@@ -519,17 +530,17 @@ For more information, see README.md
 
     # Transform command
     parser_transform = subparsers.add_parser('transform',
-        help='Transform MSA/VCF/EDS to l-EDS format')
+        help='Transform MSA/VCF/EDS to EDS/l-EDS format')
     parser_transform.add_argument('-i', '--input', required=True, type=Path,
-        help='Input file (.msa, .vcf, .eds, or .edz)')
+        help='Input file (.msa, .vcf, or .eds)')
     parser_transform.add_argument('-o', '--output', type=Path,
-        help='Output file (default: input with .leds extension)')
-    parser_transform.add_argument('-l', '--context-length', type=int, default=5,
-        help='Context length parameter (default: 5)')
+        help='Output file (default: auto-generated based on input and context length)')
+    parser_transform.add_argument('-l', '--context-length', type=int, default=0,
+        help='Context length parameter (0 = no merging/EDS output, >0 = create l-EDS, default: 0)')
     parser_transform.add_argument('--method', choices=['linear', 'cartesian'], default='linear',
-        help='Transformation method (default: linear)')
+        help='Transformation method: linear (with sources) or cartesian (without sources, default: linear)')
     parser_transform.add_argument('-s', '--sources', type=Path,
-        help='Source file for EDS phasing information (.edp)')
+        help='Source file for EDS phasing information (.seds)')
 
     # Build command
     parser_build = subparsers.add_parser('build',

@@ -1411,4 +1411,281 @@ std::set<int> EDS::calculate_path_intersection(size_t start_symbol,
     return intersection;
 }
 
+// Merge two adjacent symbols (degenerate or non-degenerate)
+EDS EDS::merge_adjacent(size_t pos1, size_t pos2) const {
+    // ===== VALIDATION =====
+
+    // Validation: positions must be adjacent
+    if (pos2 != pos1 + 1) {
+        throw std::invalid_argument(
+            "Positions must be adjacent: pos2 (" + std::to_string(pos2) +
+            ") must equal pos1 + 1 (" + std::to_string(pos1 + 1) + ")"
+        );
+    }
+
+    // Validation: both positions must be within bounds
+    if (pos1 >= n_ || pos2 >= n_) {
+        throw std::out_of_range(
+            "Position out of range: pos1=" + std::to_string(pos1) +
+            ", pos2=" + std::to_string(pos2) + ", n=" + std::to_string(n_)
+        );
+    }
+
+    // ===== CALCULATE MERGED METADATA =====
+
+    // Get source indices for the two symbols
+    size_t global_string_idx1 = metadata_.cum_set_sizes[pos1];
+    size_t global_string_idx2 = metadata_.cum_set_sizes[pos2];
+    size_t set1_size = metadata_.symbol_sizes[pos1];
+    size_t set2_size = metadata_.symbol_sizes[pos2];
+
+    // Calculate merged symbol size and prepare merged data
+    size_t merged_size;
+    std::vector<std::set<int>> merged_sources;
+    std::vector<Length> merged_string_lengths;
+
+    if (!has_sources_) {
+        // CARTESIAN merge: size is product
+        merged_size = set1_size * set2_size;
+
+        // Calculate string lengths for all combinations
+        for (size_t i = 0; i < set1_size; ++i) {
+            Length len1 = metadata_.string_lengths[global_string_idx1 + i];
+            for (size_t j = 0; j < set2_size; ++j) {
+                Length len2 = metadata_.string_lengths[global_string_idx2 + j];
+                merged_string_lengths.push_back(len1 + len2);
+            }
+        }
+    } else {
+        // LINEAR merge: only count valid combinations (non-empty intersection)
+        for (size_t i = 0; i < set1_size; ++i) {
+            const std::set<int>& sources1 = sources_[global_string_idx1 + i];
+            Length len1 = metadata_.string_lengths[global_string_idx1 + i];
+
+            for (size_t j = 0; j < set2_size; ++j) {
+                const std::set<int>& sources2 = sources_[global_string_idx2 + j];
+                Length len2 = metadata_.string_lengths[global_string_idx2 + j];
+
+                // Compute intersection with special handling for {0}
+                std::set<int> intersection;
+                bool sources1_has_universal = sources1.count(0) > 0;
+                bool sources2_has_universal = sources2.count(0) > 0;
+
+                if (sources1_has_universal && sources2_has_universal) {
+                    // {0} ∩ {0} = {0}
+                    intersection.insert(0);
+                } else if (sources1_has_universal) {
+                    // {0} ∩ {x,y,...} = {x,y,...}
+                    intersection = sources2;
+                } else if (sources2_has_universal) {
+                    // {x,y,...} ∩ {0} = {x,y,...}
+                    intersection = sources1;
+                } else {
+                    // Regular set intersection
+                    std::set_intersection(
+                        sources1.begin(), sources1.end(),
+                        sources2.begin(), sources2.end(),
+                        std::inserter(intersection, intersection.begin())
+                    );
+                }
+
+                // Only keep if intersection is non-empty
+                if (!intersection.empty()) {
+                    merged_sources.push_back(intersection);
+                    merged_string_lengths.push_back(len1 + len2);
+                }
+            }
+        }
+
+        merged_size = merged_sources.size();
+
+        // Validation: merged set must not be empty
+        if (merged_size == 0) {
+            throw std::runtime_error(
+                "Merging positions " + std::to_string(pos1) + " and " +
+                std::to_string(pos2) + " results in empty set "
+                "(no valid source intersections)"
+            );
+        }
+    }
+
+    // ===== BUILD NEW EDS =====
+
+    EDS result;
+    result.is_empty_ = false;
+    result.mode_ = mode_;
+    result.has_sources_ = has_sources_;
+    result.file_path_ = file_path_;
+    result.n_ = n_ - 1;  // One less position after merge
+
+    // ===== BUILD NEW METADATA =====
+
+    result.metadata_.base_positions.clear();
+    result.metadata_.symbol_sizes.clear();
+    result.metadata_.string_lengths.clear();
+    result.metadata_.cum_set_sizes.clear();
+    result.metadata_.is_degenerate.clear();
+
+    size_t current_string_idx = 0;
+
+    // Copy metadata for positions before pos1
+    for (size_t i = 0; i < pos1; ++i) {
+        result.metadata_.base_positions.push_back(metadata_.base_positions[i]);
+        result.metadata_.symbol_sizes.push_back(metadata_.symbol_sizes[i]);
+        result.metadata_.is_degenerate.push_back(metadata_.is_degenerate[i]);
+        result.metadata_.cum_set_sizes.push_back(current_string_idx);
+
+        // Copy string lengths for this symbol
+        for (size_t j = 0; j < metadata_.symbol_sizes[i]; ++j) {
+            result.metadata_.string_lengths.push_back(
+                metadata_.string_lengths[metadata_.cum_set_sizes[i] + j]
+            );
+        }
+
+        current_string_idx += metadata_.symbol_sizes[i];
+    }
+
+    // Add merged position metadata
+    result.metadata_.base_positions.push_back(metadata_.base_positions[pos1]);
+    result.metadata_.symbol_sizes.push_back(merged_size);
+    result.metadata_.is_degenerate.push_back(merged_size > 1);  // Degenerate if > 1 alternative
+    result.metadata_.cum_set_sizes.push_back(current_string_idx);
+
+    // Add merged string lengths
+    for (Length len : merged_string_lengths) {
+        result.metadata_.string_lengths.push_back(len);
+    }
+    current_string_idx += merged_size;
+
+    // Copy metadata for positions after pos2
+    for (size_t i = pos2 + 1; i < n_; ++i) {
+        result.metadata_.base_positions.push_back(metadata_.base_positions[i]);
+        result.metadata_.symbol_sizes.push_back(metadata_.symbol_sizes[i]);
+        result.metadata_.is_degenerate.push_back(metadata_.is_degenerate[i]);
+        result.metadata_.cum_set_sizes.push_back(current_string_idx);
+
+        // Copy string lengths for this symbol
+        for (size_t j = 0; j < metadata_.symbol_sizes[i]; ++j) {
+            result.metadata_.string_lengths.push_back(
+                metadata_.string_lengths[metadata_.cum_set_sizes[i] + j]
+            );
+        }
+
+        current_string_idx += metadata_.symbol_sizes[i];
+    }
+
+    // Calculate result cardinality and size
+    result.m_ = current_string_idx;
+    result.N_ = 0;
+    for (Length len : result.metadata_.string_lengths) {
+        result.N_ += len;
+    }
+
+    // ===== BUILD SOURCES (if needed) =====
+
+    if (has_sources_) {
+        result.sources_.clear();
+
+        // Copy sources before pos1
+        size_t source_idx = 0;
+        for (size_t i = 0; i < pos1; ++i) {
+            for (size_t j = 0; j < metadata_.symbol_sizes[i]; ++j) {
+                result.sources_.push_back(sources_[source_idx++]);
+            }
+        }
+
+        // Add merged sources
+        for (const auto& src : merged_sources) {
+            result.sources_.push_back(src);
+        }
+
+        // Skip sources for pos1 and pos2
+        source_idx = metadata_.cum_set_sizes[pos2] + metadata_.symbol_sizes[pos2];
+
+        // Copy sources after pos2
+        for (size_t i = pos2 + 1; i < n_; ++i) {
+            for (size_t j = 0; j < metadata_.symbol_sizes[i]; ++j) {
+                result.sources_.push_back(sources_[source_idx++]);
+            }
+        }
+    }
+
+    // ===== BUILD SETS (FULL mode only) =====
+
+    if (mode_ == StoringMode::FULL) {
+        result.sets_.clear();
+        result.set_sizes_.clear();
+
+        // Copy sets before pos1
+        for (size_t i = 0; i < pos1; ++i) {
+            result.sets_.push_back(sets_[i]);
+            result.set_sizes_.push_back(set_sizes_[i]);
+        }
+
+        // Build merged set
+        StringSet merged_set;
+        const StringSet& set1 = sets_[pos1];
+        const StringSet& set2 = sets_[pos2];
+
+        if (!has_sources_) {
+            // CARTESIAN: all combinations
+            for (const auto& str1 : set1) {
+                for (const auto& str2 : set2) {
+                    merged_set.push_back(str1 + str2);
+                }
+            }
+        } else {
+            // LINEAR: only valid combinations (same logic as metadata calculation)
+            for (size_t i = 0; i < set1.size(); ++i) {
+                for (size_t j = 0; j < set2.size(); ++j) {
+                    const std::set<int>& sources1 = sources_[global_string_idx1 + i];
+                    const std::set<int>& sources2 = sources_[global_string_idx2 + j];
+
+                    // Compute intersection
+                    std::set<int> intersection;
+                    bool sources1_has_universal = sources1.count(0) > 0;
+                    bool sources2_has_universal = sources2.count(0) > 0;
+
+                    if (sources1_has_universal && sources2_has_universal) {
+                        intersection.insert(0);
+                    } else if (sources1_has_universal) {
+                        intersection = sources2;
+                    } else if (sources2_has_universal) {
+                        intersection = sources1;
+                    } else {
+                        std::set_intersection(
+                            sources1.begin(), sources1.end(),
+                            sources2.begin(), sources2.end(),
+                            std::inserter(intersection, intersection.begin())
+                        );
+                    }
+
+                    if (!intersection.empty()) {
+                        merged_set.push_back(set1[i] + set2[j]);
+                    }
+                }
+            }
+        }
+
+        result.sets_.push_back(merged_set);
+        result.set_sizes_.push_back(merged_set.size());
+
+        // Copy sets after pos2
+        for (size_t i = pos2 + 1; i < n_; ++i) {
+            result.sets_.push_back(sets_[i]);
+            result.set_sizes_.push_back(set_sizes_[i]);
+        }
+    }
+
+    // ===== FINALIZE =====
+
+    // Recalculate statistics
+    result.calculate_statistics();
+    if (has_sources_) {
+        result.calculate_source_statistics();
+    }
+
+    return result;
+}
+
 } // namespace biofmi

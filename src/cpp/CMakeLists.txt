@@ -89,6 +89,11 @@ add_executable(test_stats ${TEST_DIR}/test_stats.cpp)
 target_link_libraries(test_stats biofmi_lib)
 add_test(NAME test_stats COMMAND test_stats)
 
+# Test: Merging
+add_executable(test_merge ${TEST_DIR}/test_merge.cpp)
+target_link_libraries(test_merge biofmi_lib)
+add_test(NAME test_merge COMMAND test_merge)
+
 # Print configuration summary
 message(STATUS "")
 message(STATUS "Configuration Summary:")
