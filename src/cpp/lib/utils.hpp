@@ -73,9 +73,27 @@ void eds_to_leds_cartesian(
  */
 bool is_leds(const EDS& eds, Length context_length);
 
-// NOT IMPLEMENTED - future MSA support
-// std::vector<String> parse_msa(std::istream& input);
-// EDS build_eds_from_msa(const std::vector<String>& sequences);
+// MSA parsing - IMPLEMENTED in msa_utils.cpp
+/**
+ * Parse MSA (Multiple Sequence Alignment) to EDS with source tracking.
+ * Uses streaming approach - only reference sequence kept in memory.
+ *
+ * @param msa_stream Input stream containing MSA in FASTA format (with gaps as '-')
+ * @return Pair of (EDS string, sEDS source string)
+ */
+std::pair<std::string, std::string> parse_msa_to_eds_streaming(std::istream& msa_stream);
+
+/**
+ * Parse MSA directly to l-EDS with source tracking.
+ * Uses streaming approach with merging based on context length.
+ *
+ * @param msa_stream Input stream containing MSA in FASTA format (with gaps as '-')
+ * @param context_length Minimum context length for l-EDS
+ * @return Pair of (l-EDS string, sEDS source string)
+ */
+std::pair<std::string, std::string> parse_msa_to_leds_streaming(
+    std::istream& msa_stream,
+    size_t context_length);
 
 // Memory usage reporting - NOT IMPLEMENTED
 // size_t get_current_memory_usage_kb();

@@ -6,6 +6,7 @@ set(LIB_SOURCES
     index.cpp
     common.cpp
     transform_utils.cpp
+    msa_utils.cpp
 )
 
 set(LIB_HEADERS

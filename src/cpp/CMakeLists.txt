@@ -108,6 +108,11 @@ add_executable(test_transform ${TEST_DIR}/test_transform.cpp)
 target_link_libraries(test_transform biofmi_lib)
 add_test(NAME test_transform COMMAND test_transform)
 
+# Test: MSA transformation
+add_executable(test_msa ${TEST_DIR}/test_msa.cpp)
+target_link_libraries(test_msa biofmi_lib)
+add_test(NAME test_msa COMMAND test_msa)
+
 # Print configuration summary
 message(STATUS "")
 message(STATUS "Configuration Summary:")

@@ -53,16 +53,44 @@ void transform_msa_to_eds(
     const std::string& method,
     int num_threads
 ) {
-    std::cerr << "MSA → EDS transformation not yet implemented\n";
-    std::cerr << "  Input: " << input_file << "\n";
-    std::cerr << "  Output: " << output_file << "\n";
-    if (!sources_file.empty()) {
-        std::cerr << "  Sources: " << sources_file << " (method: " << method << ")\n";
-    } else {
-        std::cerr << "  Sources: none (simple EDS)\n";
+    // Open input MSA file
+    std::ifstream msa_in(input_file);
+    if (!msa_in) {
+        throw std::runtime_error("Failed to open input file: " + input_file.string());
     }
-    std::cerr << "  Threads: " << num_threads << (num_threads == 1 ? " (sequential)" : " (parallel)") << "\n";
-    throw std::runtime_error("MSA → EDS transformation not implemented");
+
+    // Transform MSA to EDS with sources
+    auto [eds_str, seds_str] = biofmi::parse_msa_to_eds_streaming(msa_in);
+    msa_in.close();
+
+    // Determine output paths
+    std::filesystem::path eds_path = output_file.empty()
+        ? input_file.parent_path() / (input_file.stem().string() + ".eds")
+        : output_file;
+
+    std::filesystem::path seds_path = sources_file.empty()
+        ? eds_path.parent_path() / (eds_path.stem().string() + ".seds")
+        : sources_file;
+
+    // Write EDS output
+    std::ofstream eds_out(eds_path);
+    if (!eds_out) {
+        throw std::runtime_error("Failed to open output file: " + eds_path.string());
+    }
+    eds_out << eds_str;
+    eds_out.close();
+
+    // Write sources output
+    std::ofstream seds_out(seds_path);
+    if (!seds_out) {
+        throw std::runtime_error("Failed to open sources file: " + seds_path.string());
+    }
+    seds_out << seds_str;
+    seds_out.close();
+
+    std::cout << "MSA → EDS transformation complete\n";
+    std::cout << "  EDS output: " << eds_path << "\n";
+    std::cout << "  Sources output: " << seds_path << "\n";
 }
 
 // MSA → l-EDS (direct transformation with merging)
@@ -74,17 +102,47 @@ void transform_msa_to_leds(
     const std::string& method,
     int num_threads
 ) {
-    std::cerr << "MSA → l-EDS transformation not yet implemented\n";
-    std::cerr << "  Input: " << input_file << "\n";
-    std::cerr << "  Output: " << output_file << "\n";
-    std::cerr << "  Context length: " << context_length << "\n";
-    if (!sources_file.empty()) {
-        std::cerr << "  Sources: " << sources_file << " (method: " << method << ")\n";
-    } else {
-        std::cerr << "  Sources: none (CARTESIAN merge)\n";
+    // Open input MSA file
+    std::ifstream msa_in(input_file);
+    if (!msa_in) {
+        throw std::runtime_error("Failed to open input file: " + input_file.string());
     }
-    std::cerr << "  Threads: " << num_threads << (num_threads == 1 ? " (sequential)" : " (parallel)") << "\n";
-    throw std::runtime_error("MSA → l-EDS transformation not implemented");
+
+    // Transform MSA to l-EDS with sources
+    auto [leds_str, seds_str] = biofmi::parse_msa_to_leds_streaming(msa_in, context_length);
+    msa_in.close();
+
+    // Determine output paths with _l<l> suffix
+    std::string base_name = input_file.stem().string();
+    std::string suffix = "_l" + std::to_string(context_length);
+
+    std::filesystem::path leds_path = output_file.empty()
+        ? input_file.parent_path() / (base_name + suffix + ".leds")
+        : output_file;
+
+    std::filesystem::path seds_path = sources_file.empty()
+        ? leds_path.parent_path() / (base_name + suffix + ".seds")
+        : sources_file;
+
+    // Write l-EDS output
+    std::ofstream leds_out(leds_path);
+    if (!leds_out) {
+        throw std::runtime_error("Failed to open output file: " + leds_path.string());
+    }
+    leds_out << leds_str;
+    leds_out.close();
+
+    // Write sources output
+    std::ofstream seds_out(seds_path);
+    if (!seds_out) {
+        throw std::runtime_error("Failed to open sources file: " + seds_path.string());
+    }
+    seds_out << seds_str;
+    seds_out.close();
+
+    std::cout << "MSA → l-EDS transformation complete (l=" << context_length << ")\n";
+    std::cout << "  l-EDS output: " << leds_path << "\n";
+    std::cout << "  Sources output: " << seds_path << "\n";
 }
 
 // VCF → EDS (with/without sources based on sources_file)
