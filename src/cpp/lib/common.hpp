@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <memory>
 
 namespace biofmi {
 
@@ -41,6 +42,25 @@ enum class ErrorCode {
     BUILD_FAILED = 4,
     QUERY_FAILED = 5,
     UNKNOWN_ERROR = 99
+};
+
+/**
+ * High-resolution timer for performance measurements
+ */
+class Timer {
+public:
+    Timer();
+    ~Timer();
+
+    void start();
+    void stop();
+    double elapsed_seconds() const;
+    double elapsed_milliseconds() const;
+    double elapsed_microseconds() const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace biofmi

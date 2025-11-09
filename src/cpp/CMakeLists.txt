@@ -33,6 +33,15 @@ link_directories(BEFORE ${CMAKE_LIBRARY_PATH})
 find_package(Boost REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
+# Find OpenMP for parallel processing
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "Found OpenMP: ${OpenMP_CXX_VERSION}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+else()
+    message(WARNING "OpenMP not found. Parallel processing will be disabled.")
+endif()
+
 # Check for SDSL
 find_path(SDSL_INCLUDE_DIR sdsl/suffix_arrays.hpp
     PATHS
@@ -93,6 +102,11 @@ add_test(NAME test_stats COMMAND test_stats)
 add_executable(test_merge ${TEST_DIR}/test_merge.cpp)
 target_link_libraries(test_merge biofmi_lib)
 add_test(NAME test_merge COMMAND test_merge)
+
+# Test: Transformation (EDS to l-EDS)
+add_executable(test_transform ${TEST_DIR}/test_transform.cpp)
+target_link_libraries(test_transform biofmi_lib)
+add_test(NAME test_transform COMMAND test_transform)
 
 # Print configuration summary
 message(STATUS "")

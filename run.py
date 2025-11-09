@@ -226,6 +226,9 @@ def cmd_transform(args, cli: BioFMICLI) -> int:
     # Add method (linear/cartesian)
     cpp_args.extend(["--method", args.method])
 
+    # Add threads parameter
+    cpp_args.extend(["--threads", str(args.threads)])
+
     # Add output file if specified
     if args.output:
         cpp_args.extend(["-o", str(args.output)])
@@ -236,7 +239,8 @@ def cmd_transform(args, cli: BioFMICLI) -> int:
 
     # Print what we're doing
     if args.context_length > 0:
-        print(f"Transforming {args.input} to l-EDS (l={args.context_length}, method={args.method})")
+        thread_info = f", threads={args.threads}" if args.threads > 1 else ""
+        print(f"Transforming {args.input} to l-EDS (l={args.context_length}, method={args.method}{thread_info})")
     else:
         print(f"Transforming {args.input} to EDS")
 
@@ -541,6 +545,8 @@ For more information, see README.md
         help='Transformation method: linear (with sources) or cartesian (without sources, default: linear)')
     parser_transform.add_argument('-s', '--sources', type=Path,
         help='Source file for EDS phasing information (.seds)')
+    parser_transform.add_argument('--threads', type=int, default=1,
+        help='Number of threads for parallel merging (default: 1 = sequential)')
 
     # Build command
     parser_build = subparsers.add_parser('build',

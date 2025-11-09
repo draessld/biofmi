@@ -41,22 +41,20 @@ public:
     EDS() : is_empty_(true), mode_(StoringMode::FULL), has_sources_(false) {}
 
     // Stream-based constructors
-    explicit EDS(std::istream& is);
+    explicit EDS(std::istream& eds_stream);
     EDS(std::istream& eds_stream, std::istream& seds_stream);
 
-    // String-based constructors
+    // String-based constructors (for convenience - wraps streams internally)
     explicit EDS(const std::string& eds_string);
     EDS(const std::string& eds_string, const std::string& seds_string);
 
-    // File-based constructors (with optional StoringMode)
+    // File-based loaders (with optional StoringMode for memory efficiency)
     static EDS load(const std::filesystem::path& path, StoringMode mode = StoringMode::FULL);
     static EDS load(const std::filesystem::path& eds_path, const std::filesystem::path& seds_path, StoringMode mode = StoringMode::FULL);
 
-    // Mixed input constructors (for flexibility)
-    EDS(const std::string& eds_string, std::istream& seds_stream);
-    EDS(const std::string& eds_string, const std::filesystem::path& seds_path);
-    EDS(const std::filesystem::path& eds_path, const std::string& seds_string);
-    EDS(std::istream& eds_stream, const std::string& seds_string);
+    // Convenience factory for string construction
+    static EDS from_string(const std::string& eds_string);
+    static EDS from_string(const std::string& eds_string, const std::string& seds_string);
 
     // Destructor
     ~EDS() = default;

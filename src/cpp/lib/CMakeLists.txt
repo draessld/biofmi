@@ -4,7 +4,8 @@
 set(LIB_SOURCES
     eds.cpp
     index.cpp
-    utils.cpp
+    common.cpp
+    transform_utils.cpp
 )
 
 set(LIB_HEADERS
@@ -22,6 +23,11 @@ target_link_libraries(biofmi_lib
     ${Boost_LIBRARIES}
     ${SDSL_LIBRARY}
 )
+
+# Link OpenMP if available
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(biofmi_lib OpenMP::OpenMP_CXX)
+endif()
 
 # Set include directories for the library
 target_include_directories(biofmi_lib PUBLIC

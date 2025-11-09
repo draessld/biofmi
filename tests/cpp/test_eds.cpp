@@ -415,32 +415,41 @@ void test_string_with_sources() {
 }
 
 void test_mixed_inputs() {
-    std::cout << "Test 20: Mixed input types (file + string, string + file)... ";
+    std::cout << "Test 20: File loading with sources and from_string factory... ";
 
-    // Create temporary file with EDS
+    // Create temporary files
     std::filesystem::path temp_eds = std::filesystem::temp_directory_path() / "test_mixed_eds.eds";
+    std::filesystem::path temp_seds = std::filesystem::temp_directory_path() / "test_mixed_seds.seds";
+
     std::ofstream ofs(temp_eds);
     ofs << "{AC}{GT}";
     ofs.close();
 
-    // Test: file EDS + string sEDS
-    biofmi::EDS eds1(temp_eds, "{0}{1}");
+    std::ofstream ofs2(temp_seds);
+    ofs2 << "{0}{1}";
+    ofs2.close();
+
+    // Test: load with two files
+    biofmi::EDS eds1 = biofmi::EDS::load(temp_eds, temp_seds);
     assert(eds1.cardinality() == 2);
     assert(eds1.has_sources());
 
-    // Test: string EDS + file sEDS (create file first)
-    std::filesystem::path temp_seds = std::filesystem::temp_directory_path() / "test_mixed_seds.seds";
-    std::ofstream ofs2(temp_seds);
-    ofs2 << "{2}{3}";
-    ofs2.close();
-
-    biofmi::EDS eds2("{XY}{ZW}", temp_seds);
+    // Test: from_string factory without sources
+    biofmi::EDS eds2 = biofmi::EDS::from_string("{XY}{ZW}");
     assert(eds2.cardinality() == 2);
-    assert(eds2.has_sources());
+    assert(!eds2.has_sources());
 
-    // Test: static load with two files
-    biofmi::EDS eds3 = biofmi::EDS::load(temp_eds, temp_seds);
+    // Test: from_string factory with sources
+    biofmi::EDS eds3 = biofmi::EDS::from_string("{AB}{CD}", "{0}{1}");
+    assert(eds3.cardinality() == 2);
     assert(eds3.has_sources());
+
+    // Test: post-construction source loading with string
+    biofmi::EDS eds4("{PQ}{RS}");
+    assert(!eds4.has_sources());
+    std::string sources_str = "{2}{3}";
+    eds4.load_sources(sources_str);
+    assert(eds4.has_sources());
 
     // Cleanup
     std::filesystem::remove(temp_eds);

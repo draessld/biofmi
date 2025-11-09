@@ -11,66 +11,27 @@ namespace biofmi {
 
 /**
  * Utility functions for format conversion and data processing
- */
-
-// File type detection
-enum class FileFormat {
-    MSA,
-    VCF,
-    EDS,
-    EDZ,
-    LEDS,
-    UNKNOWN
-};
-
-FileFormat detect_format(const std::filesystem::path& filepath);
-
-// MSA to l-EDS conversion
-/**
- * Convert MSA to l-EDS using linear merging strategy
  *
- * Linear strategy: Only merge adjacent degenerate symbols if necessary
- * to maintain minimum context length l.
+ * NOTE: Most functions in this header are NOT YET IMPLEMENTED.
+ * They are placeholders for future MSA/VCF parsing functionality.
+ * Current EDS→l-EDS implementation is in transform_utils.hpp/cpp
  */
-void msa_to_leds_linear(
-    std::istream& input,
-    std::ostream& output,
-    Length context_length
-);
 
-/**
- * Convert MSA to l-EDS using cartesian merging strategy
- *
- * Cartesian strategy: Create cartesian product of adjacent degenerate
- * symbols to ensure context length >= l. This can lead to exponential
- * growth in the number of alternatives.
- */
-void msa_to_leds_cartesian(
-    std::istream& input,
-    std::ostream& output,
-    Length context_length
-);
+// TODO: MSA/VCF parsing - Not implemented yet
+// Will be added when MSA/VCF support is implemented
 
-// VCF to l-EDS conversion
-/**
- * Convert VCF to phased l-EDS using linear merging
- *
- * Preserves phasing information from VCF.
- */
-void vcf_to_leds_linear(
-    std::istream& input,
-    std::ostream& output,
-    Length context_length
-);
+// File type detection - NOT IMPLEMENTED
+// (transform.cpp has its own FileType enum and detection)
+// enum class FileFormat { MSA, VCF, EDS, EDZ, LEDS, UNKNOWN };
+// FileFormat detect_format(const std::filesystem::path& filepath);
 
-/**
- * Convert VCF to l-EDS using cartesian merging
- */
-void vcf_to_leds_cartesian(
-    std::istream& input,
-    std::ostream& output,
-    Length context_length
-);
+// MSA to l-EDS conversion - NOT IMPLEMENTED
+// void msa_to_leds_linear(std::istream& input, std::ostream& output, Length context_length);
+// void msa_to_leds_cartesian(std::istream& input, std::ostream& output, Length context_length);
+
+// VCF to l-EDS conversion - NOT IMPLEMENTED
+// void vcf_to_leds_linear(std::istream& input, std::ostream& output, Length context_length);
+// void vcf_to_leds_cartesian(std::istream& input, std::ostream& output, Length context_length);
 
 // EDS to l-EDS conversion
 /**
@@ -81,64 +42,46 @@ void vcf_to_leds_cartesian(
  * @param context_length Minimum context length
  * @param phasing_input Optional phasing information (.edp file)
  * @param phasing_output Optional output for updated phasing
+ * @param num_threads Number of threads for parallel processing (default: 1)
  */
 void eds_to_leds_linear(
     std::istream& input,
     std::ostream& output,
     Length context_length,
     std::istream* phasing_input = nullptr,
-    std::ostream* phasing_output = nullptr
+    std::ostream* phasing_output = nullptr,
+    size_t num_threads = 1
 );
 
 /**
  * Convert EDS to l-EDS using cartesian merging
+ *
+ * @param num_threads Number of threads for parallel processing (default: 1)
  */
 void eds_to_leds_cartesian(
     std::istream& input,
     std::ostream& output,
-    Length context_length
+    Length context_length,
+    size_t num_threads = 1
 );
 
 // Helper functions
 /**
  * Check if EDS satisfies l-EDS property
  * (all internal common blocks have length >= l)
+ * IMPLEMENTED in transform_utils.cpp
  */
 bool is_leds(const EDS& eds, Length context_length);
 
-/**
- * Parse MSA format into vector of sequences
- */
-std::vector<String> parse_msa(std::istream& input);
+// NOT IMPLEMENTED - future MSA support
+// std::vector<String> parse_msa(std::istream& input);
+// EDS build_eds_from_msa(const std::vector<String>& sequences);
 
-/**
- * Build EDS from aligned sequences (MSA)
- * Uses min-max strategy: maximal common blocks, minimal degenerate symbols
- */
-EDS build_eds_from_msa(const std::vector<String>& sequences);
+// Memory usage reporting - NOT IMPLEMENTED
+// size_t get_current_memory_usage_kb();
+// size_t get_peak_memory_usage_kb();
 
-/**
- * Memory usage reporting
- */
-size_t get_current_memory_usage_kb();
-size_t get_peak_memory_usage_kb();
-
-/**
- * Timing utilities
- */
-class Timer {
-public:
-    Timer();
-    void start();
-    void stop();
-    double elapsed_seconds() const;
-    double elapsed_milliseconds() const;
-    double elapsed_microseconds() const;
-
-private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
-};
+// NOTE: Timer class has been moved to common.hpp
 
 } // namespace biofmi
 

@@ -7,9 +7,19 @@
 
 namespace biofmi {
 
+// ===================================================================
+// CONSTRUCTORS
+// ===================================================================
+
 // Stream-based constructor (always FULL mode for streams)
-EDS::EDS(std::istream& is) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
-    parse(is);
+EDS::EDS(std::istream& eds_stream) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
+    parse(eds_stream);
+}
+
+// Stream-based constructor with sources (always FULL mode)
+EDS::EDS(std::istream& eds_stream, std::istream& seds_stream) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
+    parse(eds_stream);
+    parse_sources(seds_stream);
 }
 
 // String-based constructor (always FULL mode for strings)
@@ -146,49 +156,23 @@ void EDS::parse(std::istream& is) {
     }
 }
 
-// Constructor with EDS + sEDS streams (always FULL mode)
-EDS::EDS(std::istream& eds_stream, std::istream& seds_stream) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
-    parse(eds_stream);
-    parse_sources(seds_stream);
+// ===================================================================
+// FACTORY METHODS
+// ===================================================================
+
+// Convenience factory for string-based construction
+EDS EDS::from_string(const std::string& eds_string) {
+    return EDS(eds_string);
 }
 
-// Mixed input constructor: string EDS + stream sEDS (always FULL mode)
-EDS::EDS(const std::string& eds_string, std::istream& seds_stream) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
-    std::stringstream eds_ss(eds_string);
-    parse(eds_ss);
-    parse_sources(seds_stream);
+// Convenience factory for string-based construction with sources
+EDS EDS::from_string(const std::string& eds_string, const std::string& seds_string) {
+    return EDS(eds_string, seds_string);
 }
 
-// Mixed input constructor: string EDS + file sEDS (always FULL mode)
-EDS::EDS(const std::string& eds_string, const std::filesystem::path& seds_path) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
-    std::stringstream eds_ss(eds_string);
-    parse(eds_ss);
-
-    std::ifstream seds_ifs(seds_path);
-    if (!seds_ifs) {
-        throw std::runtime_error("Failed to open sEDS file: " + seds_path.string());
-    }
-    parse_sources(seds_ifs);
-}
-
-// Mixed input constructor: file EDS + string sEDS (uses FULL mode, file not kept open)
-EDS::EDS(const std::filesystem::path& eds_path, const std::string& seds_string) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
-    std::ifstream eds_ifs(eds_path);
-    if (!eds_ifs) {
-        throw std::runtime_error("Failed to open EDS file: " + eds_path.string());
-    }
-    parse(eds_ifs);
-
-    std::stringstream seds_ss(seds_string);
-    parse_sources(seds_ss);
-}
-
-// Mixed input constructor: stream EDS + string sEDS (always FULL mode)
-EDS::EDS(std::istream& eds_stream, const std::string& seds_string) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
-    parse(eds_stream);
-    std::stringstream seds_ss(seds_string);
-    parse_sources(seds_ss);
-}
+// ===================================================================
+// FILE LOADERS
+// ===================================================================
 
 // Load EDS from file (with optional StoringMode)
 EDS EDS::load(const std::filesystem::path& path, StoringMode mode) {
