@@ -1,4 +1,5 @@
-#include "eds.hpp"
+#include "formats/eds.hpp"
+#include "common.hpp"
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <fstream>
@@ -231,6 +232,22 @@ void print_json(const EDS& eds, const std::filesystem::path& input_file, bool ha
 }
 
 int main(int argc, char** argv) {
+    // Start performance tracking
+    Timer timer;
+    timer.start();
+
+    // Helper to print performance info to stderr
+    auto print_performance = [&timer]() {
+        timer.stop();
+        double runtime = timer.elapsed_seconds();
+        double memory_mb = get_peak_memory_mb();
+        std::cerr << "[Performance] Runtime: " << std::fixed << std::setprecision(2) << runtime << "s";
+        if (memory_mb > 0.0) {
+            std::cerr << " | Peak Memory: " << std::fixed << std::setprecision(1) << memory_mb << " MB";
+        }
+        std::cerr << "\n";
+    };
+
     try {
         std::filesystem::path input_file;
         std::filesystem::path sources_file;
@@ -266,6 +283,7 @@ int main(int argc, char** argv) {
             std::cout << "  METADATA_ONLY (default): Uses ~10% memory of FULL mode, fast for large files\n";
             std::cout << "                           Sources are loaded as metadata (minimal memory impact)\n";
             std::cout << "  FULL (--full):           Loads all strings into RAM, enables detailed inspection\n";
+            print_performance();
             return 0;
         }
 
@@ -274,6 +292,7 @@ int main(int argc, char** argv) {
         // Check if input file exists
         if (!std::filesystem::exists(input_file)) {
             std::cerr << "Error: Input file '" << input_file << "' not found\n";
+            print_performance();
             return 1;
         }
 
@@ -284,6 +303,7 @@ int main(int argc, char** argv) {
         if (vm.count("sources")) {
             if (!std::filesystem::exists(sources_file)) {
                 std::cerr << "Error: Source file '" << sources_file << "' not found\n";
+                print_performance();
                 return 1;
             }
             // Load with sources (works in both FULL and METADATA_ONLY modes)
@@ -299,10 +319,12 @@ int main(int argc, char** argv) {
             print_standard(eds, input_file, verbose, vm.count("sources") > 0);
         }
 
+        print_performance();
         return 0;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
+        print_performance();
         return 1;
     }
 }

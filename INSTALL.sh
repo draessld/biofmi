@@ -71,6 +71,22 @@ fi
 
 echo ""
 
+# Initialize git submodules
+echo -e "${BLUE}Initializing git submodules...${NC}"
+if [ -d ".git" ]; then
+    git submodule update --init --recursive
+    if [ $? -eq 0 ]; then
+        print_status "Git submodules initialized"
+    else
+        print_error "Failed to initialize git submodules"
+        exit 1
+    fi
+else
+    print_info "Not a git repository, skipping submodule initialization"
+fi
+
+echo ""
+
 # Check for SDSL library
 echo -e "${BLUE}Checking for SDSL library...${NC}"
 if [ -d "$HOME/include/sdsl" ] || [ -d "/usr/local/include/sdsl" ] || [ -d "/usr/include/sdsl" ]; then
@@ -338,22 +354,20 @@ if [ "$NEEDS_PATH_UPDATE" = true ]; then
     echo ""
     echo "Usage (after adding to PATH):"
     echo "  biofmi --help                      # Show help"
-    echo "  biofmi transform --help            # Transform data to l-EDS"
 else
     echo "Usage:"
     echo "  biofmi --help                      # Show help (available globally!)"
-    echo "  biofmi transform --help            # Transform data to l-EDS"
 fi
 echo "  biofmi build --help                # Build BIO-FMI index"
 echo "  biofmi locate --help               # Search patterns"
-echo "  biofmi stats --help                # Show statistics"
-echo "  biofmi genpatterns --help          # Generate random patterns"
 echo "  biofmi clean --help                # Clean log files"
 echo ""
+echo "Note: For EDS transformations and utilities, use EDSParser tools:"
+echo "  eds2leds, msa2eds, vcf2eds         # Transformation tools"
+echo "  edsparser-stats, edsparser-genpatterns  # Utility tools"
+echo ""
 echo "Example workflow:"
-echo "  biofmi stats -i data/test/simple.eds --sources=auto"
-echo "  biofmi genpatterns -i data/test/simple.eds -o patterns.txt -n 100 -l 20"
-echo "  biofmi transform -i data/examples/sample.msa -l 5"
-echo "  biofmi build -i data/examples/sample.5.leds -l 5"
-echo "  biofmi locate -i data/examples/sample.5.leds.index -l 5 -p 'ACGT'"
+echo "  msa2eds -i data/examples/sample.msa -l 5            # MSA → l-EDS (EDSParser)"
+echo "  biofmi build -i data/examples/sample.5.leds -l 5    # Build index"
+echo "  biofmi locate -i data/examples/sample.5.leds.index -l 5 -p 'ACGT'  # Search"
 echo ""

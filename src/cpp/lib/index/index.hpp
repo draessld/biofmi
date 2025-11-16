@@ -1,8 +1,8 @@
 #ifndef BIOFMI_INDEX_HPP
 #define BIOFMI_INDEX_HPP
 
-#include "common.hpp"
-#include "eds.hpp"
+#include <edsparser/common.hpp>
+#include <edsparser/formats/eds.hpp>
 
 #include <filesystem>
 #include <unordered_map>
@@ -14,6 +14,17 @@
 #include <sdsl/suffix_arrays.hpp>
 
 namespace biofmi {
+
+// Import types from edsparser
+using edsparser::Position;
+using edsparser::Length;
+using edsparser::String;
+using edsparser::StringSet;
+using edsparser::EDS;
+using edsparser::SET_OPEN;
+using edsparser::SET_CLOSE;
+using edsparser::SET_SEPARATOR;
+using edsparser::CHANGE_SEPARATOR;
 
 /**
  * BIO-FMI Index
@@ -83,6 +94,10 @@ public:
     void print_result(const ResultMap& result, std::ostream& os = std::cout) const;
 
 private:
+    // Hash map types for tracking occurrences during locate
+    using OccurrenceInfo = std::pair<Position, std::vector<int>>;
+    using HashType = std::unordered_map<Position, std::vector<OccurrenceInfo>>;
+
     // Index data (PIMPL pattern to hide some SDSL details)
     struct IndexData;
     std::unique_ptr<IndexData> data_;
@@ -91,11 +106,32 @@ private:
     EDS eds_;
     ResultMap last_result_;
 
+    // Index directory and metadata files
+    std::filesystem::path index_dir_;
+    std::filesystem::path reference_filepath_;
+    std::filesystem::path changes_filepath_;
+
+    // EDS statistics (cached from eds_)
+    size_t n_;  // Number of sets
+    size_t m_;  // Total number of strings
+    size_t N_;  // Total size
+
+    // Hash maps for chunk-based locate
+    HashType new_hash_map_;
+    HashType old_hash_map_;
+
     // Internal methods
     void parse_eds();
     void build_reference_index();
     void build_changes_index();
     void build_metadata_structures();
+
+    // Locate helper methods
+    void process_reference_matches(const String& chunk, size_t chunk_idx);
+    void process_changes_matches(const String& chunk, size_t chunk_idx);
+    void validate_change_continuity(int loc, int change_offset, int change_number,
+                                   int block_number, bool previous_outside_change);
+    ResultMap convert_hash_to_result(const HashType& hash_map);
 
     ResultMap locate_short(const String& pattern);  // |P| <= l
     ResultMap locate_long(const String& pattern);   // |P| > l

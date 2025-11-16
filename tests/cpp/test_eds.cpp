@@ -1,5 +1,5 @@
 // EDS parsing tests
-#include "../../src/cpp/lib/eds.hpp"
+#include "formats/eds.hpp"
 #include <sstream>
 #include <iostream>
 #include <cassert>

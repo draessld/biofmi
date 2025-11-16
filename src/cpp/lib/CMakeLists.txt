@@ -1,19 +1,12 @@
-# Library CMakeLists.txt
+# Library CMakeLists.txt for BioFMI (now depends on EDSParser)
 
-# Create library from source files
+# Create library from source files (only index-related code)
 set(LIB_SOURCES
-    eds.cpp
-    index.cpp
-    common.cpp
-    transform_utils.cpp
-    msa_utils.cpp
+    index/index.cpp
 )
 
 set(LIB_HEADERS
-    eds.hpp
-    index.hpp
-    utils.hpp
-    common.hpp
+    index/index.hpp
 )
 
 # Create static library
@@ -21,8 +14,11 @@ add_library(biofmi_lib STATIC ${LIB_SOURCES})
 
 # Link libraries
 target_link_libraries(biofmi_lib
+    edsparser_lib
     ${Boost_LIBRARIES}
     ${SDSL_LIBRARY}
+    ${DIVSUFSORT_LIBRARY}
+    ${DIVSUFSORT64_LIBRARY}
 )
 
 # Link OpenMP if available

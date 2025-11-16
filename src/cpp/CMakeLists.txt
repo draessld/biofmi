@@ -33,6 +33,10 @@ link_directories(BEFORE ${CMAKE_LIBRARY_PATH})
 find_package(Boost REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
+# Add EDSParser as subdirectory (from submodule)
+add_subdirectory(${CMAKE_SOURCE_DIR}/../../external/edsparser/src/cpp ${CMAKE_BINARY_DIR}/edsparser)
+message(STATUS "Using EDSParser from submodule")
+
 # Find OpenMP for parallel processing
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
@@ -73,6 +77,37 @@ else()
     message(WARNING "SDSL library not found")
 endif()
 
+# Find divsufsort libraries (required by SDSL for SA construction)
+find_library(DIVSUFSORT_LIBRARY
+    NAMES divsufsort
+    PATHS
+        ${CMAKE_LIBRARY_PATH}
+        $ENV{HOME}/lib
+        /usr/local/lib
+        /usr/lib
+)
+
+find_library(DIVSUFSORT64_LIBRARY
+    NAMES divsufsort64
+    PATHS
+        ${CMAKE_LIBRARY_PATH}
+        $ENV{HOME}/lib
+        /usr/local/lib
+        /usr/lib
+)
+
+if(DIVSUFSORT_LIBRARY)
+    message(STATUS "Found divsufsort library: ${DIVSUFSORT_LIBRARY}")
+else()
+    message(WARNING "divsufsort library not found")
+endif()
+
+if(DIVSUFSORT64_LIBRARY)
+    message(STATUS "Found divsufsort64 library: ${DIVSUFSORT64_LIBRARY}")
+else()
+    message(WARNING "divsufsort64 library not found")
+endif()
+
 # Enable testing
 enable_testing()
 
@@ -80,38 +115,23 @@ enable_testing()
 add_subdirectory(lib)
 add_subdirectory(tools)
 
-# Add test executables
+# Add test executables (only index-related tests)
 set(TEST_DIR ${CMAKE_SOURCE_DIR}/../../tests/cpp)
 
-# Test: EDS parsing
-add_executable(test_eds ${TEST_DIR}/test_eds.cpp)
-target_link_libraries(test_eds biofmi_lib)
-add_test(NAME test_eds COMMAND test_eds)
+# Test: Index building
+add_executable(test_build ${TEST_DIR}/test_build.cpp)
+target_link_libraries(test_build biofmi_lib)
+add_test(NAME test_build COMMAND test_build)
 
-# Test: Sources parsing
-add_executable(test_sources ${TEST_DIR}/test_sources.cpp)
-target_link_libraries(test_sources biofmi_lib)
-add_test(NAME test_sources COMMAND test_sources)
+# Test: Pattern locate
+add_executable(test_locate ${TEST_DIR}/test_locate.cpp)
+target_link_libraries(test_locate biofmi_lib)
+add_test(NAME test_locate COMMAND test_locate)
 
-# Test: Statistics
-add_executable(test_stats ${TEST_DIR}/test_stats.cpp)
-target_link_libraries(test_stats biofmi_lib)
-add_test(NAME test_stats COMMAND test_stats)
-
-# Test: Merging
-add_executable(test_merge ${TEST_DIR}/test_merge.cpp)
-target_link_libraries(test_merge biofmi_lib)
-add_test(NAME test_merge COMMAND test_merge)
-
-# Test: Transformation (EDS to l-EDS)
-add_executable(test_transform ${TEST_DIR}/test_transform.cpp)
-target_link_libraries(test_transform biofmi_lib)
-add_test(NAME test_transform COMMAND test_transform)
-
-# Test: MSA transformation
-add_executable(test_msa ${TEST_DIR}/test_msa.cpp)
-target_link_libraries(test_msa biofmi_lib)
-add_test(NAME test_msa COMMAND test_msa)
+# Test: Comprehensive locate validation
+add_executable(test_locate_validation ${TEST_DIR}/test_locate_validation_simple.cpp)
+target_link_libraries(test_locate_validation biofmi_lib)
+add_test(NAME test_locate_validation COMMAND test_locate_validation)
 
 # Print configuration summary
 message(STATUS "")

@@ -7,9 +7,9 @@
 
 namespace biofmi {
 
-// ===================================================================
-// CONSTRUCTORS
-// ===================================================================
+// ================================================================================
+// CONSTRUCTORS & PARSING
+// ================================================================================
 
 // Stream-based constructor (always FULL mode for streams)
 EDS::EDS(std::istream& eds_stream) : is_empty_(false), mode_(StoringMode::FULL), has_sources_(false) {
@@ -65,7 +65,6 @@ void EDS::parse(std::istream& is) {
 
     // Clear all data structures
     sets_.clear();
-    set_sizes_.clear();
     metadata_.base_positions.clear();
     metadata_.symbol_sizes.clear();
     metadata_.string_lengths.clear();
@@ -139,7 +138,6 @@ void EDS::parse(std::istream& is) {
         // Store full data if FULL mode
         if (mode_ == StoringMode::FULL) {
             sets_.push_back(current_set);
-            set_sizes_.push_back(current_set.size());
         }
 
         m_ += symbol_size;
@@ -156,9 +154,9 @@ void EDS::parse(std::istream& is) {
     }
 }
 
-// ===================================================================
+// ================================================================================
 // FACTORY METHODS
-// ===================================================================
+// ================================================================================
 
 // Convenience factory for string-based construction
 EDS EDS::from_string(const std::string& eds_string) {
@@ -170,9 +168,9 @@ EDS EDS::from_string(const std::string& eds_string, const std::string& seds_stri
     return EDS(eds_string, seds_string);
 }
 
-// ===================================================================
+// ================================================================================
 // FILE LOADERS
-// ===================================================================
+// ================================================================================
 
 // Load EDS from file (with optional StoringMode)
 EDS EDS::load(const std::filesystem::path& path, StoringMode mode) {
@@ -257,6 +255,10 @@ void EDS::load_sources(const std::string& seds_string) {
     std::stringstream ss(seds_string);
     parse_sources(ss);
 }
+
+// ================================================================================
+// SOURCE PARSING
+// ================================================================================
 
 // Parse sEDS format (flattened): {path_ids}{path_ids}...
 // Format: one set of path IDs per string (indexed by string ID 0..m-1)
@@ -351,6 +353,10 @@ void EDS::parse_sources(std::istream& is) {
     // Calculate source statistics
     calculate_source_statistics();
 }
+
+// ================================================================================
+// STATISTICS & METADATA
+// ================================================================================
 
 void EDS::calculate_statistics() {
     if (is_empty_) {
@@ -515,6 +521,10 @@ EDS::Statistics EDS::get_statistics() const {
     return stats;
 }
 
+// ================================================================================
+// OUTPUT METHODS
+// ================================================================================
+
 void EDS::print_statistics(std::ostream& os) const {
     Statistics stats = get_statistics();
 
@@ -647,6 +657,10 @@ void EDS::save_sources(std::ostream& os) const {
     }
     os << "\n";
 }
+
+// ================================================================================
+// PATTERN GENERATION & EXTRACTION
+// ================================================================================
 
 void EDS::save_sources(const std::filesystem::path& path) const {
     std::ofstream ofs(path);
@@ -810,6 +824,10 @@ String EDS::extract(Position pos, Length len, const std::vector<int>& changes) c
     return result;
 }
 
+// ================================================================================
+// STREAMING & DATA ACCESS
+// ================================================================================
+
 std::string EDS::normalize_eds_format(const std::string& input) const {
     /*
      * Normalize compact EDS format to full bracketed format
@@ -915,6 +933,10 @@ StringSet EDS::read_symbol(Position pos) const {
     }
     return read_symbol_from_stream(pos);
 }
+
+// ================================================================================
+// POSITION CHECKING & VALIDATION
+// ================================================================================
 
 // get_sets() with error checking
 const std::vector<StringSet>& EDS::get_sets() const {
@@ -1395,6 +1417,10 @@ std::set<int> EDS::calculate_path_intersection(size_t start_symbol,
     return intersection;
 }
 
+// ================================================================================
+// MERGING OPERATIONS
+// ================================================================================
+
 // Merge two adjacent symbols (degenerate or non-degenerate)
 EDS EDS::merge_adjacent(size_t pos1, size_t pos2) const {
     // ===== VALIDATION =====
@@ -1598,12 +1624,10 @@ EDS EDS::merge_adjacent(size_t pos1, size_t pos2) const {
 
     if (mode_ == StoringMode::FULL) {
         result.sets_.clear();
-        result.set_sizes_.clear();
 
         // Copy sets before pos1
         for (size_t i = 0; i < pos1; ++i) {
             result.sets_.push_back(sets_[i]);
-            result.set_sizes_.push_back(set_sizes_[i]);
         }
 
         // Build merged set
@@ -1652,12 +1676,10 @@ EDS EDS::merge_adjacent(size_t pos1, size_t pos2) const {
         }
 
         result.sets_.push_back(merged_set);
-        result.set_sizes_.push_back(merged_set.size());
 
         // Copy sets after pos2
         for (size_t i = pos2 + 1; i < n_; ++i) {
             result.sets_.push_back(sets_[i]);
-            result.set_sizes_.push_back(set_sizes_[i]);
         }
     }
 

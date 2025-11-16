@@ -1,5 +1,5 @@
 // Statistics tests - Testing EDS statistics calculation and source statistics
-#include "../../src/cpp/lib/eds.hpp"
+#include "formats/eds.hpp"
 #include <sstream>
 #include <iostream>
 #include <cassert>

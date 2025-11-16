@@ -25,13 +25,14 @@ constexpr char CHANGE_SEPARATOR = '#';
 constexpr char EMPTY_STRING_MARKER = '\0';
 
 // File extensions
-constexpr const char* EXT_MSA = ".msa";
-constexpr const char* EXT_VCF = ".vcf";
-constexpr const char* EXT_EDS = ".eds";
-constexpr const char* EXT_EDZ = ".edz";
-constexpr const char* EXT_LEDS = ".leds";
-constexpr const char* EXT_EDP = ".edp";
-constexpr const char* EXT_INDEX = ".index";
+constexpr const char* EXT_MSA = ".msa"; // Multiple Sequence Alignment
+constexpr const char* EXT_VCF = ".vcf"; // Variant Call Format
+constexpr const char* EXT_EDS = ".eds"; // Elastic-Degenerate String
+constexpr const char* EXT_EDZ = ".edz"; // Sources of Elastic-Degenerate String - binary
+constexpr const char* EXT_SEDS = ".seds"; // Sources of Elastic-Degenerate String - simple
+constexpr const char* EXT_LEDS = ".leds";   // Context-length limited EDS
+constexpr const char* EXT_EDP = ".edp"; // EDS Patterns
+constexpr const char* EXT_INDEX = ".index"; // Index files
 
 // Error codes
 enum class ErrorCode {
@@ -62,6 +63,12 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
+
+/**
+ * Get current process peak memory usage in MB
+ * Returns 0.0 if unavailable (non-Linux platform or error reading /proc)
+ */
+double get_peak_memory_mb();
 
 } // namespace biofmi
 

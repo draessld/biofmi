@@ -104,12 +104,9 @@ docs/_build/
 *.pdf
 
 # Data files (uncomment if you don't want to track data)
+data/
 # *.vcf
 # *.msa
-# *.fasta
-# *.fastq
-# *.bam
-# *.sam
 
 # Large experimental results
 results/

@@ -1,7 +1,7 @@
 #ifndef BIOFMI_EDS_HPP
 #define BIOFMI_EDS_HPP
 
-#include "common.hpp"
+#include "../common.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -181,7 +181,6 @@ private:
 
     // String data (only if mode_ == FULL)
     std::vector<StringSet> sets_;       // The actual EDS data
-    std::vector<Length> set_sizes_;     // Size of each set (redundant with metadata, kept for compatibility)
 
     // File streaming (only if mode_ == METADATA_ONLY)
     std::filesystem::path file_path_;

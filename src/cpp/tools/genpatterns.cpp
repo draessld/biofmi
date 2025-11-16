@@ -1,13 +1,31 @@
-#include "eds.hpp"
+#include "formats/eds.hpp"
+#include "common.hpp"
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <iomanip>
 
 namespace po = boost::program_options;
 using namespace biofmi;
 
 int main(int argc, char** argv) {
+    // Start performance tracking
+    Timer timer;
+    timer.start();
+
+    // Helper to print performance info to stderr
+    auto print_performance = [&timer]() {
+        timer.stop();
+        double runtime = timer.elapsed_seconds();
+        double memory_mb = get_peak_memory_mb();
+        std::cerr << "[Performance] Runtime: " << std::fixed << std::setprecision(2) << runtime << "s";
+        if (memory_mb > 0.0) {
+            std::cerr << " | Peak Memory: " << std::fixed << std::setprecision(1) << memory_mb << " MB";
+        }
+        std::cerr << "\n";
+    };
+
     try {
         std::filesystem::path input_file;
         std::filesystem::path output_file;
@@ -27,6 +45,7 @@ int main(int argc, char** argv) {
 
         if (vm.count("help")) {
             std::cout << desc << "\n";
+            print_performance();
             return 0;
         }
 
@@ -35,17 +54,20 @@ int main(int argc, char** argv) {
         // Validate input file exists
         if (!std::filesystem::exists(input_file)) {
             std::cerr << "Error: Input file does not exist: " << input_file << "\n";
+            print_performance();
             return 1;
         }
 
         // Validate parameters
         if (count == 0) {
             std::cerr << "Error: Pattern count must be greater than 0\n";
+            print_performance();
             return 1;
         }
 
         if (length == 0) {
             std::cerr << "Error: Pattern length must be greater than 0\n";
+            print_performance();
             return 1;
         }
 
@@ -55,6 +77,7 @@ int main(int argc, char** argv) {
 
         if (eds.empty()) {
             std::cerr << "Error: Cannot generate patterns from empty EDS\n";
+            print_performance();
             return 1;
         }
 
@@ -72,6 +95,7 @@ int main(int argc, char** argv) {
         std::ofstream outfile(output_file);
         if (!outfile) {
             std::cerr << "Error: Cannot open output file: " << output_file << "\n";
+            print_performance();
             return 1;
         }
 
@@ -82,10 +106,12 @@ int main(int argc, char** argv) {
         std::cerr << "Successfully generated " << count << " patterns\n";
         std::cerr << "Output written to: " << output_file << "\n";
 
+        print_performance();
         return 0;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
+        print_performance();
         return 1;
     }
 }

@@ -1,4 +1,4 @@
-#include "../../src/cpp/lib/eds.hpp"
+#include "formats/eds.hpp"
 #include <iostream>
 #include <cassert>
 #include <sstream>
