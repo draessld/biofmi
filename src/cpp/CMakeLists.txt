@@ -33,9 +33,22 @@ link_directories(BEFORE ${CMAKE_LIBRARY_PATH})
 find_package(Boost REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
-# Add EDSParser as subdirectory (from submodule)
-add_subdirectory(${CMAKE_SOURCE_DIR}/../../external/edsparser/src/cpp ${CMAKE_BINARY_DIR}/edsparser)
-message(STATUS "Using EDSParser from submodule")
+# Add EDSParser library from submodule (lib/ only — avoids pulling in edsparser tools and tests)
+set(EDSPARSER_LIB_DIR "${CMAKE_SOURCE_DIR}/../../external/edsparser/src/cpp/lib")
+add_subdirectory("${EDSPARSER_LIB_DIR}" "${CMAKE_BINARY_DIR}/edsparser_lib")
+message(STATUS "Using EDSParser from submodule: ${EDSPARSER_LIB_DIR}")
+
+# Create a build-time include alias so that #include <edsparser/...> resolves
+# to the submodule's lib/ directory (mirrors the installed layout under include/edsparser/)
+set(_edsparser_iface_dir "${CMAKE_BINARY_DIR}/edsparser_include")
+file(MAKE_DIRECTORY "${_edsparser_iface_dir}")
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "${EDSPARSER_LIB_DIR}"
+        "${_edsparser_iface_dir}/edsparser"
+    ERROR_QUIET
+)
+include_directories(BEFORE "${_edsparser_iface_dir}")
 
 # Find OpenMP for parallel processing
 find_package(OpenMP)
@@ -63,7 +76,7 @@ else()
 endif()
 
 find_library(SDSL_LIBRARY
-    NAMES sdsl
+    NAMES sdsl sdsl-lite
     PATHS
         ${CMAKE_LIBRARY_PATH}
         $ENV{HOME}/lib
@@ -132,6 +145,11 @@ add_test(NAME test_locate COMMAND test_locate)
 add_executable(test_locate_validation ${TEST_DIR}/test_locate_validation_simple.cpp)
 target_link_libraries(test_locate_validation biofmi_lib)
 add_test(NAME test_locate_validation COMMAND test_locate_validation)
+
+# Test: Spec-driven locate correctness (brute-force oracle vs index)
+add_executable(test_locate_correctness ${TEST_DIR}/test_locate_correctness.cpp)
+target_link_libraries(test_locate_correctness biofmi_lib)
+add_test(NAME test_locate_correctness COMMAND test_locate_correctness)
 
 # Print configuration summary
 message(STATUS "")

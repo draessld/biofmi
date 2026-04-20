@@ -302,7 +302,16 @@ void BioFMI::parse_eds() {
     // loc_: marks positions in changes sequence (per string)
     // iloc_: marks positions at end of each degenerate set in changes sequence
     size_t estimated_ref_size = metadata.num_common_chars + n_ + 1;
-    size_t estimated_chan_size = metadata.total_change_size + (m_ * cl * 2) + m_;
+
+    // Correct size estimate for the changes file:
+    //   degenerate_chars: actual character content of all degenerate strings
+    //   m_deg:            number of individual strings inside degenerate symbols
+    //   each string contributes at most cl left-ctx + string + cl right-ctx + 1 separator
+    // Note: metadata.total_change_size counts commas (separators), NOT characters.
+    size_t degenerate_chars = N_ - metadata.num_common_chars;
+    size_t n_non_deg        = n_ - metadata.num_degenerate_symbols;
+    size_t m_deg            = m_ - n_non_deg;
+    size_t estimated_chan_size = 2 + degenerate_chars + m_deg * (2 * cl + 1);
 
     data_->tloc = sdsl::bit_vector(estimated_ref_size, 0);
     data_->loc = sdsl::bit_vector(estimated_chan_size, 0);
