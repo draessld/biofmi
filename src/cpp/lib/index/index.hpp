@@ -69,6 +69,9 @@ public:
     // Load index from disk
     void load(const std::filesystem::path& index_dir);
 
+    // Dump internal structures in human-readable text form (for inspection/testing)
+    void dump_readable(const std::filesystem::path& dump_path) const;
+
     // Query operations
     ResultMap locate(const String& pattern);
     size_t count(const String& pattern);

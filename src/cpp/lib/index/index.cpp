@@ -3,6 +3,8 @@
 // SDSL headers included in implementation only
 #include <sdsl/suffix_arrays.hpp>
 
+#include <iomanip>
+
 namespace biofmi {
 
 // PIMPL implementation for IndexData
@@ -552,6 +554,89 @@ bool BioFMI::validate_chunk_positions(const std::vector<Position>& positions) {
     // TODO: Implement
     (void)positions;
     return false;
+}
+
+void BioFMI::dump_readable(const std::filesystem::path& dump_path) const {
+    std::ofstream out(dump_path);
+    if (!out.is_open())
+        throw std::runtime_error("Cannot open dump file: " + dump_path.string());
+
+    const size_t WIDTH = 60;
+
+    // Replace separator/control chars with '$' for display.
+    auto printable = [](char c) -> char {
+        return (static_cast<unsigned char>(c) < 32 || c == 127) ? '$' : c;
+    };
+
+    out << "=== BioFMI Index Dump ===\n";
+    out << "context_length:  " << context_length_ << "\n";
+    out << "n (symbols):     " << n_ << "\n";
+    out << "m (strings):     " << m_ << "\n";
+    out << "N (total chars): " << N_ << "\n\n";
+
+    // --- Reference string + tloc ---
+    // Extract original text from FM-index (exclude SDSL sentinel at size()-1).
+    std::string ref_text = sdsl::extract(data_->reference_index, (size_t)0,
+                                         data_->reference_index.size() - 2);
+    out << "=== Reference String (length=" << ref_text.size() << ") ===\n";
+    out << "  $ marks reference block boundaries; tloc is 1 at each $.\n\n";
+    for (size_t start = 0; start < ref_text.size(); start += WIDTH) {
+        size_t end = std::min(start + WIDTH, ref_text.size());
+        out << std::setw(8) << start << " |";
+        for (size_t i = start; i < end; i++) out << printable(ref_text[i]);
+        out << "\n";
+        out << "         |tloc: ";
+        for (size_t i = start; i < end; i++)
+            out << (i < data_->tloc.size() && data_->tloc[i] ? '1' : '.');
+        out << "\n";
+    }
+    out << "\n";
+
+    // --- Changes string + loc + iloc ---
+    std::string ch_text = sdsl::extract(data_->changes_index, (size_t)0,
+                                        data_->changes_index.size() - 2);
+    out << "=== Changes String (length=" << ch_text.size() << ") ===\n";
+    out << "  Each $-delimited segment: left_ctx + change + right_ctx.\n";
+    out << "  loc:  1 at end of each change's content (before right_ctx + $).\n";
+    out << "  iloc: also 1 for the last string in each degenerate set.\n\n";
+    for (size_t start = 0; start < ch_text.size(); start += WIDTH) {
+        size_t end = std::min(start + WIDTH, ch_text.size());
+        out << std::setw(8) << start << " |";
+        for (size_t i = start; i < end; i++) out << printable(ch_text[i]);
+        out << "\n";
+        out << "         |loc : ";
+        for (size_t i = start; i < end; i++)
+            out << (i < data_->loc.size() && data_->loc[i] ? '1' : '.');
+        out << "\n";
+        out << "         |iloc: ";
+        for (size_t i = start; i < end; i++)
+            out << (i < data_->iloc.size() && data_->iloc[i] ? '1' : '.');
+        out << "\n";
+    }
+    out << "\n";
+
+    // --- Metadata arrays ---
+    out << "=== Metadata Arrays ===\n";
+    out << "base_positions (abp) — cumulative reference length before each symbol:\n  [";
+    for (size_t i = 0; i < data_->base_positions.size(); i++) {
+        if (i) out << ", ";
+        out << data_->base_positions[i];
+    }
+    out << "]\n\n";
+
+    out << "set_sizes (ss) — cumulative string count through each degenerate set:\n  [";
+    for (size_t i = 0; i < data_->set_sizes.size(); i++) {
+        if (i) out << ", ";
+        out << data_->set_sizes[i];
+    }
+    out << "]\n\n";
+
+    out << "offsets (aof) — length of each change string (excluding context):\n  [";
+    for (size_t i = 0; i < data_->offsets.size(); i++) {
+        if (i) out << ", ";
+        out << data_->offsets[i];
+    }
+    out << "]\n";
 }
 
 } // namespace biofmi

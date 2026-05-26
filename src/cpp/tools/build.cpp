@@ -31,13 +31,16 @@ int main(int argc, char** argv) {
         std::filesystem::path input_file;
         std::filesystem::path output_file;
         Length context_length;
+        bool dump_readable;
 
         po::options_description desc("Build BIO-FMI index");
         desc.add_options()
             ("help,h", "Show help message")
             ("input,i", po::value<std::filesystem::path>(&input_file)->required(), "Input l-EDS file")
             ("output,o", po::value<std::filesystem::path>(&output_file), "Output index directory")
-            ("context-length,l", po::value<Length>(&context_length)->required(), "Context length");
+            ("context-length,l", po::value<Length>(&context_length)->required(), "Context length")
+            ("dump", po::bool_switch(&dump_readable)->default_value(false),
+             "Write human-readable dump of index internals to <output>/index.dump.txt");
 
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -91,6 +94,13 @@ int main(int argc, char** argv) {
 
         // Print statistics
         index.print_statistics();
+
+        if (dump_readable) {
+            std::filesystem::path dump_path = output_file / "index.dump.txt";
+            std::cout << "Dumping human-readable index to " << dump_path << "..." << std::flush;
+            index.dump_readable(dump_path);
+            std::cout << " done\n";
+        }
 
         std::cout << "\nIndex successfully built and saved to " << output_file << "\n";
         print_performance();

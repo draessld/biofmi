@@ -129,7 +129,7 @@ add_subdirectory(lib)
 add_subdirectory(tools)
 
 # Add test executables (only index-related tests)
-set(TEST_DIR ${CMAKE_SOURCE_DIR}/../../tests/cpp)
+set(TEST_DIR ${CMAKE_SOURCE_DIR}/../../tests/unit)
 
 # Test: Index building
 add_executable(test_build ${TEST_DIR}/test_build.cpp)
