@@ -130,5 +130,6 @@ Thumbs.db
 .claudeignore
 
 *.md
+~CLAUDE.md
 ~README.md
 ~src/cpp/tools/README.md
