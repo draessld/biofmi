@@ -160,7 +160,7 @@ void assert_equal(const std::set<OccInfo>& expected,
             std::cerr << "]\n";
         }
     }
-    assert(false && "locate() result does not match brute-force oracle");
+    std::abort();  // not stripped by -DNDEBUG; ensures ctest sees a real failure
 }
 
 // ---------------------------------------------------------------------------

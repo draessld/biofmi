@@ -200,9 +200,11 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
 }
 
 size_t BioFMI::count(const String& pattern) {
-    // TODO: Implement count
-    (void)pattern;
-    return 0;
+    auto result = locate(pattern);
+    size_t total = 0;
+    for (const auto& [seq_id, occs] : result)
+        total += occs.size();
+    return total;
 }
 
 BioFMI::IndexStats BioFMI::get_statistics() const {
@@ -423,8 +425,10 @@ void BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx) {
         // Determine block number using tloc rank
         int block_number = data_->rtloc(loc);
 
-        // Adjust position: convert from T0 coordinate to EDS position
-        loc = loc - block_number + 1;
+        // Adjust position: strip leading $-separators to get 0-based T0 coordinate.
+        // rtloc(loc) gives 1-based rank of $ chars up to and including loc, so
+        // subtracting it removes exactly the separators that precede this char.
+        loc = loc - block_number;
 
         if (chunk_idx == 0) {
             // First chunk: save initial position
@@ -434,9 +438,17 @@ void BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx) {
             auto it = old_hash_map_.find(loc - context_length_);
             if (it != old_hash_map_.end()) {
                 for (const auto& occ : it->second) {
-                    // Case 1: Previous was in reference (empty change vector)
+                    // Case 1: Previous was in reference (empty change vector).
+                    // Only allow ref→ref continuation within the SAME reference block.
+                    // In an l-EDS, consecutive reference blocks are always separated by
+                    // a degenerate symbol, so cross-block continuations don't exist.
                     if (occ.second.empty()) {
-                        new_hash_map_[loc].push_back(occ);
+                        int block_start = (block_number >= 2)
+                                          ? (int)data_->base_positions[block_number - 2]
+                                          : 0;
+                        if ((int)occ.first >= block_start) {
+                            new_hash_map_[loc].push_back(occ);
+                        }
                     }
                     // Case 3: Previous was in change, check if change is in valid set
                     else if (occ.second.back() <= data_->set_sizes[block_number - 1]) {
@@ -457,9 +469,20 @@ void BioFMI::process_changes_matches(const String& chunk, size_t chunk_idx) {
         int change_number = data_->rloc(loc);
         int pre_hash_loc = data_->sloc(change_number);
 
-        // Calculate offset within change string
-        int offset = loc - (pre_hash_loc + context_length_ - 1);
-        bool previous_outside_change = (pre_hash_loc >= (loc - context_length_));
+        // Calculate offset within change content.
+        // The entry layout is: <prev_#> [cl left-ctx] [change] [cl right-ctx] <#>
+        // where cl = context_length_ - 1.
+        // The change content starts at file byte (pre_hash_loc + 1 + cl)
+        //   = (pre_hash_loc + context_length_).
+        // offset < 0 means the match window starts in the left context (i.e. the
+        //   first matched character is in the reference that precedes the change).
+        int offset = (int)loc - (pre_hash_loc + (int)context_length_);
+        // previous_outside_change: the current chunk window starts at or before
+        // the change content boundary (offset <= 0).  When offset == 0 the
+        // window starts exactly at the first char of the change, meaning chunk
+        // l-1 chars earlier was in the left context (reference / earlier change).
+        // When offset < 0 it is clearly in the left context.
+        bool previous_outside_change = (offset <= 0);
 
         // Handle truncated context at EDS start
         if (data_->base_positions[block_number] < (int)(context_length_ - 1)) {
@@ -529,8 +552,14 @@ BioFMI::ResultMap BioFMI::convert_hash_to_result(const HashType& hash_map) {
 
     for (const auto& [position, occurrences] : hash_map) {
         for (const auto& [origin_pos, changes] : occurrences) {
+            // Convert change indices from 1-based (SDSL rank) to 0-based (spec).
+            // Internal hash maps use 1-based values for rank/select consistency;
+            // the public ResultMap must expose 0-based global alternative indices.
+            std::vector<int> zero_based_changes;
+            zero_based_changes.reserve(changes.size());
+            for (int c : changes) zero_based_changes.push_back(c - 1);
             // Sequence ID 0 (single sequence support for now)
-            result[0].push_back({origin_pos, changes});
+            result[0].push_back({origin_pos, zero_based_changes});
         }
     }
 

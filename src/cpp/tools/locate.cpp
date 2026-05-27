@@ -124,6 +124,10 @@ int main(int argc, char** argv) {
                     total_occurrences += count;
                 }
             } catch (const std::exception& e) {
+                if (!benchmark) {
+                    *out << "Pattern: " << p << "\n";
+                    *out << "Error: " << e.what() << "\n\n";
+                }
                 std::cerr << "Error searching pattern '" << p << "': " << e.what() << "\n";
             }
         }
