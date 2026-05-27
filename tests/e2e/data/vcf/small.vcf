@@ -1,0 +1,13 @@
+##fileformat=VCFv4.2
+##reference=reference.fasta
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  SAMPLE1 SAMPLE2 SAMPLE3 SAMPLE4 SAMPLE5
+chr1    5       .       T       C       99      PASS    .       GT      0|0     0|1     1|0     1|1     0|0
+chr1    8      .       A       G       99      PASS    .       GT      0|1     0|0     0|1     1|1     0|0
+chr1    20      .       C       T       99      PASS    .       GT      1|0     1|1     0|0     0|1     0|0
+chr1    27      .       G       A       99      PASS    .       GT      0|0     0|1     0|0     1|1     0|0
+chr1    34      .       T       TA      99      PASS    .       GT      0|1     1|0     1|1     0|0     0|0
+chr1    42      .       C       <DEL>       99      PASS    .       GT      1|1     0|1     0|0     0|0     1|0
+chr1    55      .       A       C       99      PASS    .       GT      0|0     0|1     1|1     0|0     0|1
+chr1    60      .       G       T       99      PASS    .       GT      0|1     1|0     0|0     1|1     0|0
+chr1    75      .       A       ATG     99      PASS    .       GT      1|0     1|1     0|0     0|1     0|0
+chr1    90      .       T       G,A       99      PASS    .       GT      0|2     0|0     2|1     1|0     1|1
