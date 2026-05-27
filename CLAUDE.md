@@ -149,7 +149,10 @@ EDS encodes degenerate strings as `{alt1,alt2}common{alt3}...`. The l-EDS varian
 
 ## Known Issues / Future Work
 
-- Patterns that span only the boundary of the EDS (leading/trailing non-degenerate segment shorter than `l`) may produce false positives — the context is truncated rather than rejected.
-- `locate_short()`, `locate_long()`, and `validate_chunk_positions()` in `src/cpp/lib/index/index.cpp` are stub methods (TODOs); the active `locate()` path does not call them.
+See `TODO.md` for design analysis and recommended fixes for the two open issues:
+- EDS boundary false positives (truncated context at EDS start/end)
+- Dead stub methods (`locate_short`, `locate_long`, `validate_chunk_positions`)
+
+Other notes:
 - Pattern lengths shorter than `l` or not a multiple of `l` raise `std::runtime_error` (correct per spec). Arbitrary pattern lengths are future work.
 - `count()` is implemented (delegates to `locate()` and sums entries). All correctness tests pass.
