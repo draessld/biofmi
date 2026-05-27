@@ -155,16 +155,15 @@ fi
 echo ""
 
 # Run tests
-if [ -d "../tests/cpp" ] && [ "$(ls -A ../tests/cpp/*.cpp 2>/dev/null)" ]; then
-    echo -e "${BLUE}Running tests...${NC}"
-    ctest --output-on-failure
-    if [ $? -eq 0 ]; then
-        print_status "All tests passed"
-    else
-        print_error "Some tests failed"
-    fi
-    echo ""
+echo -e "${BLUE}Running tests...${NC}"
+ctest --output-on-failure
+if [ $? -eq 0 ]; then
+    print_status "All tests passed"
+else
+    print_error "Some tests failed"
+    exit 1
 fi
+echo ""
 
 # Install tools
 echo -e "${BLUE}Installing tools to $HOME/.local/bin/...${NC}"
