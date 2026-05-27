@@ -1,0 +1,7 @@
+timestamp,preset,scenario,phase,tool,input_size_mb,context_length,pattern_length,n_patterns,n_occurrences,runtime_s,peak_memory_mb
+2026-05-27_18-54-58,quick,build_size_1mb,build,biofmi-build,1.679,5,,,,0.89,32.5
+2026-05-27_18-54-58,quick,build_size_5mb,build,biofmi-build,8.393,5,,,,5.28,139.8
+2026-05-27_18-54-58,quick,build_ctx_l5,build,biofmi-build,8.394,5,,,,5.11,141.1
+2026-05-27_18-54-58,quick,locate_patlen_l5,locate,biofmi-locate,8.397,5,5,50,525339,1.79,35.1
+2026-05-27_18-54-58,quick,locate_patlen_l10,locate,biofmi-locate,8.397,5,10,50,1202,3.58,33.4
+2026-05-27_18-54-58,quick,locate_dataset_5mb,locate,biofmi-locate,8.393,5,10,50,1243,3.56,33.2

@@ -103,10 +103,12 @@ docs/_build/
 # Text files
 *.pdf
 
-# Data files (uncomment if you don't want to track data)
-data/
-# *.vcf
-# *.msa
+# Bench results and large generated data — keep the .gitkeep placeholders
+tests/bench/results/*.csv
+tests/bench/results/plots/
+
+# Large generated/downloaded datasets (not test fixtures)
+data/large/
 
 # Large experimental results
 results/
@@ -130,6 +132,7 @@ Thumbs.db
 .claudeignore
 
 *.md
+!tests/bench/README.md
 ~CLAUDE.md
 ~README.md
 ~src/cpp/tools/README.md
