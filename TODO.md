@@ -208,9 +208,189 @@ reintroduced at that point with a concrete design.
 
 ---
 
+## 3. Index Build — No Structural Correctness Tests
+
+**File:** `tests/unit/test_build.cpp`
+
+### What exists
+
+`test_build.cpp` currently checks only high-level output:
+
+```cpp
+assert(stats.total_size_mb > 0);          // some bytes written
+assert(stats.num_changes == 2);           // correct degenerate count
+assert(stats.reference_length == 13);     // correct T₀ length
+assert(filesystem::exists("index.ri"));   // file created
+```
+
+These tests catch build failures (crash, wrong count) but not correctness failures — a
+subtly wrong `parse_eds()` could pass all of them while producing bad bit vectors or
+metadata arrays, and the error would only surface later as a wrong locate() result.
+
+### What's missing
+
+`parse_eds()` produces five internal structures that no test ever inspects directly:
+
+| Structure | Role in locate() |
+|---|---|
+| `base_positions` | Maps degenerate-set index → cumulative T₀ length before it; used to compute reported position |
+| `set_sizes` | Cumulative count of change strings through each degenerate set; used to validate cross-set continuity in `process_reference_matches()` |
+| `offsets` | Length of each individual degenerate string; used to calculate position of match start relative to base |
+| `loc` / `iloc` / `tloc` bit vectors | Mark string boundaries and reference positions; drives all `rank()`/`select()` calls in locate() |
+
+A wrong value in any of these produces a silent wrong answer (wrong position, spurious
+match, or missed match) with no assertion to catch it.
+
+### The tool that exists but isn't used
+
+`dump_readable()` is already implemented (`index.cpp:588`) and writes all internal
+structures as human-readable text. It was presumably built for this purpose. It's never
+called in any test.
+
+### What a structural test would look like
+
+```cpp
+// EDS: AAATTT{G,C}AAATTT  l=3
+// T₀  = AAATTTAAATTT  (length 12)
+// Changes: 0=G, 1=C
+// parse_eds() should produce:
+//
+//   base_positions = [6, 12]
+//     index 0: length of "AAATTT" = 6
+//     index 1: length of "AAATTT" + "AAATTT" = 12
+//
+//   set_sizes = [2]
+//     one degenerate set, containing 2 strings (G and C)
+//
+//   offsets = [1, 1]
+//     G has length 1, C has length 1
+//
+//   Reference file content: #AAATTT#AAATTT#
+//   (3 separator-delimited blocks including the initial #)
+//
+//   Changes file layout for G:  #[TTT][G][AAA]#
+//   Changes file layout for C:  #[TTT][C][AAA]#
+//   (left-ctx=TTT, right-ctx=AAA, each length l-1=2)
+//
+//   tloc: bits set at positions of each # in the reference file
+//   loc:  bits set at end of each change string (before its #)
+//   iloc: bits set at end of the LAST string in each degenerate set
+
+void test_base_positions() { ... }
+void test_set_sizes_and_offsets() { ... }
+void test_bit_vector_positions() { ... }  // use dump_readable() to inspect
+```
+
+### Why this matters
+
+Without structural tests, a regression in `parse_eds()` is only caught indirectly by
+`test_locate_correctness`. The correctness test uses small EDS strings where offset
+errors might cancel out accidentally. A structural test makes the invariants explicit and
+provides precise failure messages ("base_positions[0] expected 6, got 7") rather than
+the generic "MISSING pos=4 changes=[0]" from the oracle diff.
+
+### Approach
+
+1. Add a `test_build_structure.cpp` that calls `dump_readable()` on known small EDS inputs
+   and asserts specific values for each internal array.
+2. Alternatively, expose `get_internal_data()` (const accessor returning a reference to
+   `IndexData`) to allow direct inspection without going through text serialization.
+3. Register the new test in `CMakeLists.txt`.
+
+---
+
+## 4. Locate Algorithm — Documentation and Verification
+
+**File:** `src/cpp/lib/index/index.cpp`  
+**Functions:** `process_reference_matches()`, `process_changes_matches()`,
+`validate_change_continuity()`, `convert_hash_to_result()`
+
+### Clarification: the algorithm is NOT a dummy
+
+`locate()` is fully implemented and correct — it passes `test_locate_correctness` which
+compares every result against a brute-force oracle across twelve scenarios. The confusion
+likely comes from the three dead stubs (`locate_short`, `locate_long`,
+`validate_chunk_positions`) which look like unfinished code.
+
+### What the algorithm actually does (undocumented)
+
+The chunk-based hash-map approach:
+
+```
+For each chunk[i] (pattern split into l-length pieces):
+  1. Search reference index for chunk[i]   → get T₀ positions
+  2. Search changes index for chunk[i]     → get change positions
+  3. For chunk 0: seed hash map with (position → [(origin, changes)])
+  4. For chunk k>0: only keep entries that extend an existing entry
+     from chunk k-1 at exactly position - l (continuity check)
+  5. After all chunks: convert surviving entries to ResultMap
+```
+
+The hash map key is the **continuation position** (where the next chunk should start),
+not the start position of the full match. The **origin position** (the actual start of
+the first chunk) is stored inside the occurrence info and only extracted at step 5.
+
+This distinction is implicit in the code and not explained anywhere. The variable names
+(`position` vs `origin_pos` vs `loc`) make it easy to confuse the two roles.
+
+### What's hard to follow
+
+**`process_changes_matches()`** (~45 lines) computes:
+
+```cpp
+int offset = (int)loc - (pre_hash_loc + (int)context_length_);
+bool previous_outside_change = (offset <= 0);
+```
+
+`offset` measures how far into the change content the match starts. When `offset <= 0`
+the match starts in the left context (i.e. the preceding reference), so the previous
+chunk was outside this change. When `offset > 0` the match starts inside the change
+content itself. This is a critical branch point for the continuity check but it's not
+commented.
+
+The line `loc = data_->base_positions[block_number] + offset` converts a file position
+in the changes index into the logical position in the EDS, but only for the normal
+(non-truncated-context) case. The other branch `loc -= pre_hash_loc` is the boundary
+fallback (see Issue 1) and its semantics are unclear.
+
+**`validate_change_continuity()`** handles four cases (ref→change, change→same-change,
+change→different-change, ref→different-change) but the case structure is encoded only
+through `previous_outside_change` and `occ.second.empty()` checks with no comments
+labelling which case each branch covers.
+
+### What should be done
+
+**Short term — documentation pass (no behaviour change):**
+
+Add a high-level block comment to `locate()` explaining the hash-map-as-chain-tracker
+approach, with a worked example tracing one 2-chunk pattern through the whole flow.
+Add inline labels to the four branches in `validate_change_continuity()`.
+
+**Medium term — verify `process_changes_matches` offset arithmetic:**
+
+The offset calculation in `process_changes_matches()` is the most error-prone part of
+the codebase. Write a unit test that:
+1. Builds a known index (e.g. `AAATTT{G,C}AAATTT`, l=3)
+2. Uses `dump_readable()` to read the exact byte positions in the changes file
+3. Asserts that the computed `offset`, `block_number`, `change_number` match hand-
+   calculated values for a specific locate call
+
+This would give a regression anchor for that logic independent of the end-to-end oracle.
+
+**Long term — arbitrary pattern lengths:**
+
+The current algorithm requires `|P|` to be a multiple of `l`. Supporting arbitrary
+lengths would mean the first or last chunk could be shorter than `l`. This requires
+a different index lookup strategy for those partial chunks and is out of scope until
+the boundary false-positive issue (Issue 1) is resolved.
+
+---
+
 ## Summary
 
 | Issue | Root cause | Recommended fix | Effort |
 |---|---|---|---|
 | Boundary false positives | Truncated context not padded at EDS start/end | Pad with sentinel in `parse_eds()` | Small — one-line change + regression test |
 | Dead stub methods | Design intent diverged from implementation | Delete stubs from hpp + cpp | Trivial |
+| No structural build tests | test_build.cpp only checks high-level stats | Add test_build_structure.cpp using dump_readable() | Medium |
+| Locate algorithm undocumented | No high-level explanation of hash-map chain approach | Documentation pass + offset arithmetic unit test | Small–medium |
