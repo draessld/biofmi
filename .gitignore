@@ -133,6 +133,6 @@ Thumbs.db
 
 *.md
 !tests/bench/README.md
-~CLAUDE.md
-~README.md
-~src/cpp/tools/README.md
+!CLAUDE.md
+!README.md
+!src/cpp/tools/README.md
