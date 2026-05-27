@@ -107,11 +107,11 @@ docs/_build/
 tests/bench/results/*.csv
 tests/bench/results/plots/
 
-# Large generated/downloaded datasets (not test fixtures)
-data/large/
+# Local data directory — sample/benchmark files, not test fixtures
+/data/
 
-# Large experimental results
-results/
+# Large experimental results (root-level only; bench results are handled above)
+/results/
 experiments/output/
 *.log
 

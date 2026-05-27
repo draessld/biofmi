@@ -11,7 +11,7 @@ using namespace biofmi;
 namespace fs = std::filesystem;
 
 // Test data paths
-const std::string DATA_DIR = "../tests/e2e/data/vcf/";
+const std::string DATA_DIR = "../../data/vcf/";
 
 /**
  * Test 1: Basic VCF parsing with small.vcf
