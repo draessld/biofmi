@@ -54,6 +54,8 @@ Tests use plain `cassert` (no external framework). Test source files are in `tes
 
 EDSParser has its own test suite; run from `external/edsparser/build/src/cpp`.
 
+**Note:** `tests/unit/` contains only the 4 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
+
 ## Typical Workflow
 
 ```bash
@@ -101,7 +103,7 @@ The `BioFMI` class (C++ namespace `biofmi`) holds two SDSL `csa_wt<>` compressed
 
 Position mapping between the two indexes uses three SDSL bit vectors with rank/select support (`.loc`, `.iloc`, `.tloc`), plus metadata arrays for base positions, set sizes, and offsets (`.abp`, `.ss`, `.aof`).
 
-Query processing splits the pattern into chunks of size `l` and tracks matches across both indexes using hash maps, with early termination on empty intermediate results.
+Query processing splits the pattern into chunks of size `l` and tracks matches across both indexes using hash maps, with early termination on empty intermediate results. `locate_short()`, `locate_long()`, and `validate_chunk_positions()` are stub methods (not yet called by `locate()`) — the main `locate()` loop handles all pattern lengths directly.
 
 **`locate()` result semantics** (see `docs/locate_spec.md` for full spec):
 - Pattern length must be a multiple of `l` and at least `l` (minimum `l` is 3); otherwise throws.
@@ -147,7 +149,7 @@ EDS encodes degenerate strings as `{alt1,alt2}common{alt3}...`. The l-EDS varian
 
 ## Known Issues / Future Work
 
-- `test_locate_correctness` Test 3 currently fails with an off-by-one in reference position reporting: `process_reference_matches` uses `loc - block_number + 1` but should use `loc - block_number`. Tests 4–9 also rely on correct position semantics and will fail until this is fixed.
-- `count()` is not yet implemented (returns 0); `test_count_matches_locate` is expected to fail.
-- Pattern lengths shorter than `l` or not a multiple of `l` raise `std::runtime_error` (correct per spec).
-- Patterns that span only the boundary of the EDS (leading/trailing non-degenerate segment shorter than l) may produce false positives — the context is truncated rather than rejected.
+- Patterns that span only the boundary of the EDS (leading/trailing non-degenerate segment shorter than `l`) may produce false positives — the context is truncated rather than rejected.
+- `locate_short()`, `locate_long()`, and `validate_chunk_positions()` in `src/cpp/lib/index/index.cpp` are stub methods (TODOs); the active `locate()` path does not call them.
+- Pattern lengths shorter than `l` or not a multiple of `l` raise `std::runtime_error` (correct per spec). Arbitrary pattern lengths are future work.
+- `count()` is implemented (delegates to `locate()` and sums entries). All correctness tests pass.
