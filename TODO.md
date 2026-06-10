@@ -2,34 +2,7 @@
 
 ---
 
-## 1. ~~EDS Boundary False Positives~~ — FIXED
-
-**Fixed in:** `src/cpp/lib/index/index.cpp` (`parse_eds()`, `process_changes_matches()`)
-
-Boundary degenerate symbols (first/last in EDS) had truncated context. Fixed by padding
-short context with `CHANGE_SEPARATOR` sentinels in `parse_eds()` so every entry has
-exactly `cl` chars on each side. Regression tests added in `test_locate_correctness.cpp`.
-
----
-
-## 2. ~~Stub Methods: `locate_short`, `locate_long`, `validate_chunk_positions`~~ — FIXED
-
-**Fixed in:** `src/cpp/lib/index/index.hpp`, `src/cpp/lib/index/index.cpp`
-
-Dead code deleted. Functionality already existed inline in `locate()` and helpers.
-
----
-
-## 3. ~~Index Build — No Structural Correctness Tests~~ — FIXED
-
-**Fixed in:** `tests/unit/test_build_structure.cpp`, `src/cpp/lib/index/index.hpp` (`IndexSnapshot` + `get_snapshot()`), `src/cpp/CMakeLists.txt`
-
-Four structural tests verify `base_positions`, `set_sizes`, `offsets`, and bit vector
-positions produced by `parse_eds()` for known EDS inputs.
-
----
-
-## 4. Locate Algorithm — Documentation and Verification
+## Locate Algorithm — Documentation and Verification
 
 **File:** `src/cpp/lib/index/index.cpp`
 **Functions:** `process_reference_matches()`, `process_changes_matches()`,
@@ -87,26 +60,3 @@ through `previous_outside_change` and `occ.second.empty()` with no labels.
 **Long term — arbitrary pattern lengths:**
 - Currently `|P|` must be a multiple of `l+1`. Supporting arbitrary lengths requires
   a different lookup strategy for partial chunks.
-
----
-
-## 5. ~~Context Window Off-By-One in `parse_eds()`~~ — FIXED
-
-**Fixed in:** `src/cpp/lib/index/index.cpp` (`parse_eds()`, `locate()`,
-`process_reference_matches()`, `validate_change_continuity()`, `process_changes_matches()`)
-
-`cl` changed from `context_length_ - 1` to `context_length_` in `parse_eds()`.
-Chunk size and continuity step changed from `l` to `l+1` at seven sites. Pattern
-length requirement is now a multiple of `l+1`. All tests updated.
-
----
-
-## Summary
-
-| Issue | Status |
-|---|---|
-| EDS boundary false positives | ✅ Fixed — sentinel padding in `parse_eds()` |
-| Dead stub methods | ✅ Fixed — deleted from hpp + cpp |
-| No structural build tests | ✅ Fixed — `test_build_structure.cpp` + `IndexSnapshot` |
-| Locate algorithm undocumented | ⚠️ Open — documentation pass + offset unit test |
-| Context window + chunk size off-by-one | ✅ Fixed — `cl → l`, chunk size → `l+1` |
