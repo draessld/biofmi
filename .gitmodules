@@ -1,0 +1,3 @@
+[submodule "external/edsparser"]
+	path = external/edsparser
+	url = https://github.com/draessld/EDSParser

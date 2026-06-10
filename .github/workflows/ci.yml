@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+# Allow publish-unit-test-result-action to post check results on PRs
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+
+  # ── BioFMI ────────────────────────────────────────────────────────────────
+  biofmi:
+    name: BioFMI — Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libboost-all-dev
+
+      # sdsl-lite takes ~4 min to build; cache by the pinned release tag.
+      # Bust the cache by bumping the "-vN" suffix if the install layout changes.
+      - name: Cache sdsl-lite
+        id: cache-sdsl
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/include/sdsl
+            ~/.local/include/divsufsort.h
+            ~/.local/include/divsufsort64.h
+            ~/.local/lib/libsdsl.a
+            ~/.local/lib/libdivsufsort.a
+            ~/.local/lib/libdivsufsort64.a
+          key: sdsl-lite-ubuntu-v2.1.1-v1
+
+      - name: Build and install sdsl-lite
+        if: steps.cache-sdsl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch v2.1.1 \
+            https://github.com/simongog/sdsl-lite.git
+          cmake sdsl-lite -B sdsl-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$HOME/.local
+          cmake --build sdsl-build -j$(nproc)
+          cmake --install sdsl-build
+
+      - name: Configure
+        run: |
+          cmake src/cpp -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INCLUDE_PATH=$HOME/.local/include \
+            -DCMAKE_LIBRARY_PATH=$HOME/.local/lib \
+            -DCMAKE_INSTALL_PREFIX=$HOME/.local
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: |
+          ctest --test-dir build \
+            --output-on-failure \
+            --output-junit test-results.xml
+
+      - name: Upload test results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: biofmi-test-results
+          path: build/test-results.xml
+
+      - name: Publish test results to PR
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: build/test-results.xml
+          check_name: BioFMI Tests
+
+  # ── EDSParser ─────────────────────────────────────────────────────────────
+  edsparser:
+    name: EDSParser — Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libboost-all-dev
+
+      # EDSParser does not depend on sdsl — no cache step needed.
+      - name: Configure
+        run: |
+          cmake external/edsparser/src/cpp -B edsparser-build \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build edsparser-build -j$(nproc)
+
+      - name: Test
+        run: |
+          ctest --test-dir edsparser-build \
+            --output-on-failure \
+            --output-junit edsparser-test-results.xml
+
+      - name: Upload test results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edsparser-test-results
+          path: edsparser-test-results.xml
+
+      - name: Publish test results to PR
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: edsparser-test-results.xml
+          check_name: EDSParser Tests

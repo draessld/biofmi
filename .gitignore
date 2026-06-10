@@ -10,7 +10,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/
 lib64/
 parts/
 sdist/
@@ -90,6 +90,12 @@ htmlcov/
 *.cover
 .hypothesis/
 
+# Compiled test executables (keep source .cpp files)
+tests/cpp/test_*
+!tests/cpp/test_*.cpp
+tests/python/test_*
+!tests/python/test_*.py
+
 # Documentation
 docs/_build/
 *.pdf.bak
@@ -97,16 +103,15 @@ docs/_build/
 # Text files
 *.pdf
 
-# Data files (uncomment if you don't want to track data)
-# *.vcf
-# *.msa
-# *.fasta
-# *.fastq
-# *.bam
-# *.sam
+# Bench results and large generated data — keep the .gitkeep placeholders
+tests/bench/results/*.csv
+tests/bench/results/plots/
 
-# Large experimental results
-results/
+# Local data directory — sample/benchmark files, not test fixtures
+/data/
+
+# Large experimental results (root-level only; bench results are handled above)
+/results/
 experiments/output/
 *.log
 
@@ -126,5 +131,14 @@ Thumbs.db
 .claude
 .claudeignore
 
+# MkDocs build output
+site/
+
 *.md
-~README.md
+!tests/bench/README.md
+!CLAUDE.md
+!README.md
+!TODO.md
+!src/cpp/tools/README.md
+!docs/*.md
+!mkdocs.yml

@@ -1,0 +1,44 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+  workflow_dispatch:   # allow manual runs from the Actions tab
+
+permissions:
+  contents: write   # needed to push to gh-pages branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so mkdocs git-dates plugin works
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-mkdocs-material-9
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install MkDocs and Material theme
+        run: |
+          pip install --upgrade pip
+          pip install "mkdocs>=1.5,<2" "mkdocs-material>=9,<10"
+
+      - name: Build and deploy to GitHub Pages
+        run: mkdocs gh-deploy --force --clean --verbose

@@ -1,40 +1,143 @@
-#include "index.hpp"
+#include "index/index.hpp"
+#include <edsparser/common.hpp>
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 
 namespace po = boost::program_options;
 using namespace biofmi;
+using edsparser::Timer;
+using edsparser::get_peak_memory_mb;
 
 int main(int argc, char** argv) {
+    // Start performance tracking
+    Timer timer;
+    timer.start();
+
+    // Helper to print performance info to stderr
+    auto print_performance = [&timer]() {
+        timer.stop();
+        double runtime = timer.elapsed_seconds();
+        double memory_mb = get_peak_memory_mb();
+        std::cerr << "[Performance] Runtime: " << std::fixed << std::setprecision(2) << runtime << "s";
+        if (memory_mb > 0.0) {
+            std::cerr << " | Peak Memory: " << std::fixed << std::setprecision(1) << memory_mb << " MB";
+        }
+        std::cerr << "\n";
+    };
+
     try {
         std::filesystem::path input_file;
         std::filesystem::path output_file;
         Length context_length;
+        bool dump_readable;
 
         po::options_description desc("Build BIO-FMI index");
         desc.add_options()
             ("help,h", "Show help message")
             ("input,i", po::value<std::filesystem::path>(&input_file)->required(), "Input l-EDS file")
             ("output,o", po::value<std::filesystem::path>(&output_file), "Output index directory")
-            ("context-length,l", po::value<Length>(&context_length)->required(), "Context length");
+            ("context-length,l", po::value<Length>(&context_length)->required(), "Context length")
+            ("dump", po::bool_switch(&dump_readable)->default_value(false),
+             "Write human-readable dump of index internals to <output>/index.dump.txt");
 
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
 
         if (vm.count("help")) {
             std::cout << desc << "\n";
+            print_performance();
             return 0;
         }
 
         po::notify(vm);
 
-        // TODO: Implement index building
-        std::cerr << "Build tool not yet implemented\n";
-        return 1;
+        // Set output directory (default: input_file.index)
+        if (!vm.count("output")) {
+            std::string filename = input_file.filename().replace_extension("");
+            output_file = input_file.parent_path() / (filename + ".index");
+        }
+
+        std::cout << "Building BIO-FMI index...\n";
+        std::cout << "  Input file: " << input_file << "\n";
+        std::cout << "  Output directory: " << output_file << "\n";
+        std::cout << "  Context length: " << context_length << "\n\n";
+
+        // Load l-EDS from file
+        std::cout << "Loading l-EDS..." << std::flush;
+        EDS eds = EDS::load(input_file);
+        std::cout << " done\n";
+
+        // Validate l-EDS property: every INTERNAL non-degenerate segment (i.e. one
+        // that has a degenerate symbol on both its left and right sides) must have
+        // length >= l.  Boundary segments at the very start or end of the EDS may be
+        // shorter and are handled correctly by the index builder.
+        std::cout << "Validating l-EDS property..." << std::flush;
+        const auto& metadata = eds.get_metadata();
+        if (metadata.num_degenerate_symbols > 0) {
+            // Find the first and last degenerate symbol indices so we can skip the
+            // leading and trailing non-degenerate boundary segments.
+            size_t first_degen = SIZE_MAX, last_degen = 0;
+            for (size_t i = 0; i < metadata.is_degenerate.size(); i++) {
+                if (metadata.is_degenerate[i]) {
+                    if (first_degen == SIZE_MAX) first_degen = i;
+                    last_degen = i;
+                }
+            }
+
+            // Check only non-degenerate symbols strictly between first_degen and last_degen.
+            // Cumulative string index is needed to look up string_lengths.
+            size_t cum_str_idx = 0;
+            for (size_t i = 0; i < metadata.is_degenerate.size(); i++) {
+                size_t sym_size = metadata.symbol_sizes[i];
+                if (!metadata.is_degenerate[i] && i > first_degen && i < last_degen) {
+                    // Internal non-degenerate symbol: its single string is at cum_str_idx.
+                    // TODO(bug): threshold is off by one relative to the context actually
+                    // stored (cl = l-1 in parse_eds, not l).  When cl is fixed to l the
+                    // threshold here becomes correct as-is; until then it is one too tight.
+                    if (metadata.string_lengths[cum_str_idx] < (size_t)context_length) {
+                        std::cerr << "\nError: Input EDS does not satisfy l-EDS property\n";
+                        std::cerr << "  Internal context at symbol " << i
+                                  << " has length " << metadata.string_lengths[cum_str_idx]
+                                  << " (< required " << context_length << ")\n";
+                        std::cerr << "  Please transform the EDS first using 'eds2leds -l "
+                                  << context_length << "'\n";
+                        print_performance();
+                        return 1;
+                    }
+                }
+                cum_str_idx += sym_size;
+            }
+        }
+        std::cout << " done\n\n";
+
+        // Build index
+        BioFMI index(std::move(eds), context_length);
+        index.build();
+
+        // Save index
+        std::cout << "\nSaving index to disk..." << std::flush;
+        index.save(output_file);
+        std::cout << " done\n\n";
+
+        // Print statistics
+        index.print_statistics();
+
+        if (dump_readable) {
+            std::filesystem::path dump_path = output_file / "index.dump.txt";
+            std::cout << "Dumping human-readable index to " << dump_path << "..." << std::flush;
+            index.dump_readable(dump_path);
+            std::cout << " done\n";
+        }
+
+        std::cout << "\nIndex successfully built and saved to " << output_file << "\n";
+        print_performance();
+        return 0;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
+        print_performance();
         return 1;
     }
 }
