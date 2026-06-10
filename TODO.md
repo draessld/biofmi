@@ -1,118 +1,22 @@
 # Open Issues
 
-Two deferred issues that need design thought before implementation.
-
 ---
 
 ## 1. ~~EDS Boundary False Positives~~ — FIXED
 
 **Fixed in:** `src/cpp/lib/index/index.cpp` (`parse_eds()`, `process_changes_matches()`)
 
-### What the bug is
+Boundary degenerate symbols (first/last in EDS) had truncated context. Fixed by padding
+short context with `CHANGE_SEPARATOR` sentinels in `parse_eds()` so every entry has
+exactly `cl` chars on each side. Regression tests added in `test_locate_correctness.cpp`.
 
-The l-EDS property only guarantees that **internal** non-degenerate segments have length ≥ l.
-The leading and trailing segments (before the first degenerate symbol / after the last) are
-exempt and may be shorter than l.
+---
 
-When `parse_eds()` stores a degenerate alternative in the changes index it writes:
+## 2. ~~Stub Methods: `locate_short`, `locate_long`, `validate_chunk_positions`~~ — FIXED
 
-```
-# [l-1 left-ctx] [alternative] [l-1 right-ctx] #
-```
+**Fixed in:** `src/cpp/lib/index/index.hpp`, `src/cpp/lib/index/index.cpp`
 
-For a **boundary** degenerate symbol, the adjacent non-degenerate segment is shorter than
-`l-1`, so the stored entry is truncated:
-
-```
-# [short left-ctx] [alternative] [l-1 right-ctx] #   ← EDS start
-# [l-1 left-ctx] [alternative] [short right-ctx] #   ← EDS end
-```
-
-SDSL's `locate()` finds substrings, so a length-l chunk can hit this entry at the wrong
-offset, passing the boundary check in `process_changes_matches()`:
-
-```cpp
-// Handle truncated context at EDS start
-if (data_->base_positions[block_number] < (int)(context_length_ - 1)) {
-    loc -= pre_hash_loc;   // fallback — but still uses offset computed
-                           // assuming full-length left context
-} else {
-    loc = data_->base_positions[block_number] + offset;
-}
-```
-
-The fallback does something, but the `offset` value was computed assuming `l-1` chars of
-left context exist. When the left context is shorter, the offset is wrong, potentially
-making a non-existent match look valid.
-
-### Concrete example
-
-```
-EDS:  AA{G,C}TTTTT   l=3  (leading segment "AA" has length 2 < l-1=2... ok, same)
-EDS:  A{G,C}TTTTT    l=3  (leading segment "A" has length 1 < l-1=2)
-
-Changes index stores for {G,C}:
-  entry for G:  # A G TT #    (left ctx = "A", 1 char, not 2)
-  entry for C:  # A C TT #
-
-A chunk query "GTT" (length l=3) hits "GTT" inside entry "# A G TT #" at offset +1
-relative to the separator, not at the expected offset +2 (= l-1). The offset arithmetic
-produces the wrong position; the match looks real but the reported position is off.
-```
-
-### Why it only affects boundary changes
-
-Internal degenerate symbols always have exactly `l-1` characters of left and right context
-(the l-EDS property guarantees this). Only the first and last degenerate symbols can have
-shorter context.
-
-### Fix options
-
-**Option A — Pad with sentinel during indexing (preferred)**
-
-In `parse_eds()`, when the available context is shorter than `l-1`, pad with a sentinel
-character (e.g. `$` or `\x01`) that cannot appear in a DNA query:
-
-```cpp
-// Instead of:
-context_left = symbol[0];  // truncated
-
-// Do:
-std::string pad(cl - symbol[0].size(), CHANGE_SEPARATOR);
-context_left = pad + symbol[0];  // full length, padded on the left
-```
-
-The chunk query will never match across a padding character (DNA patterns don't contain
-`$`), so truncated entries simply won't be found. No change needed in the query path.
-
-- ✅ Simple. No query-time logic.
-- ✅ Correct: real matches in boundary changes still work if the actual context exists.
-- ⚠️  The stored entry size is now always exactly `l-1 + alt + l-1 + 1`, which is what
-  the size estimate in `parse_eds()` already assumes — so no size change.
-
-**Option B — Reject at query time**
-
-In `process_changes_matches()`, after computing `offset`, check whether the implied
-left-context position goes before the start of the EDS (i.e. `offset < -(int)actual_left_context_len`).
-If so, discard the match.
-
-- ✅ No change to the index format.
-- ⚠️  Requires knowing the actual left-context length at query time, which means storing
-  it per-entry (a new metadata array) or recomputing it from `base_positions`.
-
-**Option C — Accept and document**
-
-Boundary degenerate symbols close to the EDS start/end are rare in practice (real genomes
-start with a long non-degenerate reference segment). Mark it as a known limitation.
-
-- ✅ No code change.
-- ⚠️  False positives are silent — callers get wrong positions with no indication.
-
-### Recommendation
-
-Option A. The padding is a one-line change in `parse_eds()` and makes the invariant
-"every stored context is exactly `l-1` chars" hold unconditionally. The query path
-already relies on this invariant everywhere else.
+Dead code deleted. Functionality already existed inline in `locate()` and helpers.
 
 ---
 
@@ -120,199 +24,89 @@ already relies on this invariant everywhere else.
 
 **Fixed in:** `tests/unit/test_build_structure.cpp`, `src/cpp/lib/index/index.hpp` (`IndexSnapshot` + `get_snapshot()`), `src/cpp/CMakeLists.txt`
 
+Four structural tests verify `base_positions`, `set_sizes`, `offsets`, and bit vector
+positions produced by `parse_eds()` for known EDS inputs.
+
 ---
 
 ## 4. Locate Algorithm — Documentation and Verification
 
-**File:** `src/cpp/lib/index/index.cpp`  
+**File:** `src/cpp/lib/index/index.cpp`
 **Functions:** `process_reference_matches()`, `process_changes_matches()`,
 `validate_change_continuity()`, `convert_hash_to_result()`
 
-### Clarification: the algorithm is NOT a dummy
-
-`locate()` is fully implemented and correct — it passes `test_locate_correctness` which
-compares every result against a brute-force oracle across twelve scenarios. The confusion
-likely comes from the three dead stubs (`locate_short`, `locate_long`,
-`validate_chunk_positions`) which look like unfinished code.
-
-### What the algorithm actually does (undocumented)
+### What the algorithm does (undocumented)
 
 The chunk-based hash-map approach:
 
 ```
-For each chunk[i] (pattern split into l-length pieces):
+For each chunk[i] (pattern split into (l+1)-length pieces):
   1. Search reference index for chunk[i]   → get T₀ positions
   2. Search changes index for chunk[i]     → get change positions
-  3. For chunk 0: seed hash map with (position → [(origin, changes)])
+  3. For chunk 0: seed hash map with (continuation_pos → [(origin, changes)])
   4. For chunk k>0: only keep entries that extend an existing entry
-     from chunk k-1 at exactly position - l (continuity check)
+     from chunk k-1 at exactly continuation_pos - (l+1) (continuity check)
   5. After all chunks: convert surviving entries to ResultMap
 ```
 
 The hash map key is the **continuation position** (where the next chunk should start),
-not the start position of the full match. The **origin position** (the actual start of
-the first chunk) is stored inside the occurrence info and only extracted at step 5.
+not the start position of the full match. The **origin position** (actual start of the
+first chunk) is stored inside the occurrence info and only extracted at step 5.
 
-This distinction is implicit in the code and not explained anywhere. The variable names
-(`position` vs `origin_pos` vs `loc`) make it easy to confuse the two roles.
+This distinction is implicit in the code and not explained anywhere.
 
 ### What's hard to follow
 
-**`process_changes_matches()`** (~45 lines) computes:
+**`process_changes_matches()`** computes:
 
 ```cpp
-int offset = (int)loc - (pre_hash_loc + (int)context_length_);
+int offset = (int)loc - (pre_hash_loc + (int)context_length_ + 1);
 bool previous_outside_change = (offset <= 0);
 ```
 
 `offset` measures how far into the change content the match starts. When `offset <= 0`
-the match starts in the left context (i.e. the preceding reference), so the previous
-chunk was outside this change. When `offset > 0` the match starts inside the change
-content itself. This is a critical branch point for the continuity check but it's not
-commented.
-
-The line `loc = data_->base_positions[block_number] + offset` converts a file position
-in the changes index into the logical position in the EDS, but only for the normal
-(non-truncated-context) case. The other branch `loc -= pre_hash_loc` is the boundary
-fallback (see Issue 1) and its semantics are unclear.
+the match starts in the left context (preceding reference). This is a critical branch
+point for the continuity check but is not commented.
 
 **`validate_change_continuity()`** handles four cases (ref→change, change→same-change,
 change→different-change, ref→different-change) but the case structure is encoded only
-through `previous_outside_change` and `occ.second.empty()` checks with no comments
-labelling which case each branch covers.
+through `previous_outside_change` and `occ.second.empty()` with no labels.
 
 ### What should be done
 
-**Short term — documentation pass (no behaviour change):**
+**Documentation pass (no behaviour change):**
+- Add a high-level block comment to `locate()` with a worked example tracing one
+  2-chunk pattern through the full flow.
+- Add inline case labels to the four branches in `validate_change_continuity()`.
 
-Add a high-level block comment to `locate()` explaining the hash-map-as-chain-tracker
-approach, with a worked example tracing one 2-chunk pattern through the whole flow.
-Add inline labels to the four branches in `validate_change_continuity()`.
-
-**Medium term — verify `process_changes_matches` offset arithmetic:**
-
-The offset calculation in `process_changes_matches()` is the most error-prone part of
-the codebase. Write a unit test that:
-1. Builds a known index (e.g. `AAATTT{G,C}AAATTT`, l=3)
-2. Uses `dump_readable()` to read the exact byte positions in the changes file
-3. Asserts that the computed `offset`, `block_number`, `change_number` match hand-
-   calculated values for a specific locate call
-
-This would give a regression anchor for that logic independent of the end-to-end oracle.
+**Offset arithmetic unit test:**
+- Build a known index, use `get_snapshot()` to check exact byte positions in the
+  changes file, and assert computed `offset` / `block_number` / `change_number` match
+  hand-calculated values for a specific `locate()` call.
 
 **Long term — arbitrary pattern lengths:**
-
-The current algorithm requires `|P|` to be a multiple of `l`. Supporting arbitrary
-lengths would mean the first or last chunk could be shorter than `l`. This requires
-a different index lookup strategy for those partial chunks and is out of scope until
-the boundary false-positive issue (Issue 1) is resolved.
+- Currently `|P|` must be a multiple of `l+1`. Supporting arbitrary lengths requires
+  a different lookup strategy for partial chunks.
 
 ---
 
 ## 5. ~~Context Window Off-By-One in `parse_eds()`~~ — FIXED
 
-**Fixed in:** `src/cpp/lib/index/index.cpp` (`parse_eds()`, `locate()`, `process_reference_matches()`, `validate_change_continuity()`, `process_changes_matches()`)
+**Fixed in:** `src/cpp/lib/index/index.cpp` (`parse_eds()`, `locate()`,
+`process_reference_matches()`, `validate_change_continuity()`, `process_changes_matches()`)
 
-### What the bug is
-
-`parse_eds()` stores each degenerate alternative as:
-
-```
-$ [l-1 left-ctx] [alternative] [l-1 right-ctx] $
-```
-
-using `cl = context_length_ - 1` (i.e. `l-1`) characters of context on each side.
-
-To support finding matches of length `l+1` that straddle a reference–change boundary, the
-context window must be at least `l` characters wide. With only `l-1` characters of context,
-the chunk query for the first chunk of such a match starts 1 character before the alternative,
-but the left context only extends `l-1` characters — one character too short to cover the
-full overlap.
-
-The l-EDS constraint already guarantees that every internal non-degenerate segment has
-length ≥ `l`, so taking `l` characters of context from each side is valid without tightening
-the validation threshold.
-
-### Concrete example
-
-```
-EDS: AAATTT{G,C}AAATTT   l=3
-
-Current (cl = l-1 = 2):
-  Changes entry for G:  $ TT G AA $   ← 2 chars of context each side
-
-With cl = l = 3:
-  Changes entry for G:  $ TTT G AAA $  ← 3 chars, full l-width coverage
-
-Pattern "TTTGAAA" (length 7, not a multiple of l — future arbitrary-length support):
-  With cl=2 the first chunk "TTT" starts 3 chars before G but only 2 chars of
-  left context are stored → match is missed.
-  With cl=3 the full context is present → match is found.
-```
-
-### Secondary effect on the validation threshold
-
-`build.cpp` rejects internal segments shorter than `context_length` (`< l`). Once `cl`
-is changed to `l`, the threshold becomes exactly correct: a segment of length `l` provides
-exactly `l` characters of context. Until then the threshold is one too tight (it accepts
-`>= l` where `>= l-1` would be sufficient for the current `cl = l-1`).
-
-### Fix
-
-In `parse_eds()` change:
-
-```cpp
-// Before:
-unsigned int cl = context_length_ - 1;
-
-// After:
-unsigned int cl = context_length_;
-```
-
-The size estimate for `estimated_chan_size` already allocates `2 * cl` per entry, so it
-will expand automatically. No change needed in the validation threshold in `build.cpp`
-(it becomes correct as-is once `cl = l`).
-
-### Propagation into `locate()` — chunk size must also become `l+1`
-
-The off-by-one is not isolated to `parse_eds()`. The locate algorithm splits the pattern
-into chunks of size `context_length_` (`l`) and uses the same value as the step between
-consecutive chunks. Once `cl` is fixed to `l`, the context on each side of an alternative
-is exactly `l` characters, so the chunk size must become `l+1` — the invariant is:
-
-```
-context_size == chunk_size - 1
-```
-
-With `cl = l` and chunk size still `l`, the context is one character wider than needed,
-which breaks the step arithmetic: consecutive chunks would overlap by 1 at every
-reference–change boundary.
-
-The following must all change from `context_length_` to `context_length_ + 1`:
-
-| Location | What changes |
-|---|---|
-| `locate()` pattern validity check | modulus: `% context_length_` → `% (context_length_ + 1)` |
-| `locate()` `num_chunks` | divisor: `/ context_length_` → `/ (context_length_ + 1)` |
-| `locate()` chunk extraction | size: `substr(..., context_length_)` → `substr(..., context_length_ + 1)` |
-| `locate()` `chunk_start` | step: `chunk_idx * context_length_` → `chunk_idx * (context_length_ + 1)` |
-| `process_reference_matches()` continuity lookup | step: `loc - context_length_` → `loc - (context_length_ + 1)` |
-| `validate_change_continuity()` both hash-map lookups | same step fix |
-
-All six sites are marked with `// TODO(bug)` comments in `index.cpp`.
-
-After both fixes (`cl` and chunk size), add a regression test asserting that a pattern of
-length `l+1` whose first character is the last character of a reference segment is found
-correctly.
+`cl` changed from `context_length_ - 1` to `context_length_` in `parse_eds()`.
+Chunk size and continuity step changed from `l` to `l+1` at seven sites. Pattern
+length requirement is now a multiple of `l+1`. All tests updated.
 
 ---
 
 ## Summary
 
-| Issue | Root cause | Recommended fix | Effort |
-|---|---|---|---|
-| Boundary false positives | Truncated context not padded at EDS start/end | Pad with sentinel in `parse_eds()` | Small — one-line change + regression test |
-| Dead stub methods | Design intent diverged from implementation | Delete stubs from hpp + cpp | Trivial |
-| No structural build tests | test_build.cpp only checks high-level stats | Add test_build_structure.cpp using dump_readable() | Medium |
-| Locate algorithm undocumented | No high-level explanation of hash-map chain approach | Documentation pass + offset arithmetic unit test | Small–medium |
-| Context window + chunk size off-by-one | `cl = l-1` in `parse_eds()`; chunk size `l` in `locate()` | `cl → l`, chunk size/step → `l+1` at 6 sites in `locate()` | Small–medium |
+| Issue | Status |
+|---|---|
+| EDS boundary false positives | ✅ Fixed — sentinel padding in `parse_eds()` |
+| Dead stub methods | ✅ Fixed — deleted from hpp + cpp |
+| No structural build tests | ✅ Fixed — `test_build_structure.cpp` + `IndexSnapshot` |
+| Locate algorithm undocumented | ⚠️ Open — documentation pass + offset unit test |
+| Context window + chunk size off-by-one | ✅ Fixed — `cl → l`, chunk size → `l+1` |
