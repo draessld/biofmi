@@ -67,9 +67,8 @@ run_scenario_locate_pattern_length() {
 
         write_csv_row "$csv" "$ts" "$preset" "$scenario" "locate" \
             "biofmi-locate" "$leds_size_mb" "$l" "$pat_len" \
-            "$BENCH_N_PATTERNS" "$BENCH_N_OCCURRENCES" \
-            "$BENCH_RUNTIME_S" "$BENCH_PEAK_MEMORY_MB"
-        bench_log "  runtime=${BENCH_RUNTIME_S}s  memory=${BENCH_PEAK_MEMORY_MB}MB" \
+            "$BENCH_N_PATTERNS" "$BENCH_N_OCCURRENCES" "$n_reps"
+        bench_log "  median=${BENCH_RUNTIME_MEDIAN_S}s  stddev=${BENCH_RUNTIME_STDDEV_S}s  p95=${BENCH_RUNTIME_P95_S}s" \
             " n_patterns=${BENCH_N_PATTERNS}  n_occurrences=${BENCH_N_OCCURRENCES}"
     done
 

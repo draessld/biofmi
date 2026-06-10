@@ -40,9 +40,8 @@ run_scenario_build_size_sweep() {
         size_mb=$(file_size_mb "$input_leds")
 
         write_csv_row "$csv" "$ts" "$preset" "$scenario" "build" \
-            "biofmi-build" "$size_mb" "$l" "" "" "" \
-            "$BENCH_RUNTIME_S" "$BENCH_PEAK_MEMORY_MB"
-        bench_log "  runtime=${BENCH_RUNTIME_S}s  memory=${BENCH_PEAK_MEMORY_MB}MB"
+            "biofmi-build" "$size_mb" "$l" "" "" "" "$n_reps"
+        bench_log "  median=${BENCH_RUNTIME_MEDIAN_S}s  stddev=${BENCH_RUNTIME_STDDEV_S}s  p95=${BENCH_RUNTIME_P95_S}s  memory=${BENCH_MEMORY_MEDIAN_MB}MB"
 
         # Clean up index directory to save disk space
         rm -rf "$output_index"

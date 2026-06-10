@@ -33,9 +33,9 @@ show_help() {
     cat <<EOF
 Usage: bench.sh [--size PRESET]
 
-  --size quick      N=1 rep,  sizes 1-5 MB,   context l=5 only        (~5 min)
-  --size standard   N=3 reps, sizes 1-10 MB,  context l∈{3,5,10}      (~20 min)  [default]
-  --size large      N=3 reps, sizes 5-50 MB,  context l∈{3,5,10,20}   (~60 min)
+  --size quick      N=5 reps,  sizes 1-5 MB,   context l=5 only        (~5 min)
+  --size standard   N=30 reps, sizes 1-10 MB,  context l∈{3,5,10}     (~20 min)  [default]
+  --size large      N=30 reps, sizes 5-50 MB,  context l∈{3,5,10,20}  (~60 min)
 
 Scenarios:
   build_size_sweep    — biofmi-build time/memory vs EDS size  (l=5 fixed)
@@ -66,7 +66,7 @@ done
 
 case "$PRESET" in
     quick)
-        N_REPS=1
+        N_REPS=5
         BUILD_SIZES_MB=(1 5)
         LOCATE_SIZES_MB=(5)
         CTX_SWEEP_L=(5)          # context lengths for build_context_sweep
@@ -75,7 +75,7 @@ case "$PRESET" in
         N_PATTERNS=50
         ;;
     standard)
-        N_REPS=3
+        N_REPS=30
         BUILD_SIZES_MB=(1 5 10)
         LOCATE_SIZES_MB=(5 10)
         CTX_SWEEP_L=(3 5 10)
@@ -84,7 +84,7 @@ case "$PRESET" in
         N_PATTERNS=200
         ;;
     large)
-        N_REPS=3
+        N_REPS=30
         BUILD_SIZES_MB=(5 25 50)
         LOCATE_SIZES_MB=(10 25)
         CTX_SWEEP_L=(3 5 10 20)
@@ -104,6 +104,9 @@ CSV_FILE="$RESULTS_DIR/${TIMESTAMP}.csv"
 
 bench_log "BioFMI benchmark — preset=$PRESET  N=$N_REPS"
 bench_log "Results → $CSV_FILE"
+echo ""
+
+bench_check_environment
 echo ""
 
 # ---------------------------------------------------------------------------

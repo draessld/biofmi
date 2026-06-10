@@ -42,27 +42,93 @@ find_edsparser_tool() {
 }
 
 # ---------------------------------------------------------------------------
+# Rule 5: Environment hardening check
+# ---------------------------------------------------------------------------
+
+# Warn if environmental conditions may introduce timing noise.
+# Checks: CPU frequency governor, tmpfs backing for benchmark temp dir.
+bench_check_environment() {
+    local gov_file="/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+    if [ -r "$gov_file" ]; then
+        local gov
+        gov=$(cat "$gov_file")
+        if [ "$gov" != "performance" ]; then
+            bench_warn "CPU governor is '$gov', not 'performance' — results may be noisier."
+            bench_warn "  Fix with: sudo cpupower frequency-set -g performance"
+        fi
+    fi
+    if [ -n "${TMPDIR_BENCH:-}" ]; then
+        local fs_type
+        fs_type=$(df --output=fstype "$TMPDIR_BENCH" 2>/dev/null | tail -1 || true)
+        if [ -n "$fs_type" ] && [ "$fs_type" != "tmpfs" ]; then
+            bench_warn "Benchmark temp dir is on '$fs_type', not tmpfs — I/O jitter may increase."
+            bench_warn "  Set TMPDIR=/dev/shm before running bench.sh to use RAM-backed storage."
+        fi
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Rule 6: Percentile computation
+# ---------------------------------------------------------------------------
+
+# Internal: read pre-sorted numbers (one per line) from stdin, print stats.
+# Output (space-separated): median mean stddev p95 p99
+_bench_percentiles() {
+    awk -v n="$1" '
+        { a[NR]=$1; sum+=$1; sum2+=$1*$1 }
+        END {
+            mean     = sum / n
+            variance = (n > 1) ? (sum2/n - mean*mean) : 0
+            stddev   = (variance > 0) ? sqrt(variance) : 0
+            median   = (n % 2 == 1) ? a[(n+1)/2] : (a[n/2] + a[n/2+1]) / 2.0
+            p95_i    = int(0.95*n + 0.9999); if (p95_i > n) p95_i = n
+            p99_i    = int(0.99*n + 0.9999); if (p99_i > n) p99_i = n
+            printf "%.3f %.3f %.3f %.3f %.3f\n", median, mean, stddev, a[p95_i], a[p99_i]
+        }'
+}
+
+# ---------------------------------------------------------------------------
 # Metric collection — build (and any generic command)
 # ---------------------------------------------------------------------------
 
 # Run a command N times, capturing the [Performance] line from stderr each time.
-# Sets globals: BENCH_RUNTIME_S  BENCH_PEAK_MEMORY_MB  (median of N runs)
+# Includes one discarded warmup run before measurement (Rule 1: warmup).
+#
+# Sets globals after the call:
+#   BENCH_RUNTIME_S / BENCH_PEAK_MEMORY_MB  — median values (backward-compat aliases)
+#   BENCH_RUNTIME_MEDIAN_S   BENCH_RUNTIME_MEAN_S   BENCH_RUNTIME_STDDEV_S
+#   BENCH_RUNTIME_P95_S      BENCH_RUNTIME_P99_S
+#   BENCH_MEMORY_MEDIAN_MB   BENCH_MEMORY_MEAN_MB   BENCH_MEMORY_STDDEV_MB
+#   BENCH_MEMORY_P95_MB      BENCH_MEMORY_P99_MB
+#
 # Usage: run_bench_scenario N cmd [args...]
 run_bench_scenario() {
     local n="$1"; shift
+
+    # Warmup run (Rule 1): warms executable page cache and OS file cache for input.
+    # Output and performance line are discarded; only measurement runs count.
+    "$@" >/dev/null 2>&1 || true
+
     local runtimes=() memories=()
     for (( i=0; i<n; i++ )); do
         local perf_line
-        # 2>&1 >/dev/null: stderr→pipe (captured), stdout→/dev/null
+        # stderr → pipe for grep; stdout → /dev/null (tool output files unaffected)
         perf_line=$("$@" 2>&1 >/dev/null | grep '^\[Performance\]' || true)
         runtimes+=( "$(echo "$perf_line" | sed -n 's/.*Runtime: \([0-9.]*\)s.*/\1/p')" )
         memories+=( "$(echo "$perf_line" | sed -n 's/.*Peak Memory: \([0-9.]*\) MB.*/\1/p')" )
     done
-    # Median: sort → NR==2 gives middle of 3; falls back to first element for N=1
-    BENCH_RUNTIME_S=$(printf '%s\n' "${runtimes[@]}" | sort -n | awk 'NR==2{print}')
-    BENCH_RUNTIME_S="${BENCH_RUNTIME_S:-${runtimes[0]}}"
-    BENCH_PEAK_MEMORY_MB=$(printf '%s\n' "${memories[@]}" | sort -n | awk 'NR==2{print}')
-    BENCH_PEAK_MEMORY_MB="${BENCH_PEAK_MEMORY_MB:-${memories[0]}}"
+
+    read -r BENCH_RUNTIME_MEDIAN_S BENCH_RUNTIME_MEAN_S BENCH_RUNTIME_STDDEV_S \
+             BENCH_RUNTIME_P95_S BENCH_RUNTIME_P99_S \
+        <<< "$(printf '%s\n' "${runtimes[@]}" | sort -n | _bench_percentiles "$n")"
+
+    read -r BENCH_MEMORY_MEDIAN_MB BENCH_MEMORY_MEAN_MB BENCH_MEMORY_STDDEV_MB \
+             BENCH_MEMORY_P95_MB BENCH_MEMORY_P99_MB \
+        <<< "$(printf '%s\n' "${memories[@]}" | sort -n | _bench_percentiles "$n")"
+
+    # Backward-compat aliases (median values)
+    BENCH_RUNTIME_S="$BENCH_RUNTIME_MEDIAN_S"
+    BENCH_PEAK_MEMORY_MB="$BENCH_MEMORY_MEDIAN_MB"
 }
 
 # ---------------------------------------------------------------------------
@@ -70,15 +136,25 @@ run_bench_scenario() {
 # ---------------------------------------------------------------------------
 
 # Run biofmi-locate (in --benchmark mode) N times.
-# The command should include --benchmark; all stdout is discarded.
+# Includes one discarded warmup run before measurement (Rule 1 + Rule 7: page index
+# into OS file cache so disk I/O does not pollute measured runs).
+#
 # Sets globals:
-#   BENCH_RUNTIME_S       median runtime (seconds)
-#   BENCH_PEAK_MEMORY_MB  median peak RSS (MB)
-#   BENCH_N_PATTERNS      pattern count (from "Total patterns: N" in stderr)
-#   BENCH_N_OCCURRENCES   occurrence count (from "Total occurrences: N" in stderr)
+#   BENCH_RUNTIME_S / BENCH_PEAK_MEMORY_MB  — median values (backward-compat aliases)
+#   BENCH_RUNTIME_MEDIAN_S   BENCH_RUNTIME_MEAN_S   BENCH_RUNTIME_STDDEV_S
+#   BENCH_RUNTIME_P95_S      BENCH_RUNTIME_P99_S
+#   BENCH_MEMORY_MEDIAN_MB   BENCH_MEMORY_MEAN_MB   BENCH_MEMORY_STDDEV_MB
+#   BENCH_MEMORY_P95_MB      BENCH_MEMORY_P99_MB
+#   BENCH_N_PATTERNS          pattern count (from "Total patterns: N" in stderr)
+#   BENCH_N_OCCURRENCES       occurrence count (from "Total occurrences: N" in stderr)
 # Usage: run_locate_bench N cmd [args...]
 run_locate_bench() {
     local n="$1"; shift
+
+    # Warmup run (Rule 1 + Rule 7): pages the FM-index files into OS cache so that
+    # subsequent timed runs measure query computation, not cold-start disk I/O.
+    "$@" >/dev/null 2>&1 || true
+
     local runtimes=() memories=()
     local first_n_patterns="" first_n_occurrences=""
 
@@ -101,10 +177,17 @@ run_locate_bench() {
         fi
     done
 
-    BENCH_RUNTIME_S=$(printf '%s\n' "${runtimes[@]}" | sort -n | awk 'NR==2{print}')
-    BENCH_RUNTIME_S="${BENCH_RUNTIME_S:-${runtimes[0]}}"
-    BENCH_PEAK_MEMORY_MB=$(printf '%s\n' "${memories[@]}" | sort -n | awk 'NR==2{print}')
-    BENCH_PEAK_MEMORY_MB="${BENCH_PEAK_MEMORY_MB:-${memories[0]}}"
+    read -r BENCH_RUNTIME_MEDIAN_S BENCH_RUNTIME_MEAN_S BENCH_RUNTIME_STDDEV_S \
+             BENCH_RUNTIME_P95_S BENCH_RUNTIME_P99_S \
+        <<< "$(printf '%s\n' "${runtimes[@]}" | sort -n | _bench_percentiles "$n")"
+
+    read -r BENCH_MEMORY_MEDIAN_MB BENCH_MEMORY_MEAN_MB BENCH_MEMORY_STDDEV_MB \
+             BENCH_MEMORY_P95_MB BENCH_MEMORY_P99_MB \
+        <<< "$(printf '%s\n' "${memories[@]}" | sort -n | _bench_percentiles "$n")"
+
+    # Backward-compat aliases
+    BENCH_RUNTIME_S="$BENCH_RUNTIME_MEDIAN_S"
+    BENCH_PEAK_MEMORY_MB="$BENCH_MEMORY_MEDIAN_MB"
     BENCH_N_PATTERNS="${first_n_patterns:-0}"
     BENCH_N_OCCURRENCES="${first_n_occurrences:-0}"
 }
@@ -133,25 +216,34 @@ compute_throughput() {
 
 # Append one measurement row to the unified CSV.
 # Writes header on first call (when file doesn't exist yet).
+# Statistical columns are read from BENCH_* globals set by run_bench_scenario /
+# run_locate_bench; pass "" for unused metadata fields (e.g. pattern_length for
+# build rows).
 #
-# Columns:
+# CSV columns:
 #   timestamp, preset, scenario, phase, tool,
-#   input_size_mb, context_length,
-#   pattern_length, n_patterns, n_occurrences,   ← empty for build rows
-#   runtime_s, peak_memory_mb
+#   input_size_mb, context_length, pattern_length, n_patterns, n_occurrences, n_reps,
+#   runtime_median_s, runtime_mean_s, runtime_stddev_s, runtime_p95_s, runtime_p99_s,
+#   memory_median_mb, memory_mean_mb, memory_stddev_mb, memory_p95_mb, memory_p99_mb
 #
 # Usage: write_csv_row CSV TS PRESET SCENARIO PHASE TOOL \
-#            INPUT_MB CTX_LEN PAT_LEN N_PAT N_OCC RUNTIME MEM
+#            INPUT_MB CTX_LEN PAT_LEN N_PAT N_OCC N_REPS
 write_csv_row() {
     local csv_file="$1" timestamp="$2" preset="$3" scenario="$4" phase="$5" \
           tool="$6" input_size_mb="$7" context_length="$8" \
-          pattern_length="$9" n_patterns="${10}" n_occurrences="${11}" \
-          runtime_s="${12}" peak_memory_mb="${13}"
+          pattern_length="$9" n_patterns="${10}" n_occurrences="${11}" n_reps="${12}"
     if [ ! -f "$csv_file" ]; then
-        echo "timestamp,preset,scenario,phase,tool,input_size_mb,context_length,pattern_length,n_patterns,n_occurrences,runtime_s,peak_memory_mb" \
+        echo "timestamp,preset,scenario,phase,tool,input_size_mb,context_length,pattern_length,n_patterns,n_occurrences,n_reps,runtime_median_s,runtime_mean_s,runtime_stddev_s,runtime_p95_s,runtime_p99_s,memory_median_mb,memory_mean_mb,memory_stddev_mb,memory_p95_mb,memory_p99_mb" \
             > "$csv_file"
     fi
-    echo "${timestamp},${preset},${scenario},${phase},${tool},${input_size_mb},${context_length},${pattern_length},${n_patterns},${n_occurrences},${runtime_s},${peak_memory_mb}" \
+    printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+        "$timestamp" "$preset" "$scenario" "$phase" "$tool" \
+        "$input_size_mb" "$context_length" "$pattern_length" \
+        "$n_patterns" "$n_occurrences" "$n_reps" \
+        "$BENCH_RUNTIME_MEDIAN_S" "$BENCH_RUNTIME_MEAN_S" "$BENCH_RUNTIME_STDDEV_S" \
+        "$BENCH_RUNTIME_P95_S" "$BENCH_RUNTIME_P99_S" \
+        "$BENCH_MEMORY_MEDIAN_MB" "$BENCH_MEMORY_MEAN_MB" "$BENCH_MEMORY_STDDEV_MB" \
+        "$BENCH_MEMORY_P95_MB" "$BENCH_MEMORY_P99_MB" \
         >> "$csv_file"
 }
 

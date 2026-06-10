@@ -19,7 +19,9 @@ THRESHOLD="1.20"
 # CSV column indices (1-based):
 #   1=timestamp  2=preset  3=scenario  4=phase  5=tool
 #   6=input_size_mb  7=context_length  8=pattern_length
-#   9=n_patterns  10=n_occurrences  11=runtime_s  12=peak_memory_mb
+#   9=n_patterns  10=n_occurrences  11=n_reps
+#   12=runtime_median_s  13=runtime_mean_s  14=runtime_stddev_s  15=runtime_p95_s  16=runtime_p99_s
+#   17=memory_median_mb  18=memory_mean_mb  19=memory_stddev_mb  20=memory_p95_mb  21=memory_p99_mb
 
 LATEST=$(ls -t "$RESULTS_DIR"/*.csv 2>/dev/null | head -1 || true)
 if [ -z "$LATEST" ]; then
@@ -39,13 +41,13 @@ echo ""
 
 awk -F',' -v threshold="$THRESHOLD" '
     NR==FNR && FNR>1 {
-        base_runtime[$3] = $11
-        base_memory[$3]  = $12
+        base_runtime[$3] = $12
+        base_memory[$3]  = $17
         next
     }
     FNR==1 { next }
     {
-        scenario=$3; runtime=$11; memory=$12
+        scenario=$3; runtime=$12; memory=$17
         if (scenario in base_runtime) {
             if ((runtime+0) > (base_runtime[scenario]+0) * threshold) {
                 printf "REGRESSION runtime  %-48s  baseline=%6.3fs  current=%6.3fs  ratio=%.2fx\n",
