@@ -65,6 +65,10 @@ Derived metrics computed by `bench_plot.py`:
 | `locate_dataset_size.png` | Time/pattern & memory vs dataset size |
 | `summary.png` | Horizontal bar chart of all scenarios (runtime + memory) |
 
+Each plot includes a footer with the machine used to produce it:
+CPU model, core count, total RAM, and OS.  This makes it easy to assess
+portability when comparing plots generated on different machines.
+
 ## Regression detection
 
 ```bash

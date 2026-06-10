@@ -19,6 +19,8 @@ Derived metrics (computed here):
     time_per_occurrence_ms = (runtime_median_s * 1000) / n_occurrences (locate, occ>0)
 """
 
+import os
+import platform
 import re
 import sys
 from pathlib import Path
@@ -36,6 +38,46 @@ COLORS = {
     "locate": "#FF9800",   # orange — locate phase
 }
 ALPHA_BAND = 0.18   # shaded stddev band opacity
+
+# ---------------------------------------------------------------------------
+# Machine info footnote
+# ---------------------------------------------------------------------------
+
+MACHINE_INFO = ""  # populated once in main()
+
+
+def _get_machine_info() -> str:
+    cpu = platform.processor() or "unknown CPU"
+    try:
+        with open("/proc/cpuinfo") as f:
+            for line in f:
+                if line.startswith("model name"):
+                    cpu = line.split(":", 1)[1].strip()
+                    break
+    except OSError:
+        pass
+
+    cores = os.cpu_count() or "?"
+
+    ram_gb = "?"
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal"):
+                    ram_gb = f"{int(line.split()[1]) / 1024 ** 2:.1f}"
+                    break
+    except OSError:
+        pass
+
+    return (f"{cpu}  ·  {cores} cores  ·  {ram_gb} GB RAM"
+            f"  ·  {platform.system()} {platform.release()}")
+
+
+def _add_machine_footnote(fig):
+    if MACHINE_INFO:
+        fig.text(0.5, -0.02, MACHINE_INFO, ha="center", va="top",
+                 fontsize=6.5, color="#777777", style="italic")
+
 
 # ---------------------------------------------------------------------------
 # Scenario classification
@@ -181,6 +223,7 @@ def plot_build_size_sweep(df: pd.DataFrame, out_dir: Path) -> bool:
 
     fig.suptitle("biofmi-build: runtime & memory vs input size  (context l=5)",
                  fontsize=11, y=1.02)
+    _add_machine_footnote(fig)
     fig.tight_layout()
 
     out = out_dir / "build_size_sweep.png"
@@ -241,6 +284,7 @@ def plot_build_context_sweep(df: pd.DataFrame, out_dir: Path) -> bool:
     input_mb = sub["input_size_mb"].mean()
     fig.suptitle(f"biofmi-build: runtime & memory vs context length  (input ≈{input_mb:.0f} MB)",
                  fontsize=11, y=1.02)
+    _add_machine_footnote(fig)
     fig.tight_layout()
 
     out = out_dir / "build_context_sweep.png"
@@ -323,6 +367,7 @@ def plot_locate_pattern_length(df: pd.DataFrame, out_dir: Path) -> bool:
         f"biofmi-locate: search time vs pattern length  (index ≈{input_mb:.0f} MB, l=5)",
         fontsize=11, y=1.02,
     )
+    _add_machine_footnote(fig)
     fig.tight_layout()
 
     out = out_dir / "locate_pattern_length.png"
@@ -370,6 +415,7 @@ def plot_locate_dataset_size(df: pd.DataFrame, out_dir: Path) -> bool:
         f"biofmi-locate: performance vs dataset size  (pattern length={pat_len} bp, l=5)",
         fontsize=11, y=1.02,
     )
+    _add_machine_footnote(fig)
     fig.tight_layout()
 
     out = out_dir / "locate_dataset_size.png"
@@ -446,6 +492,7 @@ def plot_summary(df: pd.DataFrame, out_dir: Path) -> bool:
 
     ts = rows["timestamp"].iloc[0] if "timestamp" in rows.columns else ""
     fig.suptitle(f"BioFMI benchmark summary  {ts}", fontsize=11)
+    _add_machine_footnote(fig)
     fig.tight_layout()
 
     out = out_dir / "summary.png"
@@ -488,6 +535,9 @@ def parse_args() -> Path:
 
 
 def main():
+    global MACHINE_INFO
+    MACHINE_INFO = _get_machine_info()
+
     _apply_style()
 
     csv_path = parse_args()
