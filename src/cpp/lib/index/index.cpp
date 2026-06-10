@@ -582,24 +582,6 @@ BioFMI::ResultMap BioFMI::convert_hash_to_result(const HashType& hash_map) {
     return result;
 }
 
-BioFMI::ResultMap BioFMI::locate_short(const String& pattern) {
-    // TODO: Implement
-    (void)pattern;
-    return ResultMap{};
-}
-
-BioFMI::ResultMap BioFMI::locate_long(const String& pattern) {
-    // TODO: Implement
-    (void)pattern;
-    return ResultMap{};
-}
-
-bool BioFMI::validate_chunk_positions(const std::vector<Position>& positions) {
-    // TODO: Implement
-    (void)positions;
-    return false;
-}
-
 void BioFMI::dump_readable(const std::filesystem::path& dump_path) const {
     std::ofstream out(dump_path);
     if (!out.is_open())

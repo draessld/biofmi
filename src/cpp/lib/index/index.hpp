@@ -136,10 +136,7 @@ private:
                                    int block_number, bool previous_outside_change);
     ResultMap convert_hash_to_result(const HashType& hash_map);
 
-    ResultMap locate_short(const String& pattern);  // |P| <= l
-    ResultMap locate_long(const String& pattern);   // |P| > l
 
-    bool validate_chunk_positions(const std::vector<Position>& positions);
 };
 
 } // namespace biofmi
