@@ -309,7 +309,10 @@ void BioFMI::parse_eds() {
     // a reference–change boundary.  The l-EDS constraint already guarantees internal
     // segments have length >= l, so using the full l chars of context is valid.
     unsigned int cl = context_length_ - 1;  // TODO(bug): should be context_length_
-    std::string context_left("");
+    // Initialise to cl separator chars: used when the first symbol is degenerate
+    // (no preceding reference segment to draw context from).  Separator is not a
+    // valid DNA character, so a chunk query can never match across it.
+    std::string context_left(cl, CHANGE_SEPARATOR);
     std::string context_right("");
 
     // Start with separator character
@@ -364,9 +367,12 @@ void BioFMI::parse_eds() {
             data_->tloc[ref_file.tellp()] = 1;
             ref_file << CHANGE_SEPARATOR;
 
-            // Update left context for next degenerate symbol
+            // Update left context for next degenerate symbol.
+            // Pad with separator on the left when the segment is shorter than cl
+            // so every stored entry has exactly cl chars of left context.
             if (symbol[0].size() < cl) {
-                context_left = symbol[0];
+                context_left = std::string(cl - symbol[0].size(), CHANGE_SEPARATOR)
+                               + symbol[0];
             } else {
                 context_left = symbol[0].substr(symbol[0].size() - cl, cl);
             }
@@ -375,14 +381,16 @@ void BioFMI::parse_eds() {
             set_size_cumulative += symbol_size;
             data_->set_sizes.push_back(set_size_cumulative);
 
-            // Determine right context from next non-degenerate symbol
+            // Determine right context from next non-degenerate symbol.
+            // Pad with separator on the right when the segment is shorter than cl
+            // (including when there is no following segment at all).
             if (x + 1 >= n_) {
-                context_right = "";
+                context_right = std::string(cl, CHANGE_SEPARATOR);
             } else {
-                // Look ahead to next symbol
                 StringSet next_symbol = eds_.read_symbol(x + 1);
                 if (next_symbol[0].size() < cl) {
-                    context_right = next_symbol[0];
+                    context_right = next_symbol[0]
+                                    + std::string(cl - next_symbol[0].size(), CHANGE_SEPARATOR);
                 } else {
                     context_right = next_symbol[0].substr(0, cl);
                 }
@@ -499,12 +507,9 @@ void BioFMI::process_changes_matches(const String& chunk, size_t chunk_idx) {
         // When offset < 0 it is clearly in the left context.
         bool previous_outside_change = (offset <= 0);
 
-        // Handle truncated context at EDS start
-        if (data_->base_positions[block_number] < (int)(context_length_ - 1)) {
-            loc -= pre_hash_loc;
-        } else {
-            loc = data_->base_positions[block_number] + offset;
-        }
+        // Every entry has exactly cl chars of left context (padded with separator
+        // at boundaries), so the normal path is always valid.
+        loc = data_->base_positions[block_number] + offset;
 
         int change_offset = data_->offsets[change_number - 1];
 

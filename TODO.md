@@ -4,10 +4,9 @@ Two deferred issues that need design thought before implementation.
 
 ---
 
-## 1. EDS Boundary False Positives
+## 1. ~~EDS Boundary False Positives~~ — FIXED
 
-**File:** `src/cpp/lib/index/index.cpp`  
-**Functions:** `parse_eds()` (line ~352), `process_changes_matches()` (line ~463)
+**Fixed in:** `src/cpp/lib/index/index.cpp` (`parse_eds()`, `process_changes_matches()`)
 
 ### What the bug is
 

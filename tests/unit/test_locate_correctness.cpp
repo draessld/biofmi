@@ -559,6 +559,81 @@ void test_broad_correctness_long_alternatives() {
 }
 
 // ---------------------------------------------------------------------------
+// Test 10: Boundary degenerate symbols — no false positives, correct positions
+//
+// The l-EDS property exempts the leading and trailing non-degenerate segments
+// from the length-≥l requirement.  When these segments are shorter than cl
+// (= l-1), parse_eds() must pad with sentinels so every stored entry has
+// exactly cl chars of context on each side.  Without padding, a chunk query
+// can hit a truncated entry at the wrong offset and return a spurious match.
+// ---------------------------------------------------------------------------
+void test_boundary_degenerate_no_false_positives() {
+    std::cout << "Test 10a: first symbol degenerate (no left context)... ";
+
+    // EDS: {G,C}AAATTT  l=3
+    // Leading segment is absent; change entries must be padded on the left.
+    // "GAA" should be found (G + first two chars of reference).
+    // "CAA" likewise.  "GGG" should not be found.
+    {
+        const std::string eds = "{G,C}AAATTT";
+        compare_brute_force_vs_index(eds, 3,
+            {"GAA", "CAA", "AAA", "TTT", "GGG", "CCC"},
+            "test_boundary_first_degenerate");
+    }
+
+    std::cout << "PASSED\n";
+}
+
+void test_boundary_short_leading_segment() {
+    std::cout << "Test 10b: leading segment shorter than cl... ";
+
+    // EDS: A{G,C}AAATTT  l=3  (leading "A" has length 1 < cl=2)
+    // Without padding the left context is "A" (1 char), not "##A" (2 chars).
+    // "GAA" is in the EDS (G + first two chars of AAATTT).
+    // "AGG" is not (only one G in this EDS).
+    {
+        const std::string eds = "A{G,C}AAATTT";
+        compare_brute_force_vs_index(eds, 3,
+            {"GAA", "CAA", "AAA", "TTT", "AGG", "ACC"},
+            "test_boundary_short_leading");
+    }
+
+    std::cout << "PASSED\n";
+}
+
+void test_boundary_short_trailing_segment() {
+    std::cout << "Test 10c: trailing segment shorter than cl... ";
+
+    // EDS: AAATTT{G,C}A  l=3  (trailing "A" has length 1 < cl=2)
+    // Without padding the right context is "A" (1 char), not "A#" (padded).
+    // "TTG" and "TTC" are in the EDS.  "GAA" is not (only one A after G).
+    {
+        const std::string eds = "AAATTT{G,C}A";
+        compare_brute_force_vs_index(eds, 3,
+            {"TTG", "TTC", "AAA", "TTT", "GAA", "CAA"},
+            "test_boundary_short_trailing");
+    }
+
+    std::cout << "PASSED\n";
+}
+
+void test_boundary_last_symbol_degenerate() {
+    std::cout << "Test 10d: last symbol degenerate (no right context)... ";
+
+    // EDS: AAATTT{G,C}  l=3  (trailing segment absent)
+    // Without padding the right context is "", causing the entry to be short.
+    // "TTG" and "TTC" cross the boundary; "GAA" does not exist.
+    {
+        const std::string eds = "AAATTT{G,C}";
+        compare_brute_force_vs_index(eds, 3,
+            {"TTG", "TTC", "AAA", "TTT", "GAA", "CAA"},
+            "test_boundary_last_degenerate");
+    }
+
+    std::cout << "PASSED\n";
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 int main() {
@@ -579,6 +654,10 @@ int main() {
         test_broad_correctness_simple();
         test_broad_correctness_multiple_sets();
         test_broad_correctness_long_alternatives();
+        test_boundary_degenerate_no_false_positives();
+        test_boundary_short_leading_segment();
+        test_boundary_short_trailing_segment();
+        test_boundary_last_symbol_degenerate();
 
         std::cout << "\n========================================\n";
         std::cout << "ALL CORRECTNESS TESTS PASSED\n";

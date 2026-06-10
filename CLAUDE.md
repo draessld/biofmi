@@ -151,7 +151,6 @@ EDS encodes degenerate strings as `{alt1,alt2}common{alt3}...`. The l-EDS varian
 
 See `TODO.md` for design analysis and recommended fixes. Open issues:
 - **Context window off-by-one** (`TODO(bug)` in `index.cpp`, `build.cpp`): `parse_eds()` stores `cl = context_length_ - 1` instead of `cl = context_length_`. This means only `l-1` context characters are actually indexed per alternative, and `locate()` chunk sizes should be `l+1` (not `l`) throughout. Six sites marked `// TODO(bug)` in `index.cpp`. Fix requires changing chunk size, step, and modulus checks simultaneously.
-- EDS boundary false positives (truncated context at EDS start/end)
 
 Other notes:
 - Pattern lengths shorter than `l` or not a multiple of `l` raise `std::runtime_error` (correct per spec). Arbitrary pattern lengths are future work.
