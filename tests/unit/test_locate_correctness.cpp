@@ -199,17 +199,18 @@ void test_error_pattern_too_short() {
 }
 
 void test_error_pattern_not_multiple_of_l() {
-    std::cout << "Test 1b: pattern length not multiple of l -> exception... ";
+    std::cout << "Test 1b: pattern length not multiple of (l+1) -> exception... ";
 
+    // l=3 → chunk_size=4; length 5 is not a multiple of 4 → must throw
     BioFMI idx = build_index("AAATTT{G,C}AAATTT", 3);
 
     bool threw = false;
     try {
-        idx.locate("AAAA");  // length 4, not multiple of 3
+        idx.locate("AAAAA");  // length 5, not multiple of 4
     } catch (const std::runtime_error&) {
         threw = true;
     }
-    assert(threw && "Expected exception for pattern length not multiple of l");
+    assert(threw && "Expected exception for pattern length not multiple of (l+1)");
     std::cout << "PASSED\n";
 }
 
@@ -219,12 +220,11 @@ void test_error_pattern_not_multiple_of_l() {
 void test_no_match() {
     std::cout << "Test 2: pattern not in EDS -> empty result... ";
 
-    // EDS only contains A,T,G,C — search for 'X' (not in alphabet) or a
-    // combination that never occurs.
+    // EDS only contains A,T,G,C — search for a combination that never occurs.
     BioFMI idx = build_index("AAATTT{G,C}AAATTT", 3);
 
-    auto result = idx.locate("GGG");  // GGG: only one G ever appears
-    assert(result.empty() && "GGG should not be found");
+    auto result = idx.locate("GGGG");  // GGGG: only one G ever appears per path
+    assert(result.empty() && "GGGG should not be found");
     std::cout << "PASSED\n";
 }
 
@@ -241,24 +241,24 @@ void test_reference_only_matches() {
     BioFMI idx = build_index(eds_str, 3);
     EDS eds = make_eds(eds_str);
 
-    // "AAA" appears at T0[0] and T0[6]
+    // chunk_size=4: use 4-char patterns
+    // "AAAT" appears at T0[0..3] and T0[6..9] (T0="AAATTTAAATTT")
     {
-        auto expected = brute_force_locate(eds, "AAA");
-        auto got = collect_result(idx.locate("AAA"));
-        assert_equal(expected, got, "AAA", "test_reference_only_matches");
+        auto expected = brute_force_locate(eds, "AAAT");
+        auto got = collect_result(idx.locate("AAAT"));
+        assert_equal(expected, got, "AAAT", "test_reference_only_matches");
 
-        // Both occurrences should have empty changes list
         for (const auto& o : got) {
             assert(o.changes.empty() && "Pure reference match should have no changes");
         }
         assert(got.size() == 2);
     }
 
-    // "TTT" appears at T0[3] and T0[9]
+    // "ATTT" appears at T0[2..5] and T0[8..11]
     {
-        auto expected = brute_force_locate(eds, "TTT");
-        auto got = collect_result(idx.locate("TTT"));
-        assert_equal(expected, got, "TTT", "test_reference_only_matches");
+        auto expected = brute_force_locate(eds, "ATTT");
+        auto got = collect_result(idx.locate("ATTT"));
+        assert_equal(expected, got, "ATTT", "test_reference_only_matches");
         assert(got.size() == 2);
     }
 
@@ -274,28 +274,27 @@ void test_reference_change_boundary() {
     // EDS: AAATTT{G,C}AAATTT  l=3
     // T0 = AAATTTAAATTT
     // Changes: 0=G, 1=C
-    // "TTG" = T(T0[4])+T(T0[5])+G(change0) -> (4,[0])
-    // "TTC" = T(T0[4])+T(T0[5])+C(change1) -> (4,[1])
+    // chunk_size=4: "TTTG" = T(T0[3])+T(T0[4])+T(T0[5])+G(change0) -> (3,[0])
+    // "TTTC" = T(T0[3])+T(T0[4])+T(T0[5])+C(change1) -> (3,[1])
     const std::string eds_str = "AAATTT{G,C}AAATTT";
     BioFMI idx = build_index(eds_str, 3);
     EDS eds = make_eds(eds_str);
 
     {
-        auto expected = brute_force_locate(eds, "TTG");
-        auto got = collect_result(idx.locate("TTG"));
-        assert_equal(expected, got, "TTG", "test_reference_change_boundary");
-        // Expect exactly one occurrence at (4,[0])
+        auto expected = brute_force_locate(eds, "TTTG");
+        auto got = collect_result(idx.locate("TTTG"));
+        assert_equal(expected, got, "TTTG", "test_reference_change_boundary");
         assert(got.size() == 1);
-        assert(got.begin()->position == 4);
+        assert(got.begin()->position == 3);
         assert(got.begin()->changes == std::vector<int>{0});
     }
 
     {
-        auto expected = brute_force_locate(eds, "TTC");
-        auto got = collect_result(idx.locate("TTC"));
-        assert_equal(expected, got, "TTC", "test_reference_change_boundary");
+        auto expected = brute_force_locate(eds, "TTTC");
+        auto got = collect_result(idx.locate("TTTC"));
+        assert_equal(expected, got, "TTTC", "test_reference_change_boundary");
         assert(got.size() == 1);
-        assert(got.begin()->position == 4);
+        assert(got.begin()->position == 3);
         assert(got.begin()->changes == std::vector<int>{1});
     }
 
@@ -308,36 +307,43 @@ void test_reference_change_boundary() {
 void test_match_starts_in_change() {
     std::cout << "Test 5: match starting inside a degenerate alternative... ";
 
-    // EDS: AAAA{T,GGG}TTTT  l=4
-    // T0 = AAAATTTT
-    // Changes: 0=T, 1=GGG
-    // base_positions: after AAAA=4, after TTTT=8
+    // EDS: AAATTT{GG,C}AAATTT  l=3  (use "GG" so a chunk can start at offset 1)
+    // T0 = AAATTTAAATTT
+    // Changes: 0=GG (len 2), 1=C (len 1)
+    // chunk_size=4
     //
-    // Pattern "GGGT" (l=4):
-    //   G(change1 offset 0) + G(change1 offset 1) + G(change1 offset 2) + T(T0[4])
-    //   Starts in change 1 at offset 0 -> position = base_pos(set0) + 0 = 4 + 0 = 4
-    //   changes = [1]
-    const std::string eds_str = "AAAA{T,GGG}TTTT";
-    BioFMI idx = build_index(eds_str, 4);
+    // "GAAA" (4 chars): G(change0 offset 1) + A(T0[6]) + A(T0[7]) + A(T0[8])
+    //   Starts inside change 0 at offset 1 -> position = base_pos(set0) + 1 = 6 + 1 = 7
+    //   changes = [0]
+    // "CAAA" (4 chars): C(change1 offset 0) -> position = 6 + 0 = 6, changes = [1]
+    const std::string eds_str = "AAATTT{GG,C}AAATTT";
+    BioFMI idx = build_index(eds_str, 3);
     EDS eds = make_eds(eds_str);
 
     {
-        auto expected = brute_force_locate(eds, "GGGT");
-        auto got = collect_result(idx.locate("GGGT"));
-        assert_equal(expected, got, "GGGT", "test_match_starts_in_change");
+        auto expected = brute_force_locate(eds, "GAAA");
+        auto got = collect_result(idx.locate("GAAA"));
+        assert_equal(expected, got, "GAAA", "test_match_starts_in_change");
         assert(got.size() == 1);
-        assert(got.begin()->position == 4);
+        assert(got.begin()->position == 7);
+        assert(got.begin()->changes == std::vector<int>{0});
+    }
+
+    {
+        auto expected = brute_force_locate(eds, "CAAA");
+        auto got = collect_result(idx.locate("CAAA"));
+        assert_equal(expected, got, "CAAA", "test_match_starts_in_change");
+        assert(got.size() == 1);
+        assert(got.begin()->position == 6);
         assert(got.begin()->changes == std::vector<int>{1});
     }
 
-    // Pattern "GGG" would be length 3 (not multiple of 4) -> tested elsewhere
-    // Pattern "GGGG" (entirely within change 1 with one ref char?):
-    //   GGG has only 3 chars; GGGG would need a 4th G not present.
+    // "GGGGG" (5 chars, not multiple of 4) would throw — not tested here
     {
         auto expected = brute_force_locate(eds, "GGGG");
         auto got = collect_result(idx.locate("GGGG"));
         assert_equal(expected, got, "GGGG", "test_match_starts_in_change");
-        assert(got.empty() && "GGGG should not be found (GGG is only 3 chars)");
+        assert(got.empty() && "GGGG should not be found (only 2 G's exist)");
     }
 
     std::cout << "PASSED\n";
@@ -402,25 +408,27 @@ void test_match_spanning_two_changes() {
     BioFMI idx = build_index(eds_str, 3);
     EDS eds = make_eds(eds_str);
 
-    // "ATTTCC" spans two degenerate sets
+    // chunk_size=4: use 8-char patterns (2 chunks).
+    // "AATTTTCC": A(T0[1])+A(T0[2])+T(change0)+T(T0[3])+T(T0[4])+T(T0[5])+C(change2)+C(T0[6])
+    //   -> (1,[0,2])
     {
-        auto expected = brute_force_locate(eds, "ATTTCC");
-        auto got = collect_result(idx.locate("ATTTCC"));
-        assert_equal(expected, got, "ATTTCC", "test_match_spanning_two_changes");
+        auto expected = brute_force_locate(eds, "AATTTTCC");
+        auto got = collect_result(idx.locate("AATTTTCC"));
+        assert_equal(expected, got, "AATTTTCC", "test_match_spanning_two_changes");
 
-        // Must include (2,[0,2])
-        OccInfo expected_occ{2, {0, 2}};
-        assert(got.count(expected_occ) && "Expected occurrence (2,[0,2]) not found");
+        OccInfo expected_occ{1, {0, 2}};
+        assert(got.count(expected_occ) && "Expected occurrence (1,[0,2]) not found");
     }
 
-    // "AGTTCC" uses changes [1,2]
+    // "AAGTTTCC": A(T0[1])+A(T0[2])+G(change1)+T(T0[3])+T(T0[4])+T(T0[5])+C(change2)+C(T0[6])
+    //   -> (1,[1,2])
     {
-        auto expected = brute_force_locate(eds, "AGTTCC");
-        auto got = collect_result(idx.locate("AGTTCC"));
-        assert_equal(expected, got, "AGTTCC", "test_match_spanning_two_changes");
+        auto expected = brute_force_locate(eds, "AAGTTTCC");
+        auto got = collect_result(idx.locate("AAGTTTCC"));
+        assert_equal(expected, got, "AAGTTTCC", "test_match_spanning_two_changes");
 
-        OccInfo expected_occ{2, {1, 2}};
-        assert(got.count(expected_occ) && "Expected occurrence (2,[1,2]) not found");
+        OccInfo expected_occ{1, {1, 2}};
+        assert(got.count(expected_occ) && "Expected occurrence (1,[1,2]) not found");
     }
 
     std::cout << "PASSED\n";
@@ -442,23 +450,21 @@ void test_same_position_different_paths() {
     // Use: AAA{T,T}TTT — both alternatives are T, so same string, but change 0 and change 1
     // are distinct indices. Pattern "ATTT" (l=3... hmm 4 chars not multiple of 3).
     //
-    // Better: AAATTT{GG,GG}AAATTT l=3: both alternatives identical.
-    // Pattern "TGG" (l=3): T(T0[5]) + G(change0 offset 0) + G(change0 offset 1)
-    //                       T(T0[5]) + G(change1 offset 0) + G(change1 offset 1)
-    // Both start at position T0[5]=T, -> (5,[0]) and (5,[1]) -- two separate entries.
+    // AAATTT{GG,GG}AAATTT l=3, chunk_size=4: both alternatives identical.
+    // Pattern "TTGG" (4 chars): T(T0[4])+T(T0[5])+G(change,0)+G(change,1)
+    //   Via change0: (4,[0]); via change1: (4,[1]) -- two separate entries.
     const std::string eds_str = "AAATTT{GG,GG}AAATTT";
     BioFMI idx = build_index(eds_str, 3);
     EDS eds = make_eds(eds_str);
 
     {
-        auto expected = brute_force_locate(eds, "TGG");
-        auto got = collect_result(idx.locate("TGG"));
-        assert_equal(expected, got, "TGG", "test_same_position_different_paths");
+        auto expected = brute_force_locate(eds, "TTGG");
+        auto got = collect_result(idx.locate("TTGG"));
+        assert_equal(expected, got, "TTGG", "test_same_position_different_paths");
 
-        // Should have two entries: (5,[0]) and (5,[1])
         assert(got.size() == 2 && "Expected 2 separate entries for same position, different changes");
-        assert(got.count({5, {0}}) && "Missing (5,[0])");
-        assert(got.count({5, {1}}) && "Missing (5,[1])");
+        assert(got.count({4, {0}}) && "Missing (4,[0])");
+        assert(got.count({4, {1}}) && "Missing (4,[1])");
     }
 
     std::cout << "PASSED\n";
@@ -473,7 +479,8 @@ void test_count_matches_locate() {
     const std::string eds_str = "AAA{T,G}TTT{C,A}CCC";
     BioFMI idx = build_index(eds_str, 3);
 
-    for (const std::string& pat : {"AAA", "TTT", "TTG", "TTC", "AAATTT", "ATTTCC"}) {
+    // chunk_size=4 for l=3: all patterns must be multiples of 4
+    for (const std::string& pat : {"AAAT", "ATTT", "TTTG", "TTTC", "AATTTTCC", "AATTTTAC"}) {
         try {
             auto result = idx.locate(pat);
             size_t total = 0;
@@ -512,9 +519,11 @@ void test_broad_correctness_simple() {
     std::cout << "Test 9a: broad correctness, simple EDS... ";
 
     // AAATTT{G,C}AAATTT  l=3
+    // chunk_size=4 for l=3
     compare_brute_force_vs_index(
         "AAATTT{G,C}AAATTT", 3,
-        {"AAA", "TTT", "TTG", "TTC", "GAA", "CAA", "AAATTT", "TTTGAA", "TTTCAA"},
+        {"AAAT", "ATTT", "TTTG", "TTTC", "GAAA", "CAAA",
+         "AAATTTGA", "AAATTTCA", "TTTGAAAT", "TTTCAAAT"},
         "test_broad_correctness_simple");
 
     std::cout << "PASSED\n";
@@ -524,15 +533,14 @@ void test_broad_correctness_multiple_sets() {
     std::cout << "Test 9b: broad correctness, multiple degenerate sets... ";
 
     // AAA{T,G}TTT{C,A}CCC  l=3
+    // chunk_size=4 for l=3
     compare_brute_force_vs_index(
         "AAA{T,G}TTT{C,A}CCC", 3,
         {
-            "AAA", "TTT", "CCC",
-            "AAT", "AAG", "TTC", "TTA",
-            "GAA", "CAA",
-            "TTG", "TTG",
-            "AATTTC", "AATTTA", "AAGTTC", "AAGTTA",
-            "ATTTCC", "ATTTAC", "AGTTCC", "AGTTAC",
+            "AAAT", "ATTT", "TCCC",
+            "AATT", "AAGT", "TTTC", "TTTA",
+            "TTTT", "CCCC",
+            "AATTTTCC", "AATTTTAC", "AAGTTTCC", "AAGTTTAC",
         },
         "test_broad_correctness_multiple_sets");
 
@@ -543,15 +551,18 @@ void test_broad_correctness_long_alternatives() {
     std::cout << "Test 9c: broad correctness, longer alternatives... ";
 
     // AAAA{T,GGG}TTTT{CC,A}CCCC  l=4
+    // chunk_size=5 for l=4; T0="AAAATTTTCCCC"
     compare_brute_force_vs_index(
         "AAAA{T,GGG}TTTT{CC,A}CCCC", 4,
         {
-            "AAAA", "TTTT", "CCCC",
-            "AAAT", "AAAG", "AAAG",
-            "GGGT", "GGGG",
-            "TTCC", "TTAC",
-            "TTTTCCCC", "TTTTACCC",
-            "AAAATTTT",
+            // pure reference (length 5)
+            "AAAAT", "ATTTT", "TTTCC",
+            // boundary / change (length 5)
+            "AAAAG", "GGGTT", "TTTTT",
+            // not found (length 5)
+            "AAAAA", "GGGGG",
+            // 2-chunk patterns (length 10)
+            "AAAATTTTCC", "GGGTTTTCCC",
         },
         "test_broad_correctness_long_alternatives");
 
@@ -570,14 +581,12 @@ void test_broad_correctness_long_alternatives() {
 void test_boundary_degenerate_no_false_positives() {
     std::cout << "Test 10a: first symbol degenerate (no left context)... ";
 
-    // EDS: {G,C}AAATTT  l=3
+    // EDS: {G,C}AAATTT  l=3, chunk_size=4
     // Leading segment is absent; change entries must be padded on the left.
-    // "GAA" should be found (G + first two chars of reference).
-    // "CAA" likewise.  "GGG" should not be found.
     {
         const std::string eds = "{G,C}AAATTT";
         compare_brute_force_vs_index(eds, 3,
-            {"GAA", "CAA", "AAA", "TTT", "GGG", "CCC"},
+            {"GAAA", "CAAA", "AAAT", "ATTT", "GGGG", "CCCC"},
             "test_boundary_first_degenerate");
     }
 
@@ -587,14 +596,12 @@ void test_boundary_degenerate_no_false_positives() {
 void test_boundary_short_leading_segment() {
     std::cout << "Test 10b: leading segment shorter than cl... ";
 
-    // EDS: A{G,C}AAATTT  l=3  (leading "A" has length 1 < cl=2)
-    // Without padding the left context is "A" (1 char), not "##A" (2 chars).
-    // "GAA" is in the EDS (G + first two chars of AAATTT).
-    // "AGG" is not (only one G in this EDS).
+    // EDS: A{G,C}AAATTT  l=3  (leading "A" has length 1 < cl=3)
+    // chunk_size=4
     {
         const std::string eds = "A{G,C}AAATTT";
         compare_brute_force_vs_index(eds, 3,
-            {"GAA", "CAA", "AAA", "TTT", "AGG", "ACC"},
+            {"GAAA", "CAAA", "AAAT", "ATTT", "AGGG", "ACCC"},
             "test_boundary_short_leading");
     }
 
@@ -604,13 +611,12 @@ void test_boundary_short_leading_segment() {
 void test_boundary_short_trailing_segment() {
     std::cout << "Test 10c: trailing segment shorter than cl... ";
 
-    // EDS: AAATTT{G,C}A  l=3  (trailing "A" has length 1 < cl=2)
-    // Without padding the right context is "A" (1 char), not "A#" (padded).
-    // "TTG" and "TTC" are in the EDS.  "GAA" is not (only one A after G).
+    // EDS: AAATTT{G,C}A  l=3  (trailing "A" has length 1 < cl=3)
+    // chunk_size=4
     {
         const std::string eds = "AAATTT{G,C}A";
         compare_brute_force_vs_index(eds, 3,
-            {"TTG", "TTC", "AAA", "TTT", "GAA", "CAA"},
+            {"TTTG", "TTTC", "AAAT", "ATTT", "GAAA", "CAAA"},
             "test_boundary_short_trailing");
     }
 
@@ -620,13 +626,12 @@ void test_boundary_short_trailing_segment() {
 void test_boundary_last_symbol_degenerate() {
     std::cout << "Test 10d: last symbol degenerate (no right context)... ";
 
-    // EDS: AAATTT{G,C}  l=3  (trailing segment absent)
-    // Without padding the right context is "", causing the entry to be short.
-    // "TTG" and "TTC" cross the boundary; "GAA" does not exist.
+    // EDS: AAATTT{G,C}  l=3  (trailing segment absent; right context fully padded)
+    // chunk_size=4
     {
         const std::string eds = "AAATTT{G,C}";
         compare_brute_force_vs_index(eds, 3,
-            {"TTG", "TTC", "AAA", "TTT", "GAA", "CAA"},
+            {"TTTG", "TTTC", "AAAT", "ATTT", "GAAA", "CAAA"},
             "test_boundary_last_degenerate");
     }
 

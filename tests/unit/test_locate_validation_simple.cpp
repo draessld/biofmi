@@ -77,7 +77,7 @@ void test_simple_validation() {
     int total_occurrences = 0;
 
     for (int i = 0; i < num_patterns; i++) {
-        std::string pattern = generate_pattern_from_leds(leds_copy, 8, rng);
+        std::string pattern = generate_pattern_from_leds(leds_copy, 9, rng);
         
         // Search for pattern
         auto result = index.locate(pattern);
@@ -120,7 +120,7 @@ void test_medium_validation() {
     int total = 0;
 
     for (int i = 0; i < num_patterns; i++) {
-        std::string pattern = generate_pattern_from_leds(leds_copy, 8, rng);
+        std::string pattern = generate_pattern_from_leds(leds_copy, 9, rng);
         auto result = index.locate(pattern);
 
         int count = 0;
@@ -158,7 +158,7 @@ void test_degenerate_validation() {
     int found = 0;
 
     for (int i = 0; i < num_patterns; i++) {
-        std::string pattern = generate_pattern_from_leds(leds_copy, 8, rng);
+        std::string pattern = generate_pattern_from_leds(leds_copy, 9, rng);
         auto result = index.locate(pattern);
 
         int count = 0;

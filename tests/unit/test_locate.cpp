@@ -19,8 +19,8 @@ int main() {
         // Test 2: Search for a pattern that should be found
         std::cout << "  Testing pattern search...\n";
 
-        // Try a simple 4-character pattern
-        std::string pattern1 = "ACGT";
+        // Try a simple 5-character pattern (l=4, chunk_size=5)
+        std::string pattern1 = "ACGTA";
         auto result1 = index.locate(pattern1);
         std::cout << "    Pattern '" << pattern1 << "': ";
         if (result1.empty()) {
@@ -35,7 +35,7 @@ int main() {
 
         // Test 3: Pattern that's definitely not in the data
         std::cout << "  Testing pattern not in data...\n";
-        std::string pattern2 = "ZZZZ";
+        std::string pattern2 = "ZZZZZ";
         auto result2 = index.locate(pattern2);
         assert(result2.empty() && "Pattern 'ZZZZ' should not be found");
         std::cout << "    ✓ Correctly returned empty result for non-existent pattern\n";
@@ -44,7 +44,7 @@ int main() {
         std::cout << "  Testing pattern length validation...\n";
         bool caught_exception = false;
         try {
-            std::string pattern3 = "ACG"; // Length 3, not multiple of 4
+            std::string pattern3 = "ACGT"; // Length 4, not multiple of 5
             index.locate(pattern3);
         } catch (const std::runtime_error& e) {
             caught_exception = true;
@@ -52,9 +52,9 @@ int main() {
         }
         assert(caught_exception && "Should throw exception for invalid pattern length");
 
-        // Test 5: Longer pattern (8 characters = 2 chunks)
-        std::cout << "  Testing longer pattern (8 chars)...\n";
-        std::string pattern4 = "ACGTACGT";
+        // Test 5: Longer pattern (10 characters = 2 chunks of 5)
+        std::cout << "  Testing longer pattern (10 chars)...\n";
+        std::string pattern4 = "ACGTAACGTA";
         auto result4 = index.locate(pattern4);
         std::cout << "    Pattern '" << pattern4 << "': ";
         if (result4.empty()) {

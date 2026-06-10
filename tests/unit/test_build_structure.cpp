@@ -75,16 +75,17 @@ void test_one_degenerate_set() {
     auto idx = build_index("AAATTT{G,C}AAATTT", 3);
     auto s = idx.get_snapshot();
 
-    assert_str(s.ref_text,     "#AAATTT#AAATTT#", "ref_text");
-    assert_str(s.changes_text, "#TTGAA#TTCAA#",   "changes_text");
+    // cl=3: G entry = "TTT"+"G"+"AAA" (7 chars), C entry same → "#TTTGAAA#TTTCAAA#"
+    assert_str(s.ref_text,     "#AAATTT#AAATTT#",   "ref_text");
+    assert_str(s.changes_text, "#TTTGAAA#TTTCAAA#", "changes_text");
 
     assert_vec(s.base_positions, {6, 12},    "base_positions");
     assert_vec(s.set_sizes,      {2},        "set_sizes");
     assert_vec(s.offsets,        {1, 1},     "offsets");
 
     assert_vec(s.tloc_ones, {0, 7, 14},      "tloc_ones");
-    assert_vec(s.loc_ones,  {0, 6, 12},      "loc_ones");
-    assert_vec(s.iloc_ones, {0, 12},         "iloc_ones");
+    assert_vec(s.loc_ones,  {0, 8, 16},      "loc_ones");
+    assert_vec(s.iloc_ones, {0, 16},         "iloc_ones");
 
     std::cout << "PASSED\n";
 }
@@ -118,16 +119,21 @@ void test_two_degenerate_sets() {
     auto idx = build_index("AAA{T,G}TTT{C,A}CCC", 3);
     auto s = idx.get_snapshot();
 
-    assert_str(s.ref_text,     "#AAA#TTT#CCC#",             "ref_text");
-    assert_str(s.changes_text, "#AATTT#AAGTT#TTCCC#TTACC#", "changes_text");
+    // cl=3:
+    //   T entry: "AAA"+"T"+"TTT" = A,A,A,T,T,T,T (7 chars) = "AAATTTT"
+    //   G entry: "AAA"+"G"+"TTT" = A,A,A,G,T,T,T (7 chars) = "AAAGTTT"
+    //   C entry: "TTT"+"C"+"CCC" = T,T,T,C,C,C,C (7 chars) = "TTTCCCC"
+    //   A entry: "TTT"+"A"+"CCC" = T,T,T,A,C,C,C (7 chars) = "TTTACCC"
+    assert_str(s.ref_text,     "#AAA#TTT#CCC#",                         "ref_text");
+    assert_str(s.changes_text, "#AAATTTT#AAAGTTT#TTTCCCC#TTTACCC#",    "changes_text");
 
     assert_vec(s.base_positions, {3, 6, 9},       "base_positions");
     assert_vec(s.set_sizes,      {2, 4},           "set_sizes");
     assert_vec(s.offsets,        {1, 1, 1, 1},     "offsets");
 
-    assert_vec(s.tloc_ones, {0, 4, 8, 12},         "tloc_ones");
-    assert_vec(s.loc_ones,  {0, 6, 12, 18, 24},    "loc_ones");
-    assert_vec(s.iloc_ones, {0, 12, 24},            "iloc_ones");
+    assert_vec(s.tloc_ones, {0, 4, 8, 12},          "tloc_ones");
+    assert_vec(s.loc_ones,  {0, 8, 16, 24, 32},     "loc_ones");
+    assert_vec(s.iloc_ones, {0, 16, 32},             "iloc_ones");
 
     std::cout << "PASSED\n";
 }
@@ -285,16 +291,19 @@ void test_multi_char_alternative() {
     auto idx = build_index("AAAA{T,GGG}TTTT", 4);
     auto s = idx.get_snapshot();
 
-    assert_str(s.ref_text,     "#AAAA#TTTT#",          "ref_text");
-    assert_str(s.changes_text, "#AAATTTT#AAAGGGTTT#",  "changes_text");
+    // cl=4:
+    //   T   entry: "AAAA"+"T"+"TTTT" = A,A,A,A,T,T,T,T,T (9 chars) = "AAAATTTTT"
+    //   GGG entry: "AAAA"+"GGG"+"TTTT" = A,A,A,A,G,G,G,T,T,T,T (11 chars) = "AAAAGGGTTTT"
+    assert_str(s.ref_text,     "#AAAA#TTTT#",             "ref_text");
+    assert_str(s.changes_text, "#AAAATTTTT#AAAAGGGTTTT#", "changes_text");
 
     assert_vec(s.base_positions, {4, 8},   "base_positions");
     assert_vec(s.set_sizes,      {2},      "set_sizes");
     assert_vec(s.offsets,        {1, 3},   "offsets");
 
     assert_vec(s.tloc_ones, {0, 5, 10},    "tloc_ones");
-    assert_vec(s.loc_ones,  {0, 8, 18},    "loc_ones");
-    assert_vec(s.iloc_ones, {0, 18},       "iloc_ones");
+    assert_vec(s.loc_ones,  {0, 10, 22},   "loc_ones");
+    assert_vec(s.iloc_ones, {0, 22},       "iloc_ones");
 
     std::cout << "PASSED\n";
 }
@@ -347,16 +356,20 @@ void test_boundary_first_degenerate_structure() {
     auto idx = build_index("{G,C}AAATTT", 3);
     auto s = idx.get_snapshot();
 
-    assert_str(s.ref_text,     "#AAATTT#",     "ref_text");
-    assert_str(s.changes_text, "###GAA###CAA#", "changes_text");
+    // cl=3: left-ctx padded to 3 sentinels; right-ctx = first 3 of "AAATTT" = "AAA"
+    //   G entry: "###"+"G"+"AAA" = '#','#','#','G','A','A','A' (7 chars)
+    //   C entry: "###"+"C"+"AAA" (7 chars)
+    //   changes_text = "####GAAA####CAAA#"  (17 chars)
+    assert_str(s.ref_text,     "#AAATTT#",          "ref_text");
+    assert_str(s.changes_text, "####GAAA####CAAA#", "changes_text");
 
     assert_vec(s.base_positions, {0, 6},  "base_positions");
     assert_vec(s.set_sizes,      {2},     "set_sizes");
     assert_vec(s.offsets,        {1, 1},  "offsets");
 
     assert_vec(s.tloc_ones, {0, 7},       "tloc_ones");
-    assert_vec(s.loc_ones,  {0, 6, 12},   "loc_ones");
-    assert_vec(s.iloc_ones, {0, 12},      "iloc_ones");
+    assert_vec(s.loc_ones,  {0, 8, 16},   "loc_ones");
+    assert_vec(s.iloc_ones, {0, 16},      "iloc_ones");
 
     std::cout << "PASSED\n";
 }

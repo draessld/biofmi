@@ -209,9 +209,9 @@ the boundary false-positive issue (Issue 1) is resolved.
 
 ---
 
-## 5. Context Window Off-By-One in `parse_eds()`
+## 5. ~~Context Window Off-By-One in `parse_eds()`~~ — FIXED
 
-**File:** `src/cpp/lib/index/index.cpp` (line ~296), `src/cpp/tools/build.cpp` (line ~96)
+**Fixed in:** `src/cpp/lib/index/index.cpp` (`parse_eds()`, `locate()`, `process_reference_matches()`, `validate_change_continuity()`, `process_changes_matches()`)
 
 ### What the bug is
 
