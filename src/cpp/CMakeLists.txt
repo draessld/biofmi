@@ -136,6 +136,11 @@ add_executable(test_build ${TEST_DIR}/test_build.cpp)
 target_link_libraries(test_build biofmi_lib)
 add_test(NAME test_build COMMAND test_build)
 
+# Test: parse_eds() structural correctness (internal arrays + bit vectors)
+add_executable(test_build_structure ${TEST_DIR}/test_build_structure.cpp)
+target_link_libraries(test_build_structure biofmi_lib)
+add_test(NAME test_build_structure COMMAND test_build_structure)
+
 # Test: Pattern locate
 add_executable(test_locate ${TEST_DIR}/test_locate.cpp)
 target_link_libraries(test_locate biofmi_lib)

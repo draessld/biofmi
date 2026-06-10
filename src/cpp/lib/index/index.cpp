@@ -670,4 +670,26 @@ void BioFMI::dump_readable(const std::filesystem::path& dump_path) const {
     out << "]\n";
 }
 
+BioFMI::IndexSnapshot BioFMI::get_snapshot() const {
+    IndexSnapshot s;
+
+    s.ref_text = sdsl::extract(data_->reference_index, (size_t)0,
+                               data_->reference_index.size() - 2);
+    s.changes_text = sdsl::extract(data_->changes_index, (size_t)0,
+                                   data_->changes_index.size() - 2);
+
+    s.base_positions = data_->base_positions;
+    s.set_sizes      = data_->set_sizes;
+    s.offsets        = data_->offsets;
+
+    for (size_t i = 0; i < data_->tloc.size(); i++)
+        if (data_->tloc[i]) s.tloc_ones.push_back(i);
+    for (size_t i = 0; i < data_->loc.size(); i++)
+        if (data_->loc[i]) s.loc_ones.push_back(i);
+    for (size_t i = 0; i < data_->iloc.size(); i++)
+        if (data_->iloc[i]) s.iloc_ones.push_back(i);
+
+    return s;
+}
+
 } // namespace biofmi

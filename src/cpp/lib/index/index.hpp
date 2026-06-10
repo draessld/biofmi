@@ -90,6 +90,20 @@ public:
     IndexStats get_statistics() const;
     void print_statistics(std::ostream& os = std::cout) const;
 
+    // Snapshot of internal parse_eds() output for structural tests.
+    // All positions are 0-based byte offsets into the respective index text.
+    struct IndexSnapshot {
+        std::string ref_text;            // full reference file content (with '#' separators)
+        std::string changes_text;        // full changes file content (with '#' separators)
+        std::vector<int> base_positions; // cumulative T0 length before each degenerate set
+        std::vector<int> set_sizes;      // cumulative string count through each degenerate set
+        std::vector<int> offsets;        // length of each individual degenerate string
+        std::vector<size_t> tloc_ones;   // positions i where tloc[i] == 1
+        std::vector<size_t> loc_ones;    // positions i where loc[i] == 1
+        std::vector<size_t> iloc_ones;   // positions i where iloc[i] == 1
+    };
+    IndexSnapshot get_snapshot() const;
+
     // Get the last query results
     const ResultMap& get_last_result() const { return last_result_; }
 
