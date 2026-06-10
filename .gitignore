@@ -131,9 +131,14 @@ Thumbs.db
 .claude
 .claudeignore
 
+# MkDocs build output
+site/
+
 *.md
 !tests/bench/README.md
 !CLAUDE.md
 !README.md
 !TODO.md
 !src/cpp/tools/README.md
+!docs/*.md
+!mkdocs.yml

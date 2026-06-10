@@ -156,6 +156,11 @@ add_executable(test_locate_correctness ${TEST_DIR}/test_locate_correctness.cpp)
 target_link_libraries(test_locate_correctness biofmi_lib)
 add_test(NAME test_locate_correctness COMMAND test_locate_correctness)
 
+# Test: Offset arithmetic cross-check (snapshot byte positions vs locate results)
+add_executable(test_locate_offset ${TEST_DIR}/test_locate_offset.cpp)
+target_link_libraries(test_locate_offset biofmi_lib)
+add_test(NAME test_locate_offset COMMAND test_locate_offset)
+
 # Print configuration summary
 message(STATUS "")
 message(STATUS "Configuration Summary:")

@@ -163,6 +163,40 @@ void BioFMI::load(const std::filesystem::path& index_dir) {
 }
 
 BioFMI::ResultMap BioFMI::locate(const String& pattern) {
+    // Chunk-based dual-index search.
+    //
+    // The pattern is split into (l+1)-char chunks.  Candidate occurrences are
+    // tracked across chunks in two alternating hash maps.  Each map entry maps a
+    // key K to a list of (origin, changes) pairs.  The key for a chunk starting
+    // at T0-relative position P is K = P - C, where C is the total change-content
+    // length consumed by this chunk (0 for a pure-reference chunk, or the length
+    // of the degenerate alternative for a changes chunk).  When processing chunk k,
+    // continuity with chunk k-1 is checked by looking up K_k = T0_start_k - (l+1):
+    // if chunk k-1 set key K_{k-1} = K_k the chain is valid.
+    //
+    // The origin (actual T0 start of the first chunk) is stored inside each
+    // OccurrenceInfo and recovered only in convert_hash_to_result().
+    //
+    // Worked example — EDS "AAATTT{G,C}AAATTT", l=3, pattern "TTTGAAAT" (2 chunks):
+    //
+    //   changes_text = "#TTTGAAA#TTTCAAA#"
+    //   base_positions = [6, 12]   offsets = [1, 1]   (G and C each len 1)
+    //
+    //   chunk 0 "TTTG": found in changes_text at file pos 1.
+    //     change_number = rloc(1) = 1   (loc[0] is the only 1-bit before pos 1)
+    //     pre_hash_loc  = sloc(1) = 0   (first 1-bit in loc)
+    //     offset = 1 - (0 + 3 + 1) = -3;  previous_outside_change = true
+    //     loc_new = base_positions[0] + (-3) = 6 - 3 = 3
+    //     key = loc_new - change_offset = 3 - 1 = 2;  origin = (3, {1})
+    //     → old_hash_map_ = { 2: [(3,{1})] }
+    //
+    //   chunk 1 "AAAT": found in reference_text at T0 pos 6.
+    //     look up find(6 - 4) = find(2) → hit.  Case change→ref: back()=1 ≤ set_sizes[1]=2 → keep.
+    //     → new_hash_map_ = { 6: [(3,{1})] }
+    //
+    //   convert_hash_to_result: origin=3, changes {1} → 0-based {0}.
+    //   Result: { position=3, changes=[0] }
+
     // Clear hash maps
     new_hash_map_.clear();
     old_hash_map_.clear();

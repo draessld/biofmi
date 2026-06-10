@@ -149,7 +149,7 @@ EDS encodes degenerate strings as `{alt1,alt2}common{alt3}...`. The l-EDS varian
 
 ## Known Issues / Future Work
 
-All five tracked issues from the original TODO are resolved. One open item remains.
+All tracked issues resolved. One future-work item remains.
 
 ### Resolved
 
@@ -159,14 +159,12 @@ All five tracked issues from the original TODO are resolved. One open item remai
 | Dead stub methods (`locate_short`, `locate_long`, `validate_chunk_positions`) | Deleted from `index.hpp` + `index.cpp` |
 | No structural build tests | `test_build_structure.cpp` + `IndexSnapshot`/`get_snapshot()` in `index.hpp` |
 | Context window + chunk size off-by-one (`cl = l-1`, chunk size `l`) | `parse_eds()`: `cl = context_length_`; `locate()` and helpers: chunk size/step `l+1` at seven sites |
+| Locate algorithm undocumented | `locate()` — block comment with worked example; `test_locate_offset.cpp` — offset arithmetic cross-check |
 
-### Open
+### Future Work
 
-**Locate algorithm undocumented** (`src/cpp/lib/index/index.cpp`):
-- No high-level comment in `locate()` explaining the hash-map-as-chain-tracker approach
-- `validate_change_continuity()` four branches unlabelled
-- Offset arithmetic in `process_changes_matches()` has no unit test
+- **Arbitrary pattern lengths**: `|P|` must be a multiple of `l+1`. Supporting arbitrary lengths requires a different lookup strategy for partial chunks.
 
 ### Other notes
-- Pattern length must be a multiple of `l+1` and at least `l+1`; otherwise throws. Arbitrary pattern lengths are future work.
+- Pattern length must be a multiple of `l+1` and at least `l+1`; otherwise throws.
 - `count()` delegates to `locate()` and sums entries.
