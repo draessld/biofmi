@@ -386,6 +386,104 @@ the boundary false-positive issue (Issue 1) is resolved.
 
 ---
 
+## 5. Context Window Off-By-One in `parse_eds()`
+
+**File:** `src/cpp/lib/index/index.cpp` (line ~296), `src/cpp/tools/build.cpp` (line ~96)
+
+### What the bug is
+
+`parse_eds()` stores each degenerate alternative as:
+
+```
+$ [l-1 left-ctx] [alternative] [l-1 right-ctx] $
+```
+
+using `cl = context_length_ - 1` (i.e. `l-1`) characters of context on each side.
+
+To support finding matches of length `l+1` that straddle a reference–change boundary, the
+context window must be at least `l` characters wide. With only `l-1` characters of context,
+the chunk query for the first chunk of such a match starts 1 character before the alternative,
+but the left context only extends `l-1` characters — one character too short to cover the
+full overlap.
+
+The l-EDS constraint already guarantees that every internal non-degenerate segment has
+length ≥ `l`, so taking `l` characters of context from each side is valid without tightening
+the validation threshold.
+
+### Concrete example
+
+```
+EDS: AAATTT{G,C}AAATTT   l=3
+
+Current (cl = l-1 = 2):
+  Changes entry for G:  $ TT G AA $   ← 2 chars of context each side
+
+With cl = l = 3:
+  Changes entry for G:  $ TTT G AAA $  ← 3 chars, full l-width coverage
+
+Pattern "TTTGAAA" (length 7, not a multiple of l — future arbitrary-length support):
+  With cl=2 the first chunk "TTT" starts 3 chars before G but only 2 chars of
+  left context are stored → match is missed.
+  With cl=3 the full context is present → match is found.
+```
+
+### Secondary effect on the validation threshold
+
+`build.cpp` rejects internal segments shorter than `context_length` (`< l`). Once `cl`
+is changed to `l`, the threshold becomes exactly correct: a segment of length `l` provides
+exactly `l` characters of context. Until then the threshold is one too tight (it accepts
+`>= l` where `>= l-1` would be sufficient for the current `cl = l-1`).
+
+### Fix
+
+In `parse_eds()` change:
+
+```cpp
+// Before:
+unsigned int cl = context_length_ - 1;
+
+// After:
+unsigned int cl = context_length_;
+```
+
+The size estimate for `estimated_chan_size` already allocates `2 * cl` per entry, so it
+will expand automatically. No change needed in the validation threshold in `build.cpp`
+(it becomes correct as-is once `cl = l`).
+
+### Propagation into `locate()` — chunk size must also become `l+1`
+
+The off-by-one is not isolated to `parse_eds()`. The locate algorithm splits the pattern
+into chunks of size `context_length_` (`l`) and uses the same value as the step between
+consecutive chunks. Once `cl` is fixed to `l`, the context on each side of an alternative
+is exactly `l` characters, so the chunk size must become `l+1` — the invariant is:
+
+```
+context_size == chunk_size - 1
+```
+
+With `cl = l` and chunk size still `l`, the context is one character wider than needed,
+which breaks the step arithmetic: consecutive chunks would overlap by 1 at every
+reference–change boundary.
+
+The following must all change from `context_length_` to `context_length_ + 1`:
+
+| Location | What changes |
+|---|---|
+| `locate()` pattern validity check | modulus: `% context_length_` → `% (context_length_ + 1)` |
+| `locate()` `num_chunks` | divisor: `/ context_length_` → `/ (context_length_ + 1)` |
+| `locate()` chunk extraction | size: `substr(..., context_length_)` → `substr(..., context_length_ + 1)` |
+| `locate()` `chunk_start` | step: `chunk_idx * context_length_` → `chunk_idx * (context_length_ + 1)` |
+| `process_reference_matches()` continuity lookup | step: `loc - context_length_` → `loc - (context_length_ + 1)` |
+| `validate_change_continuity()` both hash-map lookups | same step fix |
+
+All six sites are marked with `// TODO(bug)` comments in `index.cpp`.
+
+After both fixes (`cl` and chunk size), add a regression test asserting that a pattern of
+length `l+1` whose first character is the last character of a reference segment is found
+correctly.
+
+---
+
 ## Summary
 
 | Issue | Root cause | Recommended fix | Effort |
@@ -394,3 +492,4 @@ the boundary false-positive issue (Issue 1) is resolved.
 | Dead stub methods | Design intent diverged from implementation | Delete stubs from hpp + cpp | Trivial |
 | No structural build tests | test_build.cpp only checks high-level stats | Add test_build_structure.cpp using dump_readable() | Medium |
 | Locate algorithm undocumented | No high-level explanation of hash-map chain approach | Documentation pass + offset arithmetic unit test | Small–medium |
+| Context window + chunk size off-by-one | `cl = l-1` in `parse_eds()`; chunk size `l` in `locate()` | `cl → l`, chunk size/step → `l+1` at 6 sites in `locate()` | Small–medium |

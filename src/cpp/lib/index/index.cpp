@@ -167,18 +167,28 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
     new_hash_map_.clear();
     old_hash_map_.clear();
 
+    // TODO(bug): chunk size should be context_length_ + 1 (i.e. l+1), not context_length_.
+    // The context stored on each side of a degenerate alternative is cl = l-1 chars
+    // (itself off by one — see parse_eds TODO).  Once cl is fixed to l, consecutive
+    // chunks must be l+1 wide for the context to be exactly chunk_size - 1, which is the
+    // invariant required for correct boundary detection.  All three lines below that use
+    // context_length_ as the chunk size / step need to change to context_length_ + 1, and
+    // the pattern-validity check must use context_length_ + 1 as the modulus.
+
     // Validate pattern length (must be multiple of context_length)
+    // TODO(bug): modulus should be context_length_ + 1 once chunk size is fixed
     if ((pattern.size() % context_length_) != 0) {
         throw std::runtime_error("Pattern length must be multiple of context_length (" +
                                 std::to_string(context_length_) + ")");
     }
 
     // Process each chunk
+    // TODO(bug): chunk size and step should be context_length_ + 1
     size_t num_chunks = pattern.size() / context_length_;
 
     for (size_t chunk_idx = 0; chunk_idx < num_chunks; chunk_idx++) {
         size_t chunk_start = chunk_idx * context_length_;
-        String chunk = pattern.substr(chunk_start, context_length_);
+        String chunk = pattern.substr(chunk_start, context_length_);  // TODO(bug): size should be context_length_ + 1
 
         // Search in both indexes
         process_reference_matches(chunk, chunk_idx);
@@ -293,7 +303,12 @@ void BioFMI::parse_eds() {
         throw std::runtime_error("Unable to open metadata files for writing");
     }
 
-    unsigned int cl = context_length_ - 1;  // Context length on each side
+    // TODO(bug): cl should be context_length_ (i.e. l), not context_length_ - 1.
+    // With cl = l-1 the padded entry only covers l-1 chars on each side, which is
+    // one character short of what is needed to find matches of length l+1 that straddle
+    // a reference–change boundary.  The l-EDS constraint already guarantees internal
+    // segments have length >= l, so using the full l chars of context is valid.
+    unsigned int cl = context_length_ - 1;  // TODO(bug): should be context_length_
     std::string context_left("");
     std::string context_right("");
 
@@ -435,7 +450,7 @@ void BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx) {
             new_hash_map_[loc] = {{loc, {}}};
         } else {
             // Validate continuity with previous chunk
-            auto it = old_hash_map_.find(loc - context_length_);
+            auto it = old_hash_map_.find(loc - context_length_);  // TODO(bug): step should be context_length_ + 1
             if (it != old_hash_map_.end()) {
                 for (const auto& occ : it->second) {
                     // Case 1: Previous was in reference (empty change vector).
@@ -511,7 +526,7 @@ void BioFMI::validate_change_continuity(int loc, int change_offset, int change_n
                                         int block_number, bool previous_outside_change) {
     if (!previous_outside_change) {
         // Previous chunk was in same change string
-        auto it = old_hash_map_.find(loc - change_offset - context_length_);
+        auto it = old_hash_map_.find(loc - change_offset - context_length_);  // TODO(bug): step should be context_length_ + 1
         if (it != old_hash_map_.end()) {
             for (const auto& occ : it->second) {
                 // Case 2: Same change number (continuous within one change)
@@ -525,7 +540,7 @@ void BioFMI::validate_change_continuity(int loc, int change_offset, int change_n
         }
     } else {
         // Previous chunk was in different position
-        auto it = old_hash_map_.find(loc - context_length_);
+        auto it = old_hash_map_.find(loc - context_length_);  // TODO(bug): step should be context_length_ + 1
         if (it != old_hash_map_.end()) {
             for (auto occ : it->second) {
                 if (new_hash_map_.find(loc - change_offset) == new_hash_map_.end()) {

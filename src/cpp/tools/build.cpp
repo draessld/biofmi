@@ -93,6 +93,9 @@ int main(int argc, char** argv) {
                 size_t sym_size = metadata.symbol_sizes[i];
                 if (!metadata.is_degenerate[i] && i > first_degen && i < last_degen) {
                     // Internal non-degenerate symbol: its single string is at cum_str_idx.
+                    // TODO(bug): threshold is off by one relative to the context actually
+                    // stored (cl = l-1 in parse_eds, not l).  When cl is fixed to l the
+                    // threshold here becomes correct as-is; until then it is one too tight.
                     if (metadata.string_lengths[cum_str_idx] < (size_t)context_length) {
                         std::cerr << "\nError: Input EDS does not satisfy l-EDS property\n";
                         std::cerr << "  Internal context at symbol " << i
