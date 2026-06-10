@@ -1,11 +1,13 @@
-# BIO-FMI
+# BioFMI
 
 **FM-index for Elastic-Degenerate Strings (EDS)**
 
 A research implementation of a dual FM-index that efficiently searches
-pangenomic data encoded as Elastic-Degenerate Strings. BIO-FMI indexes
+pangenomic data encoded as Elastic-Degenerate Strings. BioFMI indexes
 both the common (reference) sequence and all variable regions, supporting
-exact pattern matching across any combination of genomic paths.
+exact pattern matching across all paths through an EDS simultaneously.
+
+📖 **[Full documentation →](https://draessld.github.io/biofmi)**
 
 ---
 
@@ -16,9 +18,9 @@ either a single string (non-degenerate) or a set of alternative strings
 (degenerate, representing a variant site). A match to a pattern can span
 reference segments, single variants, or both.
 
-BIO-FMI builds two SDSL FM-indexes:
+BioFMI builds two SDSL FM-indexes:
 - **Reference index** — over the non-degenerate backbone T₀
-- **Changes index** — over variable regions, each stored with `l`-length
+- **Changes index** — over variable regions, each stored with `l`-character
   flanking context
 
 Pattern queries work on the *length-constrained* variant l-EDS, which
@@ -47,8 +49,12 @@ biofmi/
 │   ├── unit/               # C++ unit tests (cassert, no framework)
 │   ├── e2e/                # Shell end-to-end tests
 │   └── bench/              # Performance benchmark suite
-└── docs/
-    └── locate_spec.md      # Locate result semantics (full spec)
+└── docs/                   # Documentation (GitHub Pages via MkDocs)
+    ├── index.md            # Quick-start and navigation
+    ├── architecture.md     # Component diagram and data flow
+    ├── index_internals.md  # Build pipeline and locate() algorithm
+    ├── locate_spec.md      # locate()/count() behavioural specification
+    └── file_formats.md     # EDS, l-EDS, index file formats
 ```
 
 ---
@@ -99,11 +105,11 @@ biofmi-build -i data.l5.leds -l 5 -o data.l5.index
 
 # ── 3. Search ─────────────────────────────────────────────────────────────
 
-# Single pattern
-biofmi-locate -i data.l5.index -l 5 -p "ACGTACGTAC"
+# Single pattern  (length must be a multiple of l+1)
+biofmi-locate -i data.l5.index -l 5 -p "ACGTACGTACGT"
 
 # Pattern file
-edsparser-genpatterns -i data.l5.leds -n 200 -l 10 -o patterns.txt
+edsparser-genpatterns -i data.l5.leds -n 200 -l 12 -o patterns.txt
 biofmi-locate -i data.l5.index -l 5 -P patterns.txt
 
 # Benchmark mode (counts only, no per-hit output)
@@ -126,7 +132,7 @@ vcf2eds -i variants.vcf -r reference.fa -l 5
 
 ### `biofmi-build`
 
-Build a BIO-FMI index from an l-EDS file.
+Build a BioFMI index from an l-EDS file.
 
 ```
 biofmi-build -i <file.leds> -l <context_length> [-o <output_dir>] [--dump]
@@ -146,11 +152,11 @@ biofmi-locate -i <index_dir> -l <context_length> (-p PATTERN | -P FILE)
               [-o output] [--benchmark]
 ```
 
-- Pattern length must be a multiple of `l` and ≥ `l`
+- Pattern length must be a positive multiple of `l+1`; other lengths throw
 - `--benchmark` suppresses per-hit output; writes total patterns and total
   occurrences to stderr (used by the bench suite)
 - Output format: `position [ change_idx ... ]` per occurrence; see
-  `docs/locate_spec.md` for full position semantics
+  [`docs/locate_spec.md`](docs/locate_spec.md) for full position semantics
 
 ### EDSParser tools (submodule)
 
@@ -180,12 +186,14 @@ ctest -R test_locate_correctness   # single test
 | Test | What it covers |
 |---|---|
 | `test_build` | Index construction, save, load |
+| `test_build_structure` | `parse_eds()` internal arrays and bit vector positions |
 | `test_locate` | Basic locate smoke test |
 | `test_locate_validation` | Patterns from l-EDS are found in the index |
 | `test_locate_correctness` | Brute-force oracle vs index — full spec coverage |
+| `test_locate_offset` | Offset arithmetic cross-check: snapshot byte positions vs locate results |
 
 `test_locate_correctness` is the primary correctness suite: it expands all
-EDS paths and verifies every `locate()` result matches the oracle for invalid
+EDS paths and verifies every `locate()` result against the oracle for invalid
 lengths, no-match, pure-reference, reference/change boundary, matches starting
 in changes, two-change spanning, same position/different paths, and `count()`
 consistency.
@@ -219,7 +227,7 @@ Four scenarios × three presets:
 | `build_size_sweep` | Input size (MB) | l = 5 |
 | `build_context_sweep` | Context length l | 5 MB input |
 | `locate_pattern_length` | Pattern length (bp) | 5 MB index, l = 5 |
-| `locate_dataset_size` | Index size (MB) | pat = 2×l |
+| `locate_dataset_size` | Index size (MB) | pat = 2×(l+1) |
 
 Each run produces a timestamped CSV in `results/` and five PNG plots in
 `results/plots/<timestamp>/`. See [tests/bench/README.md](tests/bench/README.md)
@@ -235,8 +243,8 @@ for full documentation.
 T₀  = AAATTT  AAATTT           ← reference string (non-degenerate parts)
                                    stored with # separators → reference FM-index (.ri)
 
-changes = [TTG, TTC, ...]       ← each alternative stored as
-                                   left_ctx + alt + right_ctx + #
+changes = [TTTGAAA, TTTCAAA]   ← each alternative stored as
+                                   left_ctx (l chars) + alt + right_ctx (l chars) + #
                                    → changes FM-index (.ci)
 ```
 
@@ -251,13 +259,13 @@ cumulative set sizes, and per-change string lengths.
 
 ### `locate()` result semantics (summary)
 
-- Pattern length must be a multiple of `l`, minimum `l` (throws otherwise)
+- Pattern length must be a positive multiple of `l+1` (throws otherwise)
 - Returns `(position, changes)` pairs:
   - **position** — 0-based T₀ index if match starts in reference;
     `base_pos_of_set + offset_within_alt` if match starts inside a change
   - **changes** — ordered list of 0-based global alternative indices the
     match passes through (empty = pure-reference match)
-- Full spec: `docs/locate_spec.md`
+- Full spec: [`docs/locate_spec.md`](docs/locate_spec.md)
 
 ### l-EDS property
 
@@ -270,13 +278,26 @@ with a helpful error message including the suggested `eds2leds` command.
 
 ---
 
+## Documentation
+
+Full documentation is published at **[draessld.github.io/biofmi](https://draessld.github.io/biofmi)** and built automatically from `docs/` via MkDocs Material on every push to `main`. PRs that touch `docs/` or `mkdocs.yml` get a build-check before merge.
+
+| Page | Contents |
+|---|---|
+| [Architecture](https://draessld.github.io/biofmi/architecture) | Component diagram, data flow, class API |
+| [Index Internals](https://draessld.github.io/biofmi/index_internals) | Build pipeline, data structures, locate() algorithm with worked example |
+| [locate() Spec](https://draessld.github.io/biofmi/locate_spec) | Behavioural specification with examples |
+| [File Formats](https://draessld.github.io/biofmi/file_formats) | EDS, l-EDS, all index file extensions |
+
+---
+
 ## Research context
 
-This repository accompanies a research paper on applying BIO-FMI to
+This repository accompanies a research paper on applying BioFMI to
 elastic-degenerate strings (Bohuslavová & Holub, Czech Technical University
 in Prague). The algorithm extends Procházka & Holub (2014) to handle EDS
 structures and the l-EDS constraint.
 
 ---
 
-*Last updated: May 2026*
+*Last updated: June 2026*
