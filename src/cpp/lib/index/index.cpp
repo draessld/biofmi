@@ -191,7 +191,7 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
     //     → old_hash_map_ = { 2: [(3,{1})] }
     //
     //   chunk 1 "AAAT": found in reference_text at T0 pos 6.
-    //     look up find(6 - 4) = find(2) → hit.  Case change→ref: back()=1 ≤ set_sizes[1]=2 → keep.
+    //     look up find(6 - 4) = find(2) → hit.  Case change→ref: back()=1 ≤ set_sizes[0]=2 → keep.
     //     → new_hash_map_ = { 6: [(3,{1})] }
     //
     //   convert_hash_to_result: origin=3, changes {1} → 0-based {0}.
@@ -496,9 +496,19 @@ void BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx) {
                             new_hash_map_[loc].push_back(occ);
                         }
                     }
-                    // Case 3: Previous was in change, check if change is in valid set
-                    else if (occ.second.back() <= data_->set_sizes[block_number - 1]) {
-                        new_hash_map_[loc].push_back(occ);
+                    // Case 3: Previous was in change, check if change is in valid set.
+                    // set_idx is the 0-based index of the degenerate set that immediately
+                    // precedes this reference block.
+                    //   EDS starts with reference: preceding set = block_number - 2
+                    //   EDS starts with degenerate (base_positions[0]==0): preceding set = block_number - 1
+                    else {
+                        bool starts_with_deg = !data_->base_positions.empty() &&
+                                               data_->base_positions[0] == 0;
+                        int set_idx = block_number - (starts_with_deg ? 1 : 2);
+                        if (set_idx >= 0 && set_idx < (int)data_->set_sizes.size() &&
+                            occ.second.back() <= data_->set_sizes[set_idx]) {
+                            new_hash_map_[loc].push_back(occ);
+                        }
                     }
                 }
             }

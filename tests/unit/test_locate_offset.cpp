@@ -28,7 +28,7 @@
  *   key = 3-1 = 2;  origin = (3, change 2)
  *
  * After chunk 1 "AAAT" at T0[6]: find(6-4)=find(2) hits both entries.
- *   change→ref: back() ≤ set_sizes[1]=2 → keep.
+ *   change→ref: back() ≤ set_sizes[0]=2 → keep.
  *
  * Expected locate() results:
  *   "AAAT"     → { (0,[]), (6,[]) }                 (pure reference)
