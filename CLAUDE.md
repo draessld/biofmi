@@ -54,7 +54,15 @@ Tests use plain `cassert` (no external framework). Test source files are in `tes
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-08-11 that suite does not build or pass** — `test_eds` fails to compile and four others fail on their first assertion. BioFMI's own 6 tests pass against edsparser `23dcff7`, and the edsparser *library and tools* build clean; the breakage is confined to edsparser's unit tests. See `external/edsparser/TODO.md` item 0.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-08-11 everything passes** against edsparser `23dcff7`: BioFMI 6/6, edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+
+**Always rebuild before trusting a test result, and never trust `~/.local/bin`.** Both failures seen on 2026-08-11 were stale artifacts, and the dangerous direction is silent: the installed `eds2leds` was from Jul 6, predating the complement fix (Aug 4), so it produced l-EDS containing strings no genome carries *without erroring*. Tools now report provenance:
+
+```bash
+eds2leds --version     # COMMIT=<sha> COMMIT_DATE=<iso8601> DIRTY=<0|1>
+```
+
+`experiments/scripts/run_tb_experiment.sh` refuses to run on a binary whose `COMMIT_DATE` predates the complement fix. The e2e harness resolves tools from `build/tools/` before `PATH` (override with `EDSPARSER_TOOLS_FROM_PATH=1`).
 
 **Note:** `tests/unit/` contains only the 6 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
 
