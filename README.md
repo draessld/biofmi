@@ -146,7 +146,7 @@ biofmi-locate -i <index_dir> -l <context_length> (-p PATTERN | -P FILE)
               [-o output] [--benchmark]
 ```
 
-- Pattern length must be a multiple of `l` and ≥ `l`
+- Pattern length must be a multiple of `l+1` and ≥ `l+1`
 - `--benchmark` suppresses per-hit output; writes total patterns and total
   occurrences to stderr (used by the bench suite)
 - Output format: `position [ change_idx ... ]` per occurrence; see
@@ -251,7 +251,9 @@ cumulative set sizes, and per-change string lengths.
 
 ### `locate()` result semantics (summary)
 
-- Pattern length must be a multiple of `l`, minimum `l` (throws otherwise)
+- Pattern length must be a multiple of `l+1`, minimum `l+1` (throws otherwise).
+  The chunk size is `l+1` — `l` characters of context plus one of content —
+  so the pattern must divide into whole chunks
 - Returns `(position, changes)` pairs:
   - **position** — 0-based T₀ index if match starts in reference;
     `base_pos_of_set + offset_within_alt` if match starts inside a change

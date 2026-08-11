@@ -43,18 +43,20 @@ ctest -R test_locate_correctness       # Run a single test by name
 
 Tests use plain `cassert` (no external framework). Test source files are in `tests/unit/`. E2E shell tests are in `tests/e2e/`. Test data is in `tests/e2e/data/`.
 
-| Test executable | What it covers |
-|---|---|
-| `test_build` | Index construction, save/load |
-| `test_locate` | Basic locate smoke test |
-| `test_locate_validation` | Random patterns generated from l-EDS are found |
-| `test_locate_correctness` | Spec-driven correctness: brute-force oracle vs index |
+| Test executable | Source | What it covers |
+|---|---|---|
+| `test_build` | `test_build.cpp` | Index construction, save/load |
+| `test_build_structure` | `test_build_structure.cpp` | Structural build assertions via `IndexSnapshot`/`get_snapshot()` |
+| `test_locate` | `test_locate.cpp` | Basic locate smoke test |
+| `test_locate_validation` | `test_locate_validation_simple.cpp` | Random patterns generated from l-EDS are found |
+| `test_locate_correctness` | `test_locate_correctness.cpp` | Spec-driven correctness: brute-force oracle vs index |
+| `test_locate_offset` | `test_locate_offset.cpp` | Offset arithmetic cross-check for the locate algorithm |
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite; run from `external/edsparser/build/src/cpp`.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-08-11 that suite does not build or pass** — `test_eds` fails to compile and four others fail on their first assertion. BioFMI's own 6 tests pass against edsparser `23dcff7`, and the edsparser *library and tools* build clean; the breakage is confined to edsparser's unit tests. See `external/edsparser/TODO.md` item 0.
 
-**Note:** `tests/unit/` contains only the 4 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
+**Note:** `tests/unit/` contains only the 6 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
 
 ## Typical Workflow
 
@@ -106,7 +108,7 @@ Position mapping between the two indexes uses three SDSL bit vectors with rank/s
 Query processing splits the pattern into chunks of size `l` and tracks matches across both indexes using hash maps, with early termination on empty intermediate results. `locate_short()`, `locate_long()`, and `validate_chunk_positions()` are stub methods (not yet called by `locate()`) — the main `locate()` loop handles all pattern lengths directly.
 
 **`locate()` result semantics** (see `docs/locate_spec.md` for full spec):
-- Pattern length must be a multiple of `l` and at least `l` (minimum `l` is 3); otherwise throws.
+- Pattern length must be a multiple of `l+1` and at least `l+1`; otherwise throws. The chunk size is `l+1` (`chunk_size = context_length_ + 1` in `index.cpp`) — `l` characters of context plus one of content. Minimum `l` is 3.
 - Returns one `(position, changes)` entry per valid path through the EDS.
 - **Position** — 0-based: T₀ index if match starts in reference; `base_position_of_set + offset_within_alternative` if match starts inside a degenerate alternative.
 - **Changes** — ordered list of 0-based global alternative indices (numbered across all alternatives of all degenerate sets in EDS order) that the match passes through.
@@ -166,5 +168,4 @@ All tracked issues resolved. One future-work item remains.
 - **Arbitrary pattern lengths**: `|P|` must be a multiple of `l+1`. Supporting arbitrary lengths requires a different lookup strategy for partial chunks.
 
 ### Other notes
-- Pattern length must be a multiple of `l+1` and at least `l+1`; otherwise throws.
 - `count()` delegates to `locate()` and sums entries.

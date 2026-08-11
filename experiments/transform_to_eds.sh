@@ -212,7 +212,7 @@ transform_to_eds() {
             "$MSA2EDS_TOOL" \
                 --input "$input_file" \
                 --output "$eds_output" \
-                --sources "$seds_output" \
+                --seds "$seds_output" \
                 > "$log_output" 2>&1
             ;;
         vcf)
@@ -247,7 +247,7 @@ transform_to_eds() {
                 --input "$input_file" \
                 --reference "$reference_file" \
                 --output "$eds_output" \
-                --sources "$seds_output" \
+                --seds "$seds_output" \
                 > "$log_output" 2>&1
             ;;
     esac
@@ -294,7 +294,7 @@ transform_to_leds() {
     if [[ -f "$seds_input" ]]; then
         "$EDS2LEDS_TOOL" \
             --input "$eds_file" \
-            --sources "$seds_input" \
+            --seds "$seds_input" \
             --output "$leds_output" \
             --context-length "$l_value" \
             > "$log_output" 2>&1
