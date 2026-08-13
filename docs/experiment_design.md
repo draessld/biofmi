@@ -127,7 +127,7 @@ metadata alone, and it explains both datasets with one mechanism. **E4 tests it.
 
 These were found during the pilot. Each one silently corrupts a headline figure.
 
-### B1. `genpatterns` is not source-aware *(blocks E1, E2)*
+### B1. `genpatterns` is not source-aware — **RESOLVED 2026-08-13** (`3faa4cb`)
 
 `EDS::generate_patterns()` ([eds.cpp:499](../external/edsparser/src/cpp/lib/formats/eds.cpp#L499))
 picks an alternative from each symbol **independently**, never consulting `Sources`. It
@@ -137,12 +137,19 @@ A LINEAR-merged l-EDS prunes exactly those combinations, and prunes more of them
 grows. Measured: of 25 patterns, 8 match at `l=9` but not at `l=59`. So "occurrences vs `l`"
 currently measures **how invalid the pattern set is**, not anything about the index.
 
-*Fix:* walk a single source path when generating. Add `--path` / source-aware sampling.
+*Fixed:* `edsparser-genpatterns -s <seds>` (or `-z <edz>`) now walks one randomly chosen
+path per pattern, taking at each symbol an alternative whose source set contains it —
+handling the complement encoding (`{0,e1}` = every path but e1) that `vcf2eds`/`msa2eds`
+use for the reference allele. Verified on COVID-294 at `|P|=120`: the cartesian set
+matches **158/200** patterns, the source-aware set **200/200**, stable at l ∈ {9,19,59}.
+Without sources the tool warns; `--ignore-sources` asks for the old behaviour explicitly.
+Wrap-around padding of short walks is gone too — it spliced symbol 0 onto the end,
+producing sequence contiguous in no genome. Regression tests: `test_eds` 26b/26c.
 
-### B2. `genpatterns` is not reproducible *(blocks everything)*
+### B2. `genpatterns` is not reproducible — **RESOLVED 2026-08-13** (`3faa4cb`)
 
 Seeded from `std::random_device`, under a comment reading "for reproducible results". Every
-invocation yields a different pattern set. *Fix:* add `--seed`, as `genrandomeds` already has.
+invocation yielded a different pattern set. *Fixed:* `--seed` added.
 
 ### B3. Positions are l-EDS-internal, not genome coordinates *(blocks cross-l comparison)*
 
@@ -162,7 +169,8 @@ near-identical strings) or a false-positive bug. It is not currently known which
 `test_locate_correctness` does not cover `l` this large. *Fix:* extend the brute-force
 oracle to large `l` before trusting any large-`l` row.
 
-**B1, B2 and B4 gate the query experiments. B3 gates only the position claims.**
+**B1 and B2 are closed. B4 still gates the large-`l` rows of E1; B3 gates only the
+position claims.**
 
 ---
 
@@ -198,7 +206,8 @@ Throughout: `|P| = 120` anchor, `l ∈ {3,5,9,11,14,19,29,39,59}` (all divide 12
 
 Fixed `|P| = 120`; sweep `l`; per dataset. Report median and p95 per-pattern latency, plus
 index size on the same axis, as a space/time trade-off curve.
-*Pilot says:* 274× on COVID-294. *Gated by B1, B2, B4.*
+*Pilot says:* 274× on COVID-294 — but that pilot used the pre-fix cartesian pattern set
+and must be re-run with a seeded source-aware one. *Gated by B4.*
 
 ### E2 — Query time vs pattern length
 
@@ -266,9 +275,9 @@ Rules, several of which the pilot shows are not optional:
 
 | # | Step | Blocked by |
 |---|---|---|
-| 1 | Fix `genpatterns`: `--seed` + source-aware sampling | — |
+| 1 | ~~Fix `genpatterns`: `--seed` + source-aware sampling~~ **done** (`3faa4cb`) | — |
 | 2 | Extend `test_locate_correctness` to large `l`; root-cause B4 | — |
-| 3 | Pilot E1/E2/E3 on local COVID; freeze the harness | 1, 2 |
+| 3 | Pilot E1/E2/E3 on local COVID; freeze the harness | 2 |
 | 4 | Port the harness to the TB server; rebuild + verify stamps | 3 |
 | 5 | Full E1–E4 sweep, both organisms | 4 |
 | 6 | E5 baseline | §8.1 |
