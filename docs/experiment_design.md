@@ -174,7 +174,78 @@ position claims.**
 
 ---
 
-## 5. Datasets
+## 5. Measured: LINEAR vs CARTESIAN (E5, COVID-294, 2026-08-15)
+
+Full run: `experiments/results/covid294/`, harness `run_merge_mode_experiment.sh`,
+edsparser `3faa4cb` (`DIRTY=0`). 294 SARS-CoV-2 genomes, `ctx_avg` 18.85, 294 paths,
+`|P| = 120`, 200 patterns per set, best-of-5, 8 GB cap.
+
+**Build and index.** Cartesian is larger at every `l`, and the gap compounds:
+
+| l | l/ctx | linear .leds | cartesian .leds | × | linear index | cartesian index | × |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 3 | 0.16 | 1.008 MB | 1.334 MB | 1.3× | 0.852 MB | 1.137 MB | 1.3× |
+| 5 | 0.27 | 1.018 MB | 1.983 MB | 1.9× | 0.867 MB | 1.684 MB | 1.9× |
+| 9 | 0.48 | 1.039 MB | 5.569 MB | 5.4× | 0.905 MB | 4.933 MB | 5.4× |
+| 11 | 0.58 | 1.055 MB | 7.229 MB | 6.9× | 0.925 MB | 6.493 MB | 7.0× |
+| 14 | 0.74 | 1.086 MB | 29.822 MB | **27.5×** | 0.961 MB | 26.429 MB | 27.5× |
+| 19 | 1.01 | 1.246 MB | **OOM** (6.9 GB) | — | 1.103 MB | — | — |
+| 29 | 1.54 | 1.483 MB | **OOM** | — | 1.322 MB | — | — |
+| 39 | 2.07 | 2.516 MB | **OOM** | — | 2.179 MB | — | — |
+| 59 | 3.13 | 3.842 MB | **OOM** | — | 3.256 MB | — | — |
+
+**Cartesian is feasible only to `l = 14`; linear reaches 59 (and 399 in the earlier probe).**
+Phasing widens the usable `l` range by more than 4×, which matters because `l` is the knob
+that buys query speed.
+
+The reference sub-index (`.ri`) is byte-identical between modes at every `l` — all the
+divergence is in the changes index (`.ci`), exactly as the dual-index design predicts. `.ri`
+also *shrinks* with `l` (9.7 KB → 4.6 KB), since merging absorbs common sequence into
+degenerate symbols. That is the same mechanism as B3: T₀ shrinks, so positions move.
+
+**Query.** Batch time for 200 patterns, index load excluded:
+
+| l | real, linear | real, cartesian | occurrences lin | occurrences car | × |
+|---:|---:|---:|---:|---:|---:|
+| 3 | 16,743 ms | 22,134 ms | 1,950 | 2,693 | 1.4× |
+| 9 | **16 ms** | 128 ms | 2,580 | 7,270 | 2.8× |
+| 11 | 12 ms | 112 ms | 2,352 | 7,785 | 3.3× |
+| 14 | 12 ms | 4,395 ms | 7,116 | **398,702** | **56×** |
+| 59 | 31 ms | — | 31,388 | — | — |
+
+Linear is faster at every `l`, by 366× at `l=14`. The occurrence inflation is the cost being
+paid: cartesian reports 56× more matches at `l=14`, and those extra matches are paths through
+combinations no genome carries.
+
+**Precision — the decoy set.** Patterns generated ignoring sources, then filtered to those the
+linear `l=59` index rejects. A representation that admits them is inventing sequence:
+
+| l | 3 | 5 | 9 | 11 | 14 | 19 | 29 | 39 | 59 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **linear** | 119 | 104 | 75 | 67 | 52 | 40 | 24 | 13 | 0 |
+| **cartesian** | 149 | 149 | 149 | 149 | 149 | — | — | — | — |
+
+Two findings, and the first was not anticipated:
+
+1. **`l` is a precision knob, not only a space/time knob.** Linear admits 119/200 decoys at
+   `l=3` and 13/200 at `l=39`, falling monotonically. Larger `l` merges more, so more of the
+   source constraint is materialised into the strings themselves and the index enforces more
+   haplotype consistency. At small `l` a chunked search can stitch together a walk no path
+   carries. (`l=59` is 0 by construction — it defines the set — so the curve is anchored there;
+   the eight points below it are free measurements.)
+2. **Cartesian admits 149/200 at every `l` it can build**, flat. It has no source information
+   to enforce, so merging more does not make it more faithful.
+
+Both modes find **200/200** real patterns and **0/200** negative controls at every `l`, so the
+decoy difference is precision, not a recall or thresholding artefact.
+
+**Caveat.** Linear occurrence counts are not monotone in `l` (1,950 → 65,723 at `l=39` →
+31,388 at `l=59`) and are large. That is B4, still unexplained, and it affects the
+*occurrence* column above — not the size, feasibility, timing or decoy columns.
+
+---
+
+## 6. Datasets
 
 | Dataset | Source | Built by | Role |
 |---|---|---|---|
@@ -197,7 +268,7 @@ machine**. COVID data is local.
 
 ---
 
-## 6. Experiments
+## 7. Experiments
 
 Throughout: `|P| = 120` anchor, `l ∈ {3,5,9,11,14,19,29,39,59}` (all divide 120), one
 **shared, seeded, source-aware** pattern set per dataset reused across every `l`.
@@ -230,11 +301,18 @@ failure. Plot the reachable region; overlay contours of `l/ctx_avg` and of
 `num_paths × genome_length`. **H1 predicts the ceiling explains the frontier and the ratio
 does not.** Deliverable: a figure that tells a user which `l` they can afford.
 
-### E5 — Baseline comparison *(scope open — see §8)*
+### E5 — LINEAR vs CARTESIAN merge *(measured — see §5)*
+
+The same transform with and without source information: CARTESIAN keeps every combination
+of adjacent alternatives, LINEAR keeps only those some path carries. Sweep both across `l`,
+measuring l-EDS size, index size, build feasibility, query time, and — via the decoy set —
+query *precision*. Harness: `experiments/run_merge_mode_experiment.sh`.
+
+### E6 — Baseline comparison *(scope open — see §9)*
 
 ---
 
-## 7. Metrics and protocol
+## 8. Metrics and protocol
 
 Per run record: wall-clock, peak RSS (`/usr/bin/time -v`), output sizes per index component
 (`.ri`, `.ci`, `.loc`/`.iloc`/`.tloc`, `.abp`/`.ss`/`.aof`), `ctx_min`/`ctx_avg`, merge
@@ -257,7 +335,7 @@ Rules, several of which the pilot shows are not optional:
 
 ---
 
-## 8. Open decisions
+## 9. Open decisions
 
 1. **Baseline.** No comparison against any other tool exists anywhere in either repo. Without
    one the results characterise BIO-FMI but do not position it. This is the largest remaining
@@ -271,7 +349,7 @@ Rules, several of which the pilot shows are not optional:
 
 ---
 
-## 9. Execution order
+## 10. Execution order
 
 | # | Step | Blocked by |
 |---|---|---|
@@ -280,6 +358,6 @@ Rules, several of which the pilot shows are not optional:
 | 3 | Pilot E1/E2/E3 on local COVID; freeze the harness | 2 |
 | 4 | Port the harness to the TB server; rebuild + verify stamps | 3 |
 | 5 | Full E1–E4 sweep, both organisms | 4 |
-| 6 | E5 baseline | §8.1 |
+| 6 | E6 baseline | §9.1 |
 
 Steps 1–3 are local, need no server, and are where the remaining correctness risk lives.

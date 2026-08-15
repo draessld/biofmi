@@ -1,0 +1,15 @@
+dataset      covid294
+base_eds     /tmp/claude-1000/-home-draesdom-Documents-uni-projects-biofmi/9fe7b8d3-1814-4e4d-b7dc-fea7d05a54b1/scratchpad/covid294.eds (1001747 bytes)
+base_seds    /tmp/claude-1000/-home-draesdom-Documents-uni-projects-biofmi/9fe7b8d3-1814-4e4d-b7dc-fea7d05a54b1/scratchpad/covid294.seds
+ctx_avg      18.85
+num_paths    294
+l_values     3 5 9 11 14 19 29 39 59
+pattern_len  120
+n_patterns   200
+seed         7
+reps         5
+mem_cap      8G
+timeout      300s
+edsparser    3faa4cb (2026-08-13T11:38:35Z) DIRTY=0
+host         draesdom-ThinkPad-T14s-Gen-3
+date         2026-08-15T19:22:00+02:00

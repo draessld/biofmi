@@ -142,3 +142,8 @@ site/
 !src/cpp/tools/README.md
 !docs/*.md
 !mkdocs.yml
+
+# Experiment outputs — keep harnesses, CSVs, logs and pattern sets; never the
+# generated l-EDS or index directories (regenerate by re-running the harness).
+experiments/results/*/leds/
+experiments/results/*/index/
