@@ -82,6 +82,11 @@ out/
 # Jupyter Notebook
 .ipynb_checkpoints/
 *.ipynb
+# Notebooks under experiments/notebooks/ are deliverables, not scratch: they are
+# the written-up evaluation. The blanket rule above stays for stray notebooks
+# elsewhere, which carry stored outputs and produce unreviewable diffs. Keep
+# committed notebooks output-free for the same reason.
+!experiments/notebooks/*.ipynb
 
 # Testing
 .pytest_cache/
