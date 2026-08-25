@@ -150,10 +150,9 @@ site/
 
 # Experiment outputs — keep harnesses, CSVs, logs and pattern sets; never the
 # generated l-EDS or index directories (regenerate by re-running the harness).
-experiments/results/*/leds/
-experiments/results/*/index/
 
-# Run directories live under ~/Data/experiments/, outside the working tree, so
-# there is nothing here to ignore. Only experiments/results/covid294 — the
-# committed reference bundle — is measurement data inside the repo.
-experiments/specs/**/__pycache__/
+# Experiments live entirely outside this repo, under ~/Data/experiments/biofmi
+# (specs, the driver, oracles, notebooks, runs, and the covid294 reference
+# bundle). Nothing about measuring is versioned here; this rule is a backstop in
+# case a stray experiments/ directory reappears.
+experiments/

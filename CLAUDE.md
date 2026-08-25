@@ -103,6 +103,31 @@ Scenarios: `build_size_sweep`, `build_context_sweep`, `locate_pattern_length`, `
 CSV: `results/YYYY-MM-DD_HH-MM-SS.csv`. Plots: `results/plots/<timestamp>/`.
 See `tests/bench/README.md` for full documentation.
 
+## Experiments
+
+**Nothing about experiments lives in this repository** — `experiments/` is
+gitignored so it cannot creep back. The whole tree sits under `~/Data`:
+
+```
+~/Data/experiments/biofmi/run.sh                driver: ./run.sh <spec>
+~/Data/experiments/biofmi/specs/                xbench specs + hooks
+~/Data/experiments/biofmi/occurrence_oracle.py  ground truth, straight from the MSA
+~/Data/experiments/biofmi/compare_locate_oracle.py
+~/Data/experiments/biofmi/notebooks/            written-up evaluations
+~/Data/experiments/biofmi/results/covid294/     the reference bundle
+~/Data/experiments/biofmi/runs/                 run directories
+~/Data/covid/                                   inputs
+```
+
+`run.sh` still needs this checkout, because a spec resolves its binaries from
+repo-relative paths (`resolve.prefer: build/tools`); it defaults to
+`~/Documents/uni_projects/biofmi` and takes `BIOFMI_REPO` as an override.
+`XBENCH_RUNS` moves the run directories.
+
+Note `results/covid294` is no longer versioned anywhere: `specs/acceptance_covid294.py`
+still checks a fresh run against it quantity by quantity, but the baseline it
+compares to is now an unversioned local file.
+
 ## Architecture
 
 ### Index Structure (`src/cpp/lib/index/`)
@@ -159,7 +184,15 @@ EDS encodes degenerate strings as `{alt1,alt2}common{alt3}...`. The l-EDS varian
 
 ## Known Issues / Future Work
 
-All tracked issues resolved. One future-work item remains.
+**B4 (open, algorithmic):** `locate()` over-reports on LINEAR indexes at every `l`.
+The index stores no source information, so `validate_change_continuity()` pairs every
+alternative of one degenerate symbol with every alternative of the next (`index.cpp:585-593`,
+"Case 4") — a cross product where the LINEAR language needs a source-set intersection.
+Occurrence/entry counts from a LINEAR index are not counts of anything real; recall, sizes,
+feasibility and timings are unaffected. CARTESIAN is correct, since there the cross product
+*is* the intended language. Full write-up and fix sketch in `TODO.md`.
+
+All other tracked issues resolved. One future-work item remains.
 
 ### Resolved
 
