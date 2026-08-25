@@ -176,7 +176,10 @@ position claims.**
 
 ## 5. Measured: LINEAR vs CARTESIAN (E5, COVID-294, 2026-08-15)
 
-Full run: `experiments/results/covid294/`, harness `run_merge_mode_experiment.sh`,
+Full run: `experiments/results/covid294/`, harness `run_merge_mode_experiment.sh`
+(since deleted — superseded by `experiments/specs/merge_mode.yaml`, which
+`specs/acceptance_covid294.py` verifies reproduces this bundle exactly; the two
+modes also run separately as `specs/linear.yaml` and `specs/cartesian.yaml`),
 edsparser `3faa4cb` (`DIRTY=0`). 294 SARS-CoV-2 genomes, `ctx_avg` 18.85, 294 paths,
 `|P| = 120`, 200 patterns per set, best-of-5, 8 GB cap.
 
@@ -306,7 +309,8 @@ does not.** Deliverable: a figure that tells a user which `l` they can afford.
 The same transform with and without source information: CARTESIAN keeps every combination
 of adjacent alternatives, LINEAR keeps only those some path carries. Sweep both across `l`,
 measuring l-EDS size, index size, build feasibility, query time, and — via the decoy set —
-query *precision*. Harness: `experiments/run_merge_mode_experiment.sh`.
+query *precision*. Harness: `experiments/specs/merge_mode.yaml`, run with
+`./experiments/run.sh merge_mode`.
 
 ### E6 — Baseline comparison *(scope open — see §9)*
 

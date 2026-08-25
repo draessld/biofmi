@@ -10,9 +10,9 @@ stay out of the repo (see `.gitignore`); regenerate them by re-running a harness
 run.sh                       run an experiment through the xbench harness
 specs/<name>.yaml            experiment configuration — one per experiment
 specs/hooks/                 Python hooks a spec calls out to
-datasets/                    small inputs kept in-repo
 runs/<exp>/<timestamp>/      measurements.csv, summary.csv, files.csv, raw/, plots/
-run_merge_mode_experiment.sh LINEAR vs CARTESIAN across an l sweep (superseded by specs/merge_mode.yaml)
+occurrence_oracle.py         ground-truth occurrence counts, straight from the MSA
+compare_locate_oracle.py     gate a run on the oracle ceiling (non-zero exit on a breach)
 results/<dataset>/           results.csv, queries.csv, MANIFEST.txt, logs/, patterns/
 ```
 
@@ -41,9 +41,55 @@ parallelism under a global memory budget, file statistics (size, gzip size,
 counts) over inputs and artifacts, tidy CSV, archived raw stdout/stderr, and
 plots. See `~/Documents/uni_projects/xbench/README.md`.
 
+### `specs/linear.yaml` and `specs/cartesian.yaml`
+
+The two merge modes as two separate experiments. They are the same pipeline and
+differ in exactly one line — whether `eds2leds` is given the source file:
+
+```yaml
+# linear.yaml     keeps only combinations some path carries
+cmd: "{eds2leds} -i {in.eds} -s {in.seds} -l {l} -o {out}/merged.leds"
+
+# cartesian.yaml  keeps every combination of adjacent alternatives
+cmd: "{eds2leds} -i {in.eds} -l {l} -o {out}/merged.leds"
+```
+
+Same grid, same pattern sets, so the two are directly comparable cell by cell.
+
+```bash
+./experiments/run.sh cartesian
+./experiments/run.sh linear
+```
+
+**Which one's numbers can you believe?** Depends on the column.
+
+| | LINEAR | CARTESIAN |
+|---|---|---|
+| l-EDS size, index size, build time, feasibility | valid | valid |
+| query timings | valid | valid |
+| `matched` on `real` (recall) | valid | valid |
+| `occurrences` | **invalid — TODO.md B4** | valid |
+| feasible range on covid294 | `l ≤ 59`, and beyond | `l ≤ 14`; higher cells OOM |
+
+`locate()` stitches a match across two degenerate symbols by pairing every
+alternative of one with every alternative of the next, never intersecting their
+source sets — the index stores no source information to intersect. Under
+CARTESIAN that cross product *is* the intended language, so the counts are
+counts of something real. Under LINEAR it is not, and the over-report reaches
+201×. The infeasible cells in `cartesian.yaml` are kept in the grid on purpose:
+where the wall falls is a result.
+
+Both specs draw decoys from `hooks/decoy_oracle.py` — patterns sampled from the
+cartesian language, then filtered to those occurring in **no genome** per
+`occurrence_oracle.py`. The older `hooks/decoy_patterns.py` filtered against a
+built LINEAR index instead, which needs an index that a cartesian-only run does
+not have, and which defines the pattern set in terms of the very bug B4
+describes.
+
 ### `specs/merge_mode.yaml`
 
-The port of `run_merge_mode_experiment.sh`. It reproduces every deterministic
+The port of the old `run_merge_mode_experiment.sh` shell harness (deleted
+2026-08-25; recoverable from git history). It reproduces every deterministic
 quantity in `results/covid294` exactly — 144 checks covering l-EDS bytes, index
 and per-component bytes, match and occurrence counts, and the four cartesian
 OOMs at l ≥ 19. Verify with:
@@ -57,45 +103,3 @@ One difference is real rather than noise: the old harness capped memory with
 killed them on *address space*. The harness caps true RSS and records 8.20–8.23
 GB against an 8 GB cap. The peaks in `results/covid294` understate those cells.
 
-## `run_merge_mode_experiment.sh`
-
-```bash
-./run_merge_mode_experiment.sh <base.eds> <base.seds> <name> [out_dir]
-
-# knobs
-L_VALUES="3 5 9 11 14 19 29 39 59"   # every l must satisfy (l+1) | PATTERN_LEN
-PATTERN_LEN=120  N_PATTERNS=200  SEED=7
-MEM_CAP_GB=8  TIMEOUT_S=600  REPS=5
-```
-
-Runs the same l sweep twice — once with `-s <seds>` (LINEAR, phasing-aware) and once
-without (CARTESIAN, all combinations) — then builds an index per cell and queries each
-with three pattern sets:
-
-| set | how it is built | what it measures |
-|---|---|---|
-| `real` | source-aware: each pattern walks one path | recall; must be 100% in both modes |
-| `decoy` | generated ignoring sources, then filtered to those the **largest-l LINEAR** index rejects | precision — the strings a representation invents |
-| `negative` | random ACGT | early-exit cost; must be 0% |
-
-Design points worth keeping if you write another harness:
-
-- **`(l+1)` must divide `PATTERN_LEN`.** `biofmi-locate` requires `|P|` to be a multiple
-  of `l+1`, so an arbitrary l sweep has no common pattern length and no comparable curve.
-  120 is highly composite, which is why it is the anchor.
-- **One pattern set across all l and both modes.** Regenerating per cell compares
-  different queries.
-- **Query time is measured by difference.** `biofmi-locate` reports total runtime including
-  index load, which is not the quantity of interest. The harness times N and 2N patterns and
-  subtracts, so the load term cancels; both are best-of-`REPS`.
-- **Blow-ups are data.** Every build runs under `ulimit -v` and `timeout`; a kill is
-  recorded as `oom_or_error` with its peak, not dropped.
-- **Provenance is checked before anything runs.** The harness refuses an `eds2leds` whose
-  `COMMIT_DATE` predates the complement fix (2026-08-04) and warns on `DIRTY=1`.
-  A stale binary produces contaminated l-EDS *without erroring*.
-- Tools resolve from `build/tools/` first, never a stale `~/.local/bin`.
-
-### Results: `results/covid294`
-
-294 SARS-CoV-2 genomes (34,288 alignment columns), `ctx_avg` 18.85, 294 paths.
-See `docs/experiment_design.md` §5 for the interpretation.

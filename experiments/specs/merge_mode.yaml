@@ -7,7 +7,8 @@ description: |
   those some path actually carries. The comparison measures what phasing buys —
   in space, in build feasibility, and in query precision.
 
-  Port of experiments/run_merge_mode_experiment.sh. Same knobs, same tools, same
+  Port of the old run_merge_mode_experiment.sh shell harness (deleted 2026-08-25;
+  recoverable from git history). Same knobs, same tools, same
   measurement conventions; the harness supplies the plumbing.
 
 # --------------------------------------------------------------------------
@@ -122,6 +123,13 @@ tools:
         extract:
           # biofmi-locate puts the per-pattern hits on stdout and the summary
           # lines on stderr, so the two extractors read different streams.
+          # KNOWN WRONG, kept deliberately. [ACGT]+ cannot match the 51 of 200
+          # decoys that carry an IUPAC ambiguity code (N R S Y K), so `matched`
+          # is capped at 149 for that set — the flat CARTESIAN 149/200 in
+          # results/covid294 is this regex, not a property of the index. Fixed
+          # to [A-Z]+ in specs/cartesian.yaml and specs/linear.yaml; left alone
+          # here because this spec's job is to reproduce results/covid294
+          # byte-for-byte, and correcting it would break that by design.
           matched:      {from: stdout, count_lines: '^[ACGT]+\t[1-9][0-9]*$'}
           occurrences:  {from: stderr, regex: 'Total occurrences:\s*([0-9]+)'}
           n_queried:    {from: stderr, regex: 'Total patterns:\s*([0-9]+)'}
