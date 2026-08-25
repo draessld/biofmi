@@ -6,15 +6,32 @@ Harnesses that drive the full chain — `msa2eds`/`vcf2eds` → `eds2leds` → `
 Only logs, CSVs and pattern sets are committed. The `.leds` files and index directories
 stay out of the repo (see `.gitignore`); regenerate them by re-running a harness.
 
+Versioned here — the description of an experiment:
+
 ```
 run.sh                       run an experiment through the xbench harness
 specs/<name>.yaml            experiment configuration — one per experiment
 specs/hooks/                 Python hooks a spec calls out to
-runs/<exp>/<timestamp>/      measurements.csv, summary.csv, files.csv, raw/, plots/
 occurrence_oracle.py         ground-truth occurrence counts, straight from the MSA
 compare_locate_oracle.py     gate a run on the oracle ceiling (non-zero exit on a breach)
-results/<dataset>/           results.csv, queries.csv, MANIFEST.txt, logs/, patterns/
+notebooks/                   written-up evaluations
+results/covid294/            the reference bundle acceptance_covid294.py checks against
 ```
+
+`results/covid294` is committed on purpose: it is a small (228 KB) golden
+baseline, and a fresh run is verified against it quantity by quantity. It is the
+one piece of measurement data that travels with the repo.
+
+Everything else lives outside the working tree, under `~/Data`:
+
+```
+~/Data/<dataset>/                     inputs (covid/, synthetic/, tb/)
+~/Data/experiments/biofmi/runs/       measurements.csv, summary.csv, raw/, work/
+```
+
+A run directory carries its `work/` intermediates and reaches hundreds of
+megabytes, which is data rather than source. Override the location with
+`XBENCH_RUNS`.
 
 ## Running an experiment
 
@@ -95,7 +112,7 @@ and per-component bytes, match and occurrence counts, and the four cartesian
 OOMs at l ≥ 19. Verify with:
 
 ```bash
-python3 experiments/specs/acceptance_covid294.py experiments/runs/merge_mode/<timestamp>
+python3 experiments/specs/acceptance_covid294.py ~/Data/experiments/biofmi/runs/merge_mode/<timestamp>
 ```
 
 One difference is real rather than noise: the old harness capped memory with

@@ -22,6 +22,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SPEC_DIR="$REPO/experiments/specs"
+XBENCH_RUNS="${XBENCH_RUNS:-$HOME/Data/experiments/biofmi/runs}"
 
 # ---- locate the harness -------------------------------------------------------
 # An installed `xbench` on PATH is fine here: unlike the measured binaries, the
@@ -84,8 +85,12 @@ fi
 
 # ---- go -----------------------------------------------------------------------
 # --root pins relative paths in the spec to this repo regardless of the cwd the
-# script was invoked from; runs land in experiments/runs/<experiment>/<timestamp>.
+# script was invoked from. Run directories land under $XBENCH_RUNS, outside the
+# working tree: a run carries its work/ intermediates and grows to hundreds of
+# megabytes, which is data, not source. Override XBENCH_RUNS to put them
+# elsewhere; the specs and hooks stay here, in git, because they are the
+# description of the experiment rather than its output.
 exec "$XBENCH" run "$SPEC" \
     --root "$REPO" \
-    --runs-dir "$REPO/experiments/runs" \
+    --runs-dir "$XBENCH_RUNS" \
     "$@"

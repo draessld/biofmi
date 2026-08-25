@@ -153,7 +153,7 @@ site/
 experiments/results/*/leds/
 experiments/results/*/index/
 
-# xbench: a run directory is committable except for `work/`, which holds the
-# large intermediates (l-EDS, index dirs) that the run can regenerate.
-experiments/runs/*/*/work/
+# Run directories live under ~/Data/experiments/, outside the working tree, so
+# there is nothing here to ignore. Only experiments/results/covid294 — the
+# committed reference bundle — is measurement data inside the repo.
 experiments/specs/**/__pycache__/
