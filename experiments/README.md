@@ -7,10 +7,55 @@ Only logs, CSVs and pattern sets are committed. The `.leds` files and index dire
 stay out of the repo (see `.gitignore`); regenerate them by re-running a harness.
 
 ```
-scripts/…                    (none yet — harnesses live at this level for now)
-run_merge_mode_experiment.sh LINEAR vs CARTESIAN across an l sweep
+run.sh                       run an experiment through the xbench harness
+specs/<name>.yaml            experiment configuration — one per experiment
+specs/hooks/                 Python hooks a spec calls out to
+datasets/                    small inputs kept in-repo
+runs/<exp>/<timestamp>/      measurements.csv, summary.csv, files.csv, raw/, plots/
+run_merge_mode_experiment.sh LINEAR vs CARTESIAN across an l sweep (superseded by specs/merge_mode.yaml)
 results/<dataset>/           results.csv, queries.csv, MANIFEST.txt, logs/, patterns/
 ```
+
+## Running an experiment
+
+```bash
+./experiments/run.sh                          # list the specs
+./experiments/run.sh merge_mode               # run one
+./experiments/run.sh merge_mode --dry-run     # resolved plan, no work
+./experiments/run.sh merge_mode --work-dir /dev/shm --tag pilot
+```
+
+The measurement engine is **xbench**, a separate project at
+`~/Documents/uni_projects/xbench` so other tools can use it. This repo carries
+only configuration — the specs and their hooks. `run.sh` locates the engine
+(`XBENCH_HOME` overrides), pins relative paths to the repo root, and passes
+everything else through to `xbench run`.
+
+Add an experiment by writing `specs/<name>.yaml`; nothing else needs changing.
+Compare a new tool against BIO-FMI by adding a `tools:` entry to a spec — the
+engine has no BioFMI-specific code in it.
+
+What the harness supplies: binary resolution build-tree-first with a provenance
+gate, a memory ceiling enforced by sampling that records the peak it killed at,
+parallelism under a global memory budget, file statistics (size, gzip size,
+counts) over inputs and artifacts, tidy CSV, archived raw stdout/stderr, and
+plots. See `~/Documents/uni_projects/xbench/README.md`.
+
+### `specs/merge_mode.yaml`
+
+The port of `run_merge_mode_experiment.sh`. It reproduces every deterministic
+quantity in `results/covid294` exactly — 144 checks covering l-EDS bytes, index
+and per-component bytes, match and occurrence counts, and the four cartesian
+OOMs at l ≥ 19. Verify with:
+
+```bash
+python3 experiments/specs/acceptance_covid294.py experiments/runs/merge_mode/<timestamp>
+```
+
+One difference is real rather than noise: the old harness capped memory with
+`ulimit -v` and so recorded 4.7–7.0 GB peaks for the cartesian OOM cells, having
+killed them on *address space*. The harness caps true RSS and records 8.20–8.23
+GB against an 8 GB cap. The peaks in `results/covid294` understate those cells.
 
 ## `run_merge_mode_experiment.sh`
 

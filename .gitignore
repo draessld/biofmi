@@ -147,3 +147,8 @@ site/
 # generated l-EDS or index directories (regenerate by re-running the harness).
 experiments/results/*/leds/
 experiments/results/*/index/
+
+# xbench: a run directory is committable except for `work/`, which holds the
+# large intermediates (l-EDS, index dirs) that the run can regenerate.
+experiments/runs/*/*/work/
+experiments/specs/**/__pycache__/
