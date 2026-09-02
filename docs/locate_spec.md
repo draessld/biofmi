@@ -136,11 +136,14 @@ That combination — a real implementation cost, an unmeasured runtime cost, and
 confined to short tails — is why the guidance above is to keep `|P|` a multiple of `l+1`
 rather than to rely on either tail strategy.
 
------------|-----------|
-| `length < l+1` | **Error** — throws `std::runtime_error` |
-| `length % (l+1) != 0` | **Error** — throws `std::runtime_error` |
-| `length >= l+1` and `length % (l+1) == 0` | Valid — proceed |
-| Characters not in the index alphabet | No match (empty result, no error) |
+### Summary of accepted input
+
+| Condition | Result |
+|---|---|
+| `|P| < l+1` | **Error** — throws `std::runtime_error` |
+| `|P| >= l+1` and `|P| % (l+1) == 0` | Valid — every chunk is full; the cheap case |
+| `|P| >= l+1` and `|P| % (l+1) != 0` | Valid — the `r`-character tail is searched as a short final chunk, at the cost above |
+| Characters not in the index alphabet | No match — an empty result, not an error |
 
 The valid alphabet is not hardcoded — it is whatever was indexed from the input EDS. The chunk size `l+1` is the fundamental unit: every (l+1)-char chunk covers exactly `l` chars of reference context plus 1 char of content (or pure reference), guaranteeing that a chunk query can straddle any reference–alternative boundary in a valid l-EDS.
 

@@ -50,9 +50,40 @@ All index files are written to a directory (default: `<input>.index/`). The base
 | `.abp` | SDSL | `base_positions[]` — cumulative T₀ length before each EDS symbol |
 | `.ss` | SDSL | `set_sizes[]` — cumulative alternative count through each degenerate set |
 | `.aof` | SDSL | `offsets[]` — content length of each individual alternative (excluding context) |
+| `.d2g` | SDSL | `deg_to_global[]` — degenerate-string number → global string id, for source-aware search |
 | `.meta` | plain text | Four integers: `context_length`, `n`, `m`, `N` (one per line) |
 
 All SDSL binary files are produced and consumed by `sdsl::store_to_file` / `sdsl::load_from_file`. The `.meta` file is plain text and human-readable.
+
+### Why `.d2g` exists
+
+`locate()` works in `change_number`, a 1-based rank over **degenerate strings only** — the index `offsets[change_number - 1]` is keyed by. A `Sources` file is indexed by a **global string id** over *all* strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.
+
+That count is not recoverable from the other index artifacts, and a loaded index has no EDS to ask, because `load()` never populates `eds_`. So the mapping is built during `parse_eds()` — where the walk is left-to-right and the counter is free — and persisted. It is small: 21 KB against a 4.9 MB index on COVID-294.
+
+An index built before `.d2g` existed cannot have sources attached; `attach_sources()` throws rather than mis-associating path sets. See [Search modes](search_modes.md#4-where-the-sources-live).
+
+### Source files (`.seds` / `.edz`)
+
+Sources are **not** stored in the index. They are read from a sidecar at query time, written by `eds2leds -s` alongside the l-EDS.
+
+| Format | Shape |
+|---|---|
+| `.seds` | Dense text: one path set per string, in EDS order, one per line |
+| `.edz` | Binary, with a header carrying the panel's path count |
+
+Both are **complement-encoded**. A set whose first element is `0` denotes the complement of the rest:
+
+| Written | Means |
+|---|---|
+| `{0}` | every path |
+| `{0,5}` | every path except 5 |
+| `{3,7}` | exactly paths 3 and 7 |
+| `{}` | no path |
+
+This makes the common case — a reference allele carried by nearly everyone — one short entry instead of a list of hundreds. It also means **iterating a `PathSet` directly is wrong for roughly half of all values**; resolve it with `BioFMI::expand_paths()`, which returns explicit ascending 1-based ids.
+
+There is one entry per string in EDS order, so cardinality must equal the l-EDS's total string count `m`. `attach_sources()` checks this and throws on a mismatch rather than silently pairing the wrong sets with the wrong alternatives.
 
 ### `.meta` format
 

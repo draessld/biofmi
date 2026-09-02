@@ -29,7 +29,7 @@ Two hard facts:
 - **The l-EDS must be rebuilt for every `l`.** There is no incremental path from an index
   at `l=9` to one at `l=19`. Cost is multiplicative: `|panels| × |l values|` merges, then
   the same number of index builds.
-- **BIO-FMI required `|P|` to be a multiple of `l+1`** when these experiments were designed, which is why they are anchored at `|P|=120`. Arbitrary lengths landed 2026-08-30, but the anchor stays — and not only for comparability with older runs. A tail of `r = |P| mod (l+1)` characters is searched as a short, unselective chunk, and the measured cost multiplies by roughly `|alphabet|` for each character it is short by: on an 8 MB panel at `l=9`, a one-character tail costs **>3000x** a zero-length one. Multiples of `l+1` are the configuration to report and to recommend; see `docs/locate_spec.md` § Cost. ([index.cpp](../src/cpp/lib/index/index.cpp),
+- **BIO-FMI required `|P|` to be a multiple of `l+1`** when these experiments were designed, which is why they are anchored at `|P|=120`. Arbitrary lengths landed 2026-08-30, but the anchor stays — and not only for comparability with older runs. A tail of `r = |P| mod (l+1)` characters is searched as a short, unselective chunk, and the measured cost multiplies by roughly `|alphabet|` for each character it is short by: on an 8 MB panel at `l=9`, a one-character tail costs **>3000x** a zero-length one. Multiples of `l+1` are the configuration to report and to recommend; see `docs/locate_spec.md` § Cost. ([index.cpp](https://github.com/draessld/biofmi/blob/main/src/cpp/lib/index/index.cpp),
   `chunk_size = context_length_ + 1`), and `l ≥ 3`. Verified: at `l=10`, lengths 22 and 33
   are accepted, 20 and 25 throw.
 
@@ -129,7 +129,7 @@ These were found during the pilot. Each one silently corrupts a headline figure.
 
 ### B1. `genpatterns` is not source-aware — **RESOLVED 2026-08-13** (`3faa4cb`)
 
-`EDS::generate_patterns()` ([eds.cpp:499](../external/edsparser/src/cpp/lib/formats/eds.cpp#L499))
+`EDS::generate_patterns()` ([eds.cpp:499](https://github.com/draessld/EDSParser/blob/main/src/cpp/lib/formats/eds.cpp#L499))
 picks an alternative from each symbol **independently**, never consulting `Sources`. It
 therefore emits strings from the *cartesian* language — combinations no genome carries.
 

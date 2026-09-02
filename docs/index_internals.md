@@ -271,5 +271,17 @@ The match starts at T₀ position 3 (the `T` in `AAATTT`) and passes through cha
 
 ## 7. Known limitations
 
-- Pattern lengths that are not multiples of `l+1`, or less than `l+1`, are rejected (arbitrary lengths are future work).
-- `count()` fully materialises all occurrences to count them (no short-circuit).
+- **A short tail is searched, not verified.** A pattern whose length is not a
+  multiple of `l+1` is handled — the remainder `r = |P| mod (l+1)` becomes a
+  short final chunk — but a short chunk is an unselective lookup, and cost rises
+  by roughly a factor of the alphabet size for every character removed from it.
+  Extending the surviving candidates instead is implemented only for tails that
+  stay inside one symbol, so `set_tail_threshold()` accepts no value but 0. See
+  [`locate()` § Cost](locate_spec.md#cost-prefer-p-a-multiple-of-l1).
+- **`count()` fully materialises all occurrences** to count them; there is no
+  short-circuit.
+- **Positions are l-EDS-internal, not genome coordinates.** A position is a T₀
+  index, and T₀ shrinks as merging absorbs common sequence into degenerate
+  symbols, so the same match reports a different position at a different `l`.
+  Positions are therefore not comparable across `l` and are not the coordinates
+  a biologist expects. Counts and timings are unaffected.

@@ -37,6 +37,8 @@ theme:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.highlight:
@@ -54,7 +56,17 @@ plugins:
 
 nav:
   - Home: index.md
-  - Architecture: architecture.md
-  - Index Internals: index_internals.md
-  - locate() Spec: locate_spec.md
-  - File Formats: file_formats.md
+  - Guides:
+      - Installation: installation.md
+      - Quick start: quickstart.md
+      - Search modes: search_modes.md
+      - Running experiments: experiments.md
+  - Reference:
+      - CLI reference: cli.md
+      - locate() specification: locate_spec.md
+      - File formats: file_formats.md
+  - Internals:
+      - Architecture: architecture.md
+      - Index internals: index_internals.md
+  - Evaluation:
+      - Experiment design: experiment_design.md

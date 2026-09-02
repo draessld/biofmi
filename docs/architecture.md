@@ -108,23 +108,45 @@ external/edsparser/              ← EDSParser submodule
 
 ### `biofmi::BioFMI`  (`src/cpp/lib/index/index.hpp`)
 
-The main class. Holds two SDSL FM-indexes, three bit vectors, four rank/select support structures, and three metadata arrays. See [index_internals.md](index_internals.md) for the full layout.
+The main class. Holds two SDSL FM-indexes, three bit vectors, four rank/select
+support structures, three metadata arrays, and the degenerate-to-global string
+map used for source-aware search. See [index internals](index_internals.md) for
+the full layout.
 
-Public API:
+**Construction and persistence**
 
 | Method | Description |
 |--------|-------------|
-| `BioFMI(EDS&&, Length)` | Construct from in-memory EDS |
-| `BioFMI(path, Length)` | Construct from l-EDS file |
-| `BioFMI(path)` | Load existing index from directory |
+| `BioFMI(EDS&&, Length)` | Construct from an in-memory EDS |
+| `BioFMI(path, Length)` | Construct from an l-EDS file |
+| `BioFMI(path)` | Load an existing index from a directory |
 | `build()` | Run four-phase index construction |
-| `save(path)` | Persist index to disk |
-| `load(path)` | Load persisted index |
-| `locate(pattern)` | Return all occurrences |
-| `count(pattern)` | Return total occurrence count |
+| `save(path)` / `load(path)` | Persist / restore |
+
+**Querying**
+
+| Method | Description |
+|--------|-------------|
+| `locate(pattern)` | All occurrences: position, traversed alternatives, carrying genomes |
+| `count(pattern)` | Total number of entries — paths, not distinct positions |
+| `set_tail_threshold(t)` | Shortest tail still worth searching. Accepts only 0; see [index internals § limitations](index_internals.md) |
+
+**Source-aware (LINEAR) search**
+
+| Method | Description |
+|--------|-------------|
+| `attach_sources(path[, format])` | Attach the l-EDS's `.seds`/`.edz` sidecar, switching the search to LINEAR. Throws if the index has no `.d2g`, or if the sources' cardinality does not match the indexed l-EDS |
+| `has_sources()` / `num_paths()` | Whether sources are attached, and how many genomes |
+| `expand_paths(PathSet)` | Resolve a complement-encoded path set to explicit 1-based ids. **Always use this** rather than iterating the set |
+
+**Measurement and introspection**
+
+| Method | Description |
+|--------|-------------|
+| `set_trace(bool)` / `last_trace()` | Collect a `ChunkStat` per chunk on each `locate()`. Off by default — the timer costs two clock reads per chunk |
 | `get_statistics()` | Index size and metadata |
-| `dump_readable(path)` | Write human-readable internals dump |
-| `get_snapshot()` | Expose internal arrays for testing |
+| `dump_readable(path)` | Write a human-readable internals dump |
+| `get_snapshot()` | Expose internal arrays for structural tests |
 
 ### `edsparser::EDS`  (`external/edsparser/`)
 
@@ -141,9 +163,27 @@ Parses and stores an EDS. BioFMI imports it with `using edsparser::EDS`. The `ED
 | `test_locate` | Basic locate smoke test |
 | `test_locate_validation` | Random patterns generated from l-EDS are found |
 | `test_locate_correctness` | Brute-force oracle vs index for all spec cases |
+| `test_locate_arbitrary` | Arbitrary `\|P\|` against a brute-force oracle at every length |
+| `test_locate_sources` | Source-aware (LINEAR) search: EDZ round-trip, non-transitivity, `.d2g` persistence, sample-set reporting, complement expansion |
+| `test_locate_fuzz` | Randomised differential testing: seeded panels vs a brute-force oracle, both search modes |
 | `test_locate_offset` | Offset arithmetic cross-check: `get_snapshot()` byte positions vs `locate()` results |
 
-All tests use plain `cassert` (no external framework). Run with `ctest --output-on-failure` from `build/`.
+Nine tests, all passing, in roughly 17 seconds. All use plain `cassert` (no
+external framework). Run with `ctest --output-on-failure` from `build/`.
+
+`test_locate_fuzz` accounts for about 15 of those 17 seconds. It generates panels
+with a seeded RNG — biased towards the structures that have broken things before:
+empty alternatives, degenerate symbols at the very start and end, alternatives
+shorter and longer than `l`, minimum-width internal segments — and checks every
+substring of every path against a brute-force oracle. It has found nine bugs in
+the chunk stitch. Failures print the generating seed, so any counterexample
+reproduces. Skip it during a tight edit loop with `ctest -E fuzz`.
+
+!!! warning "Release builds erase assertions"
+    The default build type is Release, which defines `NDEBUG` and compiles every
+    `assert()` to nothing. `src/cpp/CMakeLists.txt` therefore adds `-UNDEBUG` to
+    the test targets. Do not remove it: before it was added, the suite ran,
+    printed `PASSED`, and verified nothing.
 
 ---
 
