@@ -84,7 +84,7 @@ external/edsparser/              ← EDSParser submodule
 ### Query phase
 
 ```
-  pattern string  (length must be a multiple of l+1)
+  pattern string  (length must be at least l+1; need not be a multiple)
       │
       │  locate(pattern)
       ▼

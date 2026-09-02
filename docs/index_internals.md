@@ -109,7 +109,7 @@ See [file_formats.md](file_formats.md) for the full format reference.
 
 ### 4.1 Preconditions
 
-`len(pattern)` must be a positive multiple of `l+1`. If not, a `std::runtime_error` is thrown. Patterns shorter than `l+1` or with `len % (l+1) != 0` are rejected.
+`len(pattern)` must be at least `l+1`; shorter patterns raise `std::runtime_error`. It need not be a multiple of `l+1` — the `r = len % (l+1)` tail is searched as a short final chunk (see `docs/locate_spec.md` § Pattern validity for the invariant that makes short chunks safe).
 
 ### 4.2 Chunk-based hash-map propagation
 

@@ -29,7 +29,7 @@ Two hard facts:
 - **The l-EDS must be rebuilt for every `l`.** There is no incremental path from an index
   at `l=9` to one at `l=19`. Cost is multiplicative: `|panels| × |l values|` merges, then
   the same number of index builds.
-- **BIO-FMI requires `|P|` to be a multiple of `l+1`** ([index.cpp](../src/cpp/lib/index/index.cpp),
+- **BIO-FMI required `|P|` to be a multiple of `l+1`** when these experiments were designed, which is why they are anchored at `|P|=120`. Arbitrary lengths landed 2026-08-30, but the anchor stays — and not only for comparability with older runs. A tail of `r = |P| mod (l+1)` characters is searched as a short, unselective chunk, and the measured cost multiplies by roughly `|alphabet|` for each character it is short by: on an 8 MB panel at `l=9`, a one-character tail costs **>3000x** a zero-length one. Multiples of `l+1` are the configuration to report and to recommend; see `docs/locate_spec.md` § Cost. ([index.cpp](../src/cpp/lib/index/index.cpp),
   `chunk_size = context_length_ + 1`), and `l ≥ 3`. Verified: at `l=10`, lengths 22 and 33
   are accepted, 20 and 25 throw.
 
@@ -228,23 +228,73 @@ linear `l=59` index rejects. A representation that admits them is inventing sequ
 | **linear** | 119 | 104 | 75 | 67 | 52 | 40 | 24 | 13 | 0 |
 | **cartesian** | 149 | 149 | 149 | 149 | 149 | — | — | — | — |
 
+> **Both findings below were wrong, and are retained only to show what was corrected.**
+> See §5b. The first was B4 in disguise; the second was an extractor-regex artefact.
+
 Two findings, and the first was not anticipated:
 
-1. **`l` is a precision knob, not only a space/time knob.** Linear admits 119/200 decoys at
+1. ~~**`l` is a precision knob, not only a space/time knob.**~~ Linear admits 119/200 decoys at
    `l=3` and 13/200 at `l=39`, falling monotonically. Larger `l` merges more, so more of the
    source constraint is materialised into the strings themselves and the index enforces more
    haplotype consistency. At small `l` a chunked search can stitch together a walk no path
    carries. (`l=59` is 0 by construction — it defines the set — so the curve is anchored there;
    the eight points below it are free measurements.)
-2. **Cartesian admits 149/200 at every `l` it can build**, flat. It has no source information
+2. ~~**Cartesian admits 149/200 at every `l` it can build**, flat.~~ It has no source information
    to enforce, so merging more does not make it more faithful.
 
 Both modes find **200/200** real patterns and **0/200** negative controls at every `l`, so the
 decoy difference is precision, not a recall or thresholding artefact.
 
 **Caveat.** Linear occurrence counts are not monotone in `l` (1,950 → 65,723 at `l=39` →
-31,388 at `l=59`) and are large. That is B4, still unexplained, and it affects the
-*occurrence* column above — not the size, feasibility, timing or decoy columns.
+31,388 at `l=59`) and are large. That is B4, since diagnosed and fixed — see §5b.
+
+---
+
+## 5b. Corrected: what §5 got wrong (2026-08-27)
+
+Three separate problems, found in the order below, each invalidating part of §5.
+
+**The flat cartesian 149 was a regex.** The `matched` extractor counted stdout lines against
+`^[ACGT]+\t[1-9][0-9]*$`. The COVID panel carries IUPAC ambiguity codes, and 51 of the 200
+decoys contain an `N`, `R`, `S`, `Y` or `K` — those lines cannot match at all, so the count was
+pinned at 200 − 51 = 149 no matter what the index returned. With `^[A-Z]+\t…` the answer is
+**200/200**: cartesian admits every decoy, which is what "keeps every combination" should mean.
+
+**The decoy set was defined circularly.** It was "patterns the largest-`l` LINEAR index
+rejects" — a set defined by the behaviour of the very index whose precision it then measured,
+and by extension by B4. It is now defined against the genomes: sampled from the cartesian
+language, then filtered to those occurring **zero** times in all 294 materialised genomes per
+`occurrence_oracle.py`. Index-independent, and the oracle confirms 0/200 occur anywhere.
+
+**`l` was never a precision knob.** With sources actually applied at query time (B4 fixed), a
+LINEAR index admits **0/200 decoys at every `l`**:
+
+| l | 3 | 5 | 9 | 11 | 14 | 19 | 29 | 39 | 59 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **linear, source-aware** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **linear, sources withheld** | 157 | 134 | 95 | 82 | 63 | 51 | 30 | 17 | 3 |
+
+The second row is the same l-EDS, the same index and the same patterns with `-z` withheld —
+i.e. §5's configuration. Its decay is not the index becoming more faithful as `l` grows; it is
+B4's cross product having fewer seams to leak through as merging absorbs the constraint.
+Whether a string is carried by a genome is a fact about the genomes, so a correct index cannot
+have `l`-dependent precision. It no longer does.
+
+(The absolute numbers differ from §5's row because the decoy set is now oracle-defined and the
+regex is fixed; the two rows are not comparable to §5's, only to each other.)
+
+**What survived §5 unchanged:** the size, build-feasibility and timing columns, and recall at
+200/200. Phasing still widens the usable `l` range by more than 4× — now measured on both
+sides rather than inferred, since cartesian OOMs past `l=14` while linear reaches `l=59` at
+3.27 MB.
+
+**Source-awareness is not paid for in time.** Over the same indexes, source-aware query cost is
+break-even on real patterns (1.03× and 0.97× at `l=3` and `l=5`, the only points above the
+timing resolution) and **2–4× faster** on decoys, because a branch whose path set empties is
+killed before the occurrences it would have produced are ever materialised.
+
+Full write-up: `~/Data/experiments/biofmi/notebooks/covid294_linear_evaluation.ipynb`,
+run `linear/2026-08-26_19-22-21`, spec `specs/linear.yaml`.
 
 ---
 

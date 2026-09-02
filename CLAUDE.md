@@ -41,7 +41,7 @@ ctest -R test_locate_correctness       # Run a single test by name
 ./tools/test_locate_correctness        # Run test executable directly
 ```
 
-Tests use plain `cassert` (no external framework). Test source files are in `tests/unit/`. E2E shell tests are in `tests/e2e/`. Test data is in `tests/e2e/data/`.
+Tests use plain `cassert` (no external framework). **`src/cpp/CMakeLists.txt` adds `-UNDEBUG` to test targets** — the default build type is Release, which defines `NDEBUG` and compiles every `assert()` to nothing. Before that was added (2026-08-30) the suite ran, printed PASSED and verified nothing; do not remove it. Test source files are in `tests/unit/`. E2E shell tests are in `tests/e2e/`. Test data is in `tests/e2e/data/`.
 
 | Test executable | Source | What it covers |
 |---|---|---|
@@ -51,10 +51,13 @@ Tests use plain `cassert` (no external framework). Test source files are in `tes
 | `test_locate_validation` | `test_locate_validation_simple.cpp` | Random patterns generated from l-EDS are found |
 | `test_locate_correctness` | `test_locate_correctness.cpp` | Spec-driven correctness: brute-force oracle vs index |
 | `test_locate_offset` | `test_locate_offset.cpp` | Offset arithmetic cross-check for the locate algorithm |
+| `test_locate_arbitrary` | `test_locate_arbitrary.cpp` | Arbitrary `\|P\|` vs a brute-force oracle at every length |
+| `test_locate_sources` | `test_locate_sources.cpp` | Source-aware (LINEAR) search: EDZ round-trip, non-transitivity, `.d2g` persistence, sample-set reporting, complement expansion |
+| `test_locate_fuzz` | `test_locate_fuzz.cpp` | Randomised differential locate: seeded panels vs a brute-force oracle, CARTESIAN and LINEAR |
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-08-11 everything passes** against edsparser `23dcff7`: BioFMI 6/6, edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-08-11 everything passes** against edsparser `23dcff7`: BioFMI 6/6 (9/9 as of 2026-09-02), edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
 
 **Always rebuild before trusting a test result, and never trust `~/.local/bin`.** Both failures seen on 2026-08-11 were stale artifacts, and the dangerous direction is silent: the installed `eds2leds` was from Jul 6, predating the complement fix (Aug 4), so it produced l-EDS containing strings no genome carries *without erroring*. Tools now report provenance:
 
@@ -64,7 +67,7 @@ eds2leds --version     # COMMIT=<sha> COMMIT_DATE=<iso8601> DIRTY=<0|1>
 
 `experiments/scripts/run_tb_experiment.sh` refuses to run on a binary whose `COMMIT_DATE` predates the complement fix. The e2e harness resolves tools from `build/tools/` before `PATH` (override with `EDSPARSER_TOOLS_FROM_PATH=1`).
 
-**Note:** `tests/unit/` contains only the 6 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
+**Note:** `tests/unit/` contains only the 9 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
 
 ## Typical Workflow
 
@@ -114,6 +117,8 @@ gitignored so it cannot creep back. The whole tree sits under `~/Data`:
 ~/Data/experiments/biofmi/occurrence_oracle.py  ground truth, straight from the MSA
 ~/Data/experiments/biofmi/compare_locate_oracle.py
 ~/Data/experiments/biofmi/notebooks/            written-up evaluations
+    covid294_evaluation.ipynb                   CARTESIAN sweep
+    covid294_linear_evaluation.ipynb            LINEAR, source-aware vs withheld
 ~/Data/experiments/biofmi/results/covid294/     the reference bundle
 ~/Data/experiments/biofmi/runs/                 run directories
 ~/Data/covid/                                   inputs
@@ -141,10 +146,10 @@ Position mapping between the two indexes uses three SDSL bit vectors with rank/s
 Query processing splits the pattern into chunks of size `l` and tracks matches across both indexes using hash maps, with early termination on empty intermediate results. `locate_short()`, `locate_long()`, and `validate_chunk_positions()` are stub methods (not yet called by `locate()`) — the main `locate()` loop handles all pattern lengths directly.
 
 **`locate()` result semantics** (see `docs/locate_spec.md` for full spec):
-- Pattern length must be a multiple of `l+1` and at least `l+1`; otherwise throws. The chunk size is `l+1` (`chunk_size = context_length_ + 1` in `index.cpp`) — `l` characters of context plus one of content. Minimum `l` is 3.
+- Pattern length must be **at least `l+1`**; otherwise throws. It need *not* be a multiple of `l+1` — the `r = |P| mod (l+1)` tail is searched as a short final chunk (2026-08-30). Short chunks need a guard that full chunks get for free: see `docs/locate_spec.md` § Pattern validity. The chunk size is `l+1` (`chunk_size = context_length_ + 1` in `index.cpp`) — `l` characters of context plus one of content. Minimum `l` is 3.
 - Returns one `(position, changes)` entry per valid path through the EDS.
 - **Position** — 0-based: T₀ index if match starts in reference; `base_position_of_set + offset_within_alternative` if match starts inside a degenerate alternative.
-- **Changes** — ordered list of 0-based global alternative indices (numbered across all alternatives of all degenerate sets in EDS order) that the match passes through.
+- **Changes** — ordered list of 0-based global alternative indices (numbered across all alternatives of all degenerate sets in EDS order) that the match passes through. **A zero-length alternative counts as traversed** even though it contributes no character: the match exists only on the path that chose it, and `changes` drives the source intersection. Two reference blocks separated by such a symbol are adjacent along that path — a match crossing between them was silently lost until 2026-08-31.
 - `count()` returns total number of entries (paths), not distinct positions.
 - Future work: arbitrary pattern lengths, EDS boundary edge cases.
 
@@ -176,6 +181,7 @@ namespace biofmi {
 | `.ci` | Changes FM-index (SDSL CSA) |
 | `.loc` / `.iloc` / `.tloc` | Bit vectors for position mapping |
 | `.abp` / `.ss` / `.aof` | Metadata arrays |
+| `.d2g` | Degenerate-string number → global string id, for source-aware search |
 | `.meta` | Metadata (context_length, n, m, N) |
 
 ### EDS Format
@@ -184,15 +190,85 @@ EDS encodes degenerate strings as `{alt1,alt2}common{alt3}...`. The l-EDS varian
 
 ## Known Issues / Future Work
 
-**B4 (open, algorithmic):** `locate()` over-reports on LINEAR indexes at every `l`.
-The index stores no source information, so `validate_change_continuity()` pairs every
-alternative of one degenerate symbol with every alternative of the next (`index.cpp:585-593`,
-"Case 4") — a cross product where the LINEAR language needs a source-set intersection.
-Occurrence/entry counts from a LINEAR index are not counts of anything real; recall, sizes,
-feasibility and timings are unaffected. CARTESIAN is correct, since there the cross product
-*is* the intended language. Full write-up and fix sketch in `TODO.md`.
+**B4 (fixed 2026-08-26 for EDZ/SEDS sources):** `locate()` used to pair every alternative
+of one degenerate symbol with every alternative of the next, a cross product where the
+LINEAR language needs a source-set intersection. It now carries a running `PathSet` along
+each candidate match and prunes the branch the moment no path carries the whole thing.
 
-All other tracked issues resolved. One future-work item remains.
+Source-aware search is opt-in — pass the l-EDS's source file to `biofmi-locate`:
+
+```bash
+biofmi-locate -i data.index -l 9 -s merged.seds -P patterns.txt   # LINEAR, auto-detect
+biofmi-locate -i data.index -l 9 -z merged.edz -P patterns.txt    # LINEAR, forced EDZ
+biofmi-locate -i data.index -l 9 -z merged.edz --samples -p ACGT… # + carrying genome ids
+biofmi-locate -i data.index -l 9 -P patterns.txt                  # CARTESIAN (unchanged)
+```
+
+**Sample sets.** In LINEAR mode the surviving intersection *is* the set of genomes
+carrying each occurrence, so `locate()` reports it as `Occurrence::paths` at no extra
+cost. `print_result()` shows the count; `--samples` lists the ids. `PathSet` is
+complement-encoded — resolve it with `BioFMI::expand_paths()`, never by iterating it.
+Validated against `occurrence_oracle.py`: on covid294 all 200 patterns' sample sets equal
+the genomes containing them exactly, 0 false positives and 0 false negatives.
+
+Sources are read at query time and are **not** embedded in the index; the one new
+artifact is `.d2g`, mapping degenerate-string number to global string id (21 KB against a
+4.9 MB index), because a loaded index has no EDS to derive it from — `load()` never
+populates `eds_`. Attaching sources to an index built before `.d2g`, or to a sources file
+whose cardinality does not match the indexed l-EDS, throws rather than silently
+mis-associating path sets.
+
+Validated by `specs/linear.yaml` (run `linear/2026-08-26_19-22-21`, 108/108 cells), which
+queries one index both ways so every difference is the intersection alone:
+
+| | source-aware | sources withheld |
+|---|---|---|
+| decoys admitted (of 200) | **0 at every `l`** | 157 → 3 |
+| real patterns found | 200/200 | 200/200 |
+| oracle ceiling gate | exit 0 | exit 1 |
+| query cost, real | — | break-even (1.03x, 0.97x) |
+| query cost, decoy | **2–4x faster** | — |
+
+Source-awareness is not paid for in time: pruning a branch when its path set empties is
+cheaper than materialising the occurrences it would have produced.
+
+**This retired a headline result.** `docs/experiment_design.md` §5 reported "`l` is a
+precision knob" — decoys admitted falling with `l`. That decay was B4's cross product
+having fewer seams to leak through as merging absorbed the constraint, not the index
+growing more faithful. With sources applied, precision is perfect at every `l` and does
+not depend on it. §5b records the correction; §5 is struck through rather than deleted.
+
+Semantics are specified in `docs/locate_spec.md` § Search modes; the measured write-up is
+`~/Data/experiments/biofmi/notebooks/covid294_linear_evaluation.ipynb`.
+
+`TODO.md` holds only open work now. Arbitrary pattern lengths landed 2026-08-30; what
+remains there is verifying a short tail rather than searching it, which is a cost
+question, not a capability one.
+
+**The chunk stitch is closed (2026-09-02).** `tests/unit/test_locate_fuzz.cpp` generates
+seeded panels — biased towards empty alternatives, symbols at the very start and end,
+alternatives shorter and longer than `l`, minimum-width internal segments — and checks
+every substring of every path against a brute-force oracle in both modes. It found nine
+bugs. The last two needed a change of model rather than another check:
+
+*Candidates now carry where the next chunk must begin*, as `OccurrenceInfo::in_change`
+plus `next_set`, instead of inferring it from `last_change`. `last_change` recorded *which
+alternative a chunk touched*, which conflates ending inside an alternative with ending
+after it and says nothing about sets crossed on the way. Because a degenerate set consumes
+no T₀, the position just before set *s* and the position just after it are the same
+coordinate, so two candidates collided on the hash key and the one with the set still
+ahead of it could be continued by a chunk lying beyond it — hopping a whole symbol. On
+`GGA{CG,CCA}GAGT{A,T}TGT{TGT,CTTG}GAC{CGA,GC,TT}AC` at `l=3`, `TTGTGACT` reported
+`(7,[3 8])` beside the true `(9,[4 8])`. `next_set` is what separates the two sides of a
+boundary, and it subsumes the `block_start`, `first_here` and `prev_t0` checks that were
+each a partial stand-in for it.
+
+*Bridging a zero-length alternative branches.* A symbol may list the empty string more
+than once — `{ATG,,}` is legal EDS — and those are distinct alternatives with distinct
+source sets, so a match crossing the symbol is one occurrence per empty alternative.
+`bridge_empty_sets()` yields a list rather than picking the first, which also handles a
+match spanning several such symbols in a row. With this, `kGenerateEmptyAlternatives` is
+on and the harness is registered with ctest: 9/9, 15 s of the suite's 17 s.
 
 ### Resolved
 
@@ -203,10 +279,12 @@ All other tracked issues resolved. One future-work item remains.
 | No structural build tests | `test_build_structure.cpp` + `IndexSnapshot`/`get_snapshot()` in `index.hpp` |
 | Context window + chunk size off-by-one (`cl = l-1`, chunk size `l`) | `parse_eds()`: `cl = context_length_`; `locate()` and helpers: chunk size/step `l+1` at seven sites |
 | Locate algorithm undocumented | `locate()` — block comment with worked example; `test_locate_offset.cpp` — offset arithmetic cross-check |
+| Chunk stitch inferred position from `last_change`, admitting matches that skip a degenerate symbol | `OccurrenceInfo::in_change`/`next_set` — the end state carried explicitly; `bridge_empty_sets()` |
+| A match crossing a symbol with several empty alternatives reported only the first | `bridge_empty_sets()` branches per empty alternative; `docs/locate_spec.md` § result semantics |
 
 ### Future Work
 
-- **Arbitrary pattern lengths**: `|P|` must be a multiple of `l+1`. Supporting arbitrary lengths requires a different lookup strategy for partial chunks.
+- **Extending candidates instead of searching a short tail**: arbitrary `|P|` works, but a short tail is an unselective lookup — measured at >3000x the `r=0` cost for a one-character tail. **Prefer `|P|` a multiple of `l+1`.** Extending candidates instead is implemented only for tails that do not cross a symbol boundary, so `set_tail_threshold()` refuses any value but 0. See `docs/locate_spec.md` § Cost and `TODO.md`.
 
 ### Other notes
 - `count()` delegates to `locate()` and sums entries.
