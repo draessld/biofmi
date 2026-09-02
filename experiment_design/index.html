@@ -1,0 +1,1608 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="FM-index for Elastic-Degenerate Strings — pangenomic pattern matching">
+      
+      
+      
+        <link rel="canonical" href="https://draessld.github.io/biofmi/experiment_design/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Experiment design — BIO-FMI evaluation - BioFMI</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#experiment-design-bio-fmi-evaluation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="BioFMI" class="md-header__button md-logo" aria-label="BioFMI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            BioFMI
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Experiment design — BIO-FMI evaluation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/draessld/biofmi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    draessld/biofmi
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../index_internals/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Index Internals
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../locate_spec/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  locate() Spec
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../file_formats/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  File Formats
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="BioFMI" class="md-nav__button md-logo" aria-label="BioFMI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    BioFMI
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/draessld/biofmi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    draessld/biofmi
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index_internals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../locate_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    locate() Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../file_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-question" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The question
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-constraint-that-shapes-everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The constraint that shapes everything
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-pilot-results-measured-2026-08-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Pilot results (measured 2026-08-11)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Pilot results (measured 2026-08-11)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-panel-diversity-not-panel-size-sets-ctx_avg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Panel diversity, not panel size, sets ctx_avg
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-h1-the-size-model-to-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 H1 — the size model to test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-blockers-fix-before-generating-any-publishable-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Blockers — fix before generating any publishable number
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Blockers — fix before generating any publishable number">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#b1-genpatterns-is-not-source-aware-resolved-2026-08-13-3faa4cb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B1. genpatterns is not source-aware — RESOLVED 2026-08-13 (3faa4cb)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b2-genpatterns-is-not-reproducible-resolved-2026-08-13-3faa4cb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B2. genpatterns is not reproducible — RESOLVED 2026-08-13 (3faa4cb)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b3-positions-are-l-eds-internal-not-genome-coordinates-blocks-cross-l-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B3. Positions are l-EDS-internal, not genome coordinates (blocks cross-l comparison)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b4-unexplained-match-explosion-at-large-l-must-root-cause" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B4. Unexplained match explosion at large l (must root-cause)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-measured-linear-vs-cartesian-e5-covid-294-2026-08-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Measured: LINEAR vs CARTESIAN (E5, COVID-294, 2026-08-15)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5b-corrected-what-5-got-wrong-2026-08-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5b. Corrected: what §5 got wrong (2026-08-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Datasets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Experiments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Experiments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#e1-query-time-vs-l-the-primary-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E1 — Query time vs l (the primary result)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e2-query-time-vs-pattern-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E2 — Query time vs pattern length
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e3-query-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E3 — Query composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e4-build-cost-and-the-feasibility-frontier-tests-h1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E4 — Build cost and the feasibility frontier (tests H1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e5-linear-vs-cartesian-merge-measured-see-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E5 — LINEAR vs CARTESIAN merge (measured — see §5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e6-baseline-comparison-scope-open-see-9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E6 — Baseline comparison (scope open — see §9)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-metrics-and-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Metrics and protocol
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-open-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Open decisions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-execution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Execution order
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/draessld/biofmi/edit/main/docs/experiment_design.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="experiment-design-bio-fmi-evaluation">Experiment design — BIO-FMI evaluation<a class="headerlink" href="#experiment-design-bio-fmi-evaluation" title="Permanent link">&para;</a></h1>
+<p>Status: <strong>draft for review</strong>, 2026-08-11. Pilot numbers in §3 were measured on this
+machine today; everything else is a plan, not a result.</p>
+<hr />
+<h2 id="1-the-question">1. The question<a class="headerlink" href="#1-the-question" title="Permanent link">&para;</a></h2>
+<p>BIO-FMI indexes an l-EDS with a <em>fixed</em> <code>l</code>. The index is therefore parameterised by a
+choice that also determines how expensive the l-EDS was to build. The evaluation has to
+answer three things:</p>
+<ol>
+<li><strong>What does <code>l</code> buy at query time?</strong> — search time as a function of <code>l</code>, at fixed
+   pattern length.</li>
+<li><strong>What does <code>l</code> cost?</strong> — l-EDS size, merge peak RAM, index size, build time.</li>
+<li><strong>Which <code>(panel, l)</code> pairs are reachable at all?</strong> — the feasibility frontier, and the
+   rule that predicts it.</li>
+</ol>
+<p>(3) is a result, not an obstacle. The honest headline is a space/time trade-off curve
+plus a statement of where it terminates.</p>
+<hr />
+<h2 id="2-the-constraint-that-shapes-everything">2. The constraint that shapes everything<a class="headerlink" href="#2-the-constraint-that-shapes-everything" title="Permanent link">&para;</a></h2>
+<p>Two hard facts:</p>
+<ul>
+<li><strong>The l-EDS must be rebuilt for every <code>l</code>.</strong> There is no incremental path from an index
+  at <code>l=9</code> to one at <code>l=19</code>. Cost is multiplicative: <code>|panels| × |l values|</code> merges, then
+  the same number of index builds.</li>
+<li><strong>BIO-FMI required <code>|P|</code> to be a multiple of <code>l+1</code></strong> when these experiments were designed, which is why they are anchored at <code>|P|=120</code>. Arbitrary lengths landed 2026-08-30, but the anchor stays — and not only for comparability with older runs. A tail of <code>r = |P| mod (l+1)</code> characters is searched as a short, unselective chunk, and the measured cost multiplies by roughly <code>|alphabet|</code> for each character it is short by: on an 8 MB panel at <code>l=9</code>, a one-character tail costs <strong>&gt;3000x</strong> a zero-length one. Multiples of <code>l+1</code> are the configuration to report and to recommend; see <code>docs/locate_spec.md</code> § Cost. (<a href="../src/cpp/lib/index/index.cpp">index.cpp</a>,
+  <code>chunk_size = context_length_ + 1</code>), and <code>l ≥ 3</code>. Verified: at <code>l=10</code>, lengths 22 and 33
+  are accepted, 20 and 25 throw.</li>
+</ul>
+<p>The second fact is the one that quietly ruins a naive design. If you sweep
+<code>l ∈ {10, 20, 50}</code> — the values in <code>edsparser/TODO.md</code> §1b-bis — the admissible pattern
+lengths are 11, 21 and 51, which share no common value. <strong>You could not plot search time
+against <code>l</code> at a fixed pattern length at all.</strong></p>
+<p><strong>Resolution: choose <code>l</code> so that <code>l+1</code> divides a single realistic read length.</strong> With
+<code>|P| = 120</code> (120 is highly composite), the admissible set is</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>l ∈ {3, 4, 5, 7, 9, 11, 14, 19, 23, 29, 39, 59, 119}
+</code></pre></div>
+<p>Thirteen points on one curve, all at one pattern length, spanning 3→119. <code>|P| = 120</code> is
+also a plausible read length, and <code>l = 9</code> and <code>l = 19</code> additionally admit pattern lengths
+that are round multiples of 10 and 20 — convenient for the orthogonal sweep in E2.</p>
+<p>This choice should be made <em>before</em> any data is generated. Adopt <code>|P| = 120</code> as the anchor.</p>
+<hr />
+<h2 id="3-pilot-results-measured-2026-08-11">3. Pilot results (measured 2026-08-11)<a class="headerlink" href="#3-pilot-results-measured-2026-08-11" title="Permanent link">&para;</a></h2>
+<p>Run on the SARS-CoV-2 MSA at <code>~/Documents/uni_projects/SARS_cov_data/SARS_CoV_2/</code>
+(294 sequences, 34,288 alignment columns) with tools built from edsparser <code>593456b</code>.
+These exist to size the real experiments, not to be published.</p>
+<p><strong>Base EDS</strong> (<code>msa2eds</code>): 978 KB, n = 1,295 symbols, 294 paths, <code>ctx_avg</code> <strong>18.85</strong>, <code>ctx_max</code> 127.</p>
+<p><strong><code>eds2leds</code> cost vs <code>l</code></strong> — and it does <em>not</em> blow up:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">l</th>
+<th style="text-align: right;">l/ctx_avg</th>
+<th style="text-align: right;">.leds</th>
+<th style="text-align: right;">peak RSS</th>
+<th style="text-align: right;">time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.16</td>
+<td style="text-align: right;">988 KB</td>
+<td style="text-align: right;">6 MB</td>
+<td style="text-align: right;">0.01 s</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">1016 KB</td>
+<td style="text-align: right;">6 MB</td>
+<td style="text-align: right;">0.01 s</td>
+</tr>
+<tr>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">1.2 MB</td>
+<td style="text-align: right;">7 MB</td>
+<td style="text-align: right;">0.01 s</td>
+</tr>
+<tr>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">2.07</td>
+<td style="text-align: right;">2.5 MB</td>
+<td style="text-align: right;">8 MB</td>
+<td style="text-align: right;">0.03 s</td>
+</tr>
+<tr>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">3.13</td>
+<td style="text-align: right;">3.7 MB</td>
+<td style="text-align: right;">10 MB</td>
+<td style="text-align: right;">0.04 s</td>
+</tr>
+<tr>
+<td style="text-align: right;">119</td>
+<td style="text-align: right;">6.31</td>
+<td style="text-align: right;">7.6 MB</td>
+<td style="text-align: right;">17 MB</td>
+<td style="text-align: right;">0.11 s</td>
+</tr>
+<tr>
+<td style="text-align: right;">199</td>
+<td style="text-align: right;">10.56</td>
+<td style="text-align: right;">8.4 MB</td>
+<td style="text-align: right;">30 MB</td>
+<td style="text-align: right;">0.25 s</td>
+</tr>
+<tr>
+<td style="text-align: right;">399</td>
+<td style="text-align: right;">21.17</td>
+<td style="text-align: right;">8.4 MB</td>
+<td style="text-align: right;">31 MB</td>
+<td style="text-align: right;">0.27 s</td>
+</tr>
+</tbody>
+</table>
+<p><strong>This contradicts the <code>l/ctx_avg</code> law in <code>TODO.md</code> §2f</strong>, which predicts non-linear growth
+past ratio 1.0 and OOM at 2.56. COVID sails past ratio 21. The law was derived entirely
+from VCF-derived TB panels and does not generalise — see H1 below.</p>
+<p><strong>Index and query</strong> (200 shared patterns, <code>|P| = 120</code>, wall-clock for the whole batch):</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">l</th>
+<th style="text-align: right;">index size</th>
+<th style="text-align: right;">build</th>
+<th style="text-align: right;">query batch</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.88 MB</td>
+<td style="text-align: right;">0.10 s</td>
+<td style="text-align: right;">22,052 ms</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.94 MB</td>
+<td style="text-align: right;">0.08 s</td>
+<td style="text-align: right;">1,434 ms</td>
+</tr>
+<tr>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">1.14 MB</td>
+<td style="text-align: right;">0.09 s</td>
+<td style="text-align: right;">465 ms</td>
+</tr>
+<tr>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">2.25 MB</td>
+<td style="text-align: right;">0.17 s</td>
+<td style="text-align: right;">146 ms</td>
+</tr>
+<tr>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">3.36 MB</td>
+<td style="text-align: right;">0.27 s</td>
+<td style="text-align: right;"><strong>80 ms</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>A 3.8× larger index buys a 274× faster query.</strong> That is the headline figure, and it is
+monotonic across nine points on real data. Mechanism is plain: <code>|P|/(l+1)</code> chunks, so 30
+chunks at <code>l=3</code> against 2 at <code>l=59</code>.</p>
+<h3 id="31-panel-diversity-not-panel-size-sets-ctx_avg">3.1 Panel diversity, not panel size, sets <code>ctx_avg</code><a class="headerlink" href="#31-panel-diversity-not-panel-size-sets-ctx_avg" title="Permanent link">&para;</a></h3>
+<p>Per-clade subsets of the same data:</p>
+<table>
+<thead>
+<tr>
+<th>panel</th>
+<th style="text-align: right;">seqs</th>
+<th style="text-align: right;">ctx_avg</th>
+<th>implied usable l</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>clade 19A</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;"><strong>1160.8</strong></td>
+<td>very large</td>
+</tr>
+<tr>
+<td>clade 20A</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">268.1</td>
+<td>large</td>
+</tr>
+<tr>
+<td>all clades</td>
+<td style="text-align: right;">294</td>
+<td style="text-align: right;">18.9</td>
+<td>small under the old law</td>
+</tr>
+</tbody>
+</table>
+<p><code>ctx_avg</code> is governed by how phylogenetically diverse the panel is. This is the dial that
+makes high <code>l</code> reachable on real data, and a within-clade pangenome index is a legitimate
+use case rather than a convenience.</p>
+<h3 id="32-h1-the-size-model-to-test">3.2 H1 — the size model to test<a class="headerlink" href="#32-h1-the-size-model-to-test" title="Permanent link">&para;</a></h3>
+<p>Every observation above fits one model:</p>
+<blockquote>
+<p>l-EDS size interpolates between <code>|EDS|</code> (small <code>l</code>) and <code>num_paths × genome_length</code>
+(large <code>l</code>, where every path is materialised in full). <code>l/ctx_avg</code> says where on that
+interpolation you sit; the <strong>ceiling</strong> says whether the top of it is affordable.</p>
+</blockquote>
+<ul>
+<li>COVID 294: ceiling ≈ 294 × 34 kb ≈ <strong>10 MB</strong>. Observed saturation 8.4 MB. Harmless.</li>
+<li>TB p1141: ceiling ≈ 1141 × 4.41 Mb ≈ <strong>5.0 GB</strong>. The merge peak is a multiple of that,
+  which is why it is killed at a 20 GB cap.</li>
+</ul>
+<p>If H1 holds it replaces §2f's law with something predictive and cheap to evaluate from
+metadata alone, and it explains both datasets with one mechanism. <strong>E4 tests it.</strong></p>
+<hr />
+<h2 id="4-blockers-fix-before-generating-any-publishable-number">4. Blockers — fix before generating any publishable number<a class="headerlink" href="#4-blockers-fix-before-generating-any-publishable-number" title="Permanent link">&para;</a></h2>
+<p>These were found during the pilot. Each one silently corrupts a headline figure.</p>
+<h3 id="b1-genpatterns-is-not-source-aware-resolved-2026-08-13-3faa4cb">B1. <code>genpatterns</code> is not source-aware — <strong>RESOLVED 2026-08-13</strong> (<code>3faa4cb</code>)<a class="headerlink" href="#b1-genpatterns-is-not-source-aware-resolved-2026-08-13-3faa4cb" title="Permanent link">&para;</a></h3>
+<p><code>EDS::generate_patterns()</code> (<a href="../external/edsparser/src/cpp/lib/formats/eds.cpp#L499">eds.cpp:499</a>)
+picks an alternative from each symbol <strong>independently</strong>, never consulting <code>Sources</code>. It
+therefore emits strings from the <em>cartesian</em> language — combinations no genome carries.</p>
+<p>A LINEAR-merged l-EDS prunes exactly those combinations, and prunes more of them as <code>l</code>
+grows. Measured: of 25 patterns, 8 match at <code>l=9</code> but not at <code>l=59</code>. So "occurrences vs <code>l</code>"
+currently measures <strong>how invalid the pattern set is</strong>, not anything about the index.</p>
+<p><em>Fixed:</em> <code>edsparser-genpatterns -s &lt;seds&gt;</code> (or <code>-z &lt;edz&gt;</code>) now walks one randomly chosen
+path per pattern, taking at each symbol an alternative whose source set contains it —
+handling the complement encoding (<code>{0,e1}</code> = every path but e1) that <code>vcf2eds</code>/<code>msa2eds</code>
+use for the reference allele. Verified on COVID-294 at <code>|P|=120</code>: the cartesian set
+matches <strong>158/200</strong> patterns, the source-aware set <strong>200/200</strong>, stable at l ∈ {9,19,59}.
+Without sources the tool warns; <code>--ignore-sources</code> asks for the old behaviour explicitly.
+Wrap-around padding of short walks is gone too — it spliced symbol 0 onto the end,
+producing sequence contiguous in no genome. Regression tests: <code>test_eds</code> 26b/26c.</p>
+<h3 id="b2-genpatterns-is-not-reproducible-resolved-2026-08-13-3faa4cb">B2. <code>genpatterns</code> is not reproducible — <strong>RESOLVED 2026-08-13</strong> (<code>3faa4cb</code>)<a class="headerlink" href="#b2-genpatterns-is-not-reproducible-resolved-2026-08-13-3faa4cb" title="Permanent link">&para;</a></h3>
+<p>Seeded from <code>std::random_device</code>, under a comment reading "for reproducible results". Every
+invocation yielded a different pattern set. <em>Fixed:</em> <code>--seed</code> added.</p>
+<h3 id="b3-positions-are-l-eds-internal-not-genome-coordinates-blocks-cross-l-comparison">B3. Positions are l-EDS-internal, not genome coordinates <em>(blocks cross-l comparison)</em><a class="headerlink" href="#b3-positions-are-l-eds-internal-not-genome-coordinates-blocks-cross-l-comparison" title="Permanent link">&para;</a></h3>
+<p>The same pattern reports position 606 at <code>l=9</code>, 454 at <code>l=19</code>, 36 at <code>l=59</code>. This is
+consistent with the spec — position is a T₀ index, and T₀ shrinks as merging absorbs common
+sequence into degenerate symbols — but it means <strong>positions cannot be compared across <code>l</code></strong>,
+and are not the coordinates a biologist expects.</p>
+<p><em>Decide:</em> either report a genome coordinate (needs a mapping back through the merge), or
+restrict published claims to counts and timings and state the limitation explicitly.</p>
+<h3 id="b4-unexplained-match-explosion-at-large-l-must-root-cause">B4. Unexplained match explosion at large <code>l</code> <em>(must root-cause)</em><a class="headerlink" href="#b4-unexplained-match-explosion-at-large-l-must-root-cause" title="Permanent link">&para;</a></h3>
+<p>Two of 25 patterns went from 2 positions / 22 entries at <code>l=9</code> to <strong>73 positions / 235
+entries</strong> at <code>l=59</code>. This may be correct (large merged symbols legitimately contain many
+near-identical strings) or a false-positive bug. It is not currently known which, and
+<code>test_locate_correctness</code> does not cover <code>l</code> this large. <em>Fix:</em> extend the brute-force
+oracle to large <code>l</code> before trusting any large-<code>l</code> row.</p>
+<p><strong>B1 and B2 are closed. B4 still gates the large-<code>l</code> rows of E1; B3 gates only the
+position claims.</strong></p>
+<hr />
+<h2 id="5-measured-linear-vs-cartesian-e5-covid-294-2026-08-15">5. Measured: LINEAR vs CARTESIAN (E5, COVID-294, 2026-08-15)<a class="headerlink" href="#5-measured-linear-vs-cartesian-e5-covid-294-2026-08-15" title="Permanent link">&para;</a></h2>
+<p>Full run: <code>~/Data/experiments/biofmi/results/covid294/</code>, harness <code>run_merge_mode_experiment.sh</code>
+(since deleted — superseded by <code>~/Data/experiments/biofmi/specs/merge_mode.yaml</code>, which
+<code>specs/acceptance_covid294.py</code> verifies reproduces this bundle exactly; the two
+modes also run separately as <code>specs/linear.yaml</code> and <code>specs/cartesian.yaml</code>),
+edsparser <code>3faa4cb</code> (<code>DIRTY=0</code>). 294 SARS-CoV-2 genomes, <code>ctx_avg</code> 18.85, 294 paths,
+<code>|P| = 120</code>, 200 patterns per set, best-of-5, 8 GB cap.</p>
+<p><strong>Build and index.</strong> Cartesian is larger at every <code>l</code>, and the gap compounds:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">l</th>
+<th style="text-align: right;">l/ctx</th>
+<th style="text-align: right;">linear .leds</th>
+<th style="text-align: right;">cartesian .leds</th>
+<th style="text-align: right;">×</th>
+<th style="text-align: right;">linear index</th>
+<th style="text-align: right;">cartesian index</th>
+<th style="text-align: right;">×</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.16</td>
+<td style="text-align: right;">1.008 MB</td>
+<td style="text-align: right;">1.334 MB</td>
+<td style="text-align: right;">1.3×</td>
+<td style="text-align: right;">0.852 MB</td>
+<td style="text-align: right;">1.137 MB</td>
+<td style="text-align: right;">1.3×</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0.27</td>
+<td style="text-align: right;">1.018 MB</td>
+<td style="text-align: right;">1.983 MB</td>
+<td style="text-align: right;">1.9×</td>
+<td style="text-align: right;">0.867 MB</td>
+<td style="text-align: right;">1.684 MB</td>
+<td style="text-align: right;">1.9×</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">1.039 MB</td>
+<td style="text-align: right;">5.569 MB</td>
+<td style="text-align: right;">5.4×</td>
+<td style="text-align: right;">0.905 MB</td>
+<td style="text-align: right;">4.933 MB</td>
+<td style="text-align: right;">5.4×</td>
+</tr>
+<tr>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">0.58</td>
+<td style="text-align: right;">1.055 MB</td>
+<td style="text-align: right;">7.229 MB</td>
+<td style="text-align: right;">6.9×</td>
+<td style="text-align: right;">0.925 MB</td>
+<td style="text-align: right;">6.493 MB</td>
+<td style="text-align: right;">7.0×</td>
+</tr>
+<tr>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">0.74</td>
+<td style="text-align: right;">1.086 MB</td>
+<td style="text-align: right;">29.822 MB</td>
+<td style="text-align: right;"><strong>27.5×</strong></td>
+<td style="text-align: right;">0.961 MB</td>
+<td style="text-align: right;">26.429 MB</td>
+<td style="text-align: right;">27.5×</td>
+</tr>
+<tr>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">1.246 MB</td>
+<td style="text-align: right;"><strong>OOM</strong> (6.9 GB)</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">1.103 MB</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">1.54</td>
+<td style="text-align: right;">1.483 MB</td>
+<td style="text-align: right;"><strong>OOM</strong></td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">1.322 MB</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">2.07</td>
+<td style="text-align: right;">2.516 MB</td>
+<td style="text-align: right;"><strong>OOM</strong></td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">2.179 MB</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">3.13</td>
+<td style="text-align: right;">3.842 MB</td>
+<td style="text-align: right;"><strong>OOM</strong></td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">3.256 MB</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cartesian is feasible only to <code>l = 14</code>; linear reaches 59 (and 399 in the earlier probe).</strong>
+Phasing widens the usable <code>l</code> range by more than 4×, which matters because <code>l</code> is the knob
+that buys query speed.</p>
+<p>The reference sub-index (<code>.ri</code>) is byte-identical between modes at every <code>l</code> — all the
+divergence is in the changes index (<code>.ci</code>), exactly as the dual-index design predicts. <code>.ri</code>
+also <em>shrinks</em> with <code>l</code> (9.7 KB → 4.6 KB), since merging absorbs common sequence into
+degenerate symbols. That is the same mechanism as B3: T₀ shrinks, so positions move.</p>
+<p><strong>Query.</strong> Batch time for 200 patterns, index load excluded:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">l</th>
+<th style="text-align: right;">real, linear</th>
+<th style="text-align: right;">real, cartesian</th>
+<th style="text-align: right;">occurrences lin</th>
+<th style="text-align: right;">occurrences car</th>
+<th style="text-align: right;">×</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">16,743 ms</td>
+<td style="text-align: right;">22,134 ms</td>
+<td style="text-align: right;">1,950</td>
+<td style="text-align: right;">2,693</td>
+<td style="text-align: right;">1.4×</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;"><strong>16 ms</strong></td>
+<td style="text-align: right;">128 ms</td>
+<td style="text-align: right;">2,580</td>
+<td style="text-align: right;">7,270</td>
+<td style="text-align: right;">2.8×</td>
+</tr>
+<tr>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">12 ms</td>
+<td style="text-align: right;">112 ms</td>
+<td style="text-align: right;">2,352</td>
+<td style="text-align: right;">7,785</td>
+<td style="text-align: right;">3.3×</td>
+</tr>
+<tr>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">12 ms</td>
+<td style="text-align: right;">4,395 ms</td>
+<td style="text-align: right;">7,116</td>
+<td style="text-align: right;"><strong>398,702</strong></td>
+<td style="text-align: right;"><strong>56×</strong></td>
+</tr>
+<tr>
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">31 ms</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">31,388</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+<p>Linear is faster at every <code>l</code>, by 366× at <code>l=14</code>. The occurrence inflation is the cost being
+paid: cartesian reports 56× more matches at <code>l=14</code>, and those extra matches are paths through
+combinations no genome carries.</p>
+<p><strong>Precision — the decoy set.</strong> Patterns generated ignoring sources, then filtered to those the
+linear <code>l=59</code> index rejects. A representation that admits them is inventing sequence:</p>
+<table>
+<thead>
+<tr>
+<th>l</th>
+<th style="text-align: right;">3</th>
+<th style="text-align: right;">5</th>
+<th style="text-align: right;">9</th>
+<th style="text-align: right;">11</th>
+<th style="text-align: right;">14</th>
+<th style="text-align: right;">19</th>
+<th style="text-align: right;">29</th>
+<th style="text-align: right;">39</th>
+<th style="text-align: right;">59</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>linear</strong></td>
+<td style="text-align: right;">119</td>
+<td style="text-align: right;">104</td>
+<td style="text-align: right;">75</td>
+<td style="text-align: right;">67</td>
+<td style="text-align: right;">52</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td><strong>cartesian</strong></td>
+<td style="text-align: right;">149</td>
+<td style="text-align: right;">149</td>
+<td style="text-align: right;">149</td>
+<td style="text-align: right;">149</td>
+<td style="text-align: right;">149</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Both findings below were wrong, and are retained only to show what was corrected.</strong>
+See §5b. The first was B4 in disguise; the second was an extractor-regex artefact.</p>
+</blockquote>
+<p>Two findings, and the first was not anticipated:</p>
+<ol>
+<li>~~<strong><code>l</code> is a precision knob, not only a space/time knob.</strong>~~ Linear admits 119/200 decoys at
+   <code>l=3</code> and 13/200 at <code>l=39</code>, falling monotonically. Larger <code>l</code> merges more, so more of the
+   source constraint is materialised into the strings themselves and the index enforces more
+   haplotype consistency. At small <code>l</code> a chunked search can stitch together a walk no path
+   carries. (<code>l=59</code> is 0 by construction — it defines the set — so the curve is anchored there;
+   the eight points below it are free measurements.)</li>
+<li>~~<strong>Cartesian admits 149/200 at every <code>l</code> it can build</strong>, flat.~~ It has no source information
+   to enforce, so merging more does not make it more faithful.</li>
+</ol>
+<p>Both modes find <strong>200/200</strong> real patterns and <strong>0/200</strong> negative controls at every <code>l</code>, so the
+decoy difference is precision, not a recall or thresholding artefact.</p>
+<p><strong>Caveat.</strong> Linear occurrence counts are not monotone in <code>l</code> (1,950 → 65,723 at <code>l=39</code> →
+31,388 at <code>l=59</code>) and are large. That is B4, since diagnosed and fixed — see §5b.</p>
+<hr />
+<h2 id="5b-corrected-what-5-got-wrong-2026-08-27">5b. Corrected: what §5 got wrong (2026-08-27)<a class="headerlink" href="#5b-corrected-what-5-got-wrong-2026-08-27" title="Permanent link">&para;</a></h2>
+<p>Three separate problems, found in the order below, each invalidating part of §5.</p>
+<p><strong>The flat cartesian 149 was a regex.</strong> The <code>matched</code> extractor counted stdout lines against
+<code>^[ACGT]+\t[1-9][0-9]*$</code>. The COVID panel carries IUPAC ambiguity codes, and 51 of the 200
+decoys contain an <code>N</code>, <code>R</code>, <code>S</code>, <code>Y</code> or <code>K</code> — those lines cannot match at all, so the count was
+pinned at 200 − 51 = 149 no matter what the index returned. With <code>^[A-Z]+\t…</code> the answer is
+<strong>200/200</strong>: cartesian admits every decoy, which is what "keeps every combination" should mean.</p>
+<p><strong>The decoy set was defined circularly.</strong> It was "patterns the largest-<code>l</code> LINEAR index
+rejects" — a set defined by the behaviour of the very index whose precision it then measured,
+and by extension by B4. It is now defined against the genomes: sampled from the cartesian
+language, then filtered to those occurring <strong>zero</strong> times in all 294 materialised genomes per
+<code>occurrence_oracle.py</code>. Index-independent, and the oracle confirms 0/200 occur anywhere.</p>
+<p><strong><code>l</code> was never a precision knob.</strong> With sources actually applied at query time (B4 fixed), a
+LINEAR index admits <strong>0/200 decoys at every <code>l</code></strong>:</p>
+<table>
+<thead>
+<tr>
+<th>l</th>
+<th style="text-align: right;">3</th>
+<th style="text-align: right;">5</th>
+<th style="text-align: right;">9</th>
+<th style="text-align: right;">11</th>
+<th style="text-align: right;">14</th>
+<th style="text-align: right;">19</th>
+<th style="text-align: right;">29</th>
+<th style="text-align: right;">39</th>
+<th style="text-align: right;">59</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>linear, source-aware</strong></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td><strong>linear, sources withheld</strong></td>
+<td style="text-align: right;">157</td>
+<td style="text-align: right;">134</td>
+<td style="text-align: right;">95</td>
+<td style="text-align: right;">82</td>
+<td style="text-align: right;">63</td>
+<td style="text-align: right;">51</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">3</td>
+</tr>
+</tbody>
+</table>
+<p>The second row is the same l-EDS, the same index and the same patterns with <code>-z</code> withheld —
+i.e. §5's configuration. Its decay is not the index becoming more faithful as <code>l</code> grows; it is
+B4's cross product having fewer seams to leak through as merging absorbs the constraint.
+Whether a string is carried by a genome is a fact about the genomes, so a correct index cannot
+have <code>l</code>-dependent precision. It no longer does.</p>
+<p>(The absolute numbers differ from §5's row because the decoy set is now oracle-defined and the
+regex is fixed; the two rows are not comparable to §5's, only to each other.)</p>
+<p><strong>What survived §5 unchanged:</strong> the size, build-feasibility and timing columns, and recall at
+200/200. Phasing still widens the usable <code>l</code> range by more than 4× — now measured on both
+sides rather than inferred, since cartesian OOMs past <code>l=14</code> while linear reaches <code>l=59</code> at
+3.27 MB.</p>
+<p><strong>Source-awareness is not paid for in time.</strong> Over the same indexes, source-aware query cost is
+break-even on real patterns (1.03× and 0.97× at <code>l=3</code> and <code>l=5</code>, the only points above the
+timing resolution) and <strong>2–4× faster</strong> on decoys, because a branch whose path set empties is
+killed before the occurrences it would have produced are ever materialised.</p>
+<p>Full write-up: <code>~/Data/experiments/biofmi/notebooks/covid294_linear_evaluation.ipynb</code>,
+run <code>linear/2026-08-26_19-22-21</code>, spec <code>specs/linear.yaml</code>.</p>
+<hr />
+<h2 id="6-datasets">6. Datasets<a class="headerlink" href="#6-datasets" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>Source</th>
+<th>Built by</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>COVID-clade</strong></td>
+<td>per-clade MSAs (9–10 seqs, <code>ctx_avg</code> 268–1161)</td>
+<td><code>msa2eds</code></td>
+<td>high-<code>l</code> reach</td>
+</tr>
+<tr>
+<td><strong>COVID-294</strong></td>
+<td>all-clade MSA (294 seqs, <code>ctx_avg</code> 18.9)</td>
+<td><code>msa2eds</code></td>
+<td>dense variation, low <code>ctx_avg</code></td>
+</tr>
+<tr>
+<td><strong>COVID-ladder</strong></td>
+<td>nested subsets 25/50/100/200/294</td>
+<td><code>msa2eds</code></td>
+<td>paths axis, small genome</td>
+</tr>
+<tr>
+<td><strong>TB-p{100,500,1141}</strong> <code>_snv50</code></td>
+<td>NCBI assemblies → minimap2/paftools</td>
+<td><code>vcf2eds</code></td>
+<td>scale axis, real panel sizes</td>
+</tr>
+<tr>
+<td><strong>TB-p{100,500}</strong> unfiltered</td>
+<td>as above, no allele filter</td>
+<td><code>vcf2eds</code></td>
+<td>structural-variation contrast</td>
+</tr>
+</tbody>
+</table>
+<p>The two organisms are complementary and the contrast is deliberate:</p>
+<ul>
+<li><strong>COVID reaches high <code>l</code></strong> (30 kb genome, low ceiling) but is small.</li>
+<li><strong>TB reaches large panels</strong> (1141 isolates) but caps out at low <code>l</code>.</li>
+<li><strong>They use different converters.</strong> <code>msa2eds</code> avoids TODO §1a entirely (the <code>vcf2eds</code>
+  long-indel group blowup), so agreement between them separates <em>l-EDS</em> behaviour from
+  <em>converter</em> artefacts. This is what makes H1 testable rather than a story about one dataset.</li>
+</ul>
+<p>TB data lives on the server that built it (<code>~/raid_storage/Data/tb</code>); <strong>it is not on this
+machine</strong>. COVID data is local.</p>
+<hr />
+<h2 id="7-experiments">7. Experiments<a class="headerlink" href="#7-experiments" title="Permanent link">&para;</a></h2>
+<p>Throughout: <code>|P| = 120</code> anchor, <code>l ∈ {3,5,9,11,14,19,29,39,59}</code> (all divide 120), one
+<strong>shared, seeded, source-aware</strong> pattern set per dataset reused across every <code>l</code>.</p>
+<h3 id="e1-query-time-vs-l-the-primary-result">E1 — Query time vs <code>l</code> <em>(the primary result)</em><a class="headerlink" href="#e1-query-time-vs-l-the-primary-result" title="Permanent link">&para;</a></h3>
+<p>Fixed <code>|P| = 120</code>; sweep <code>l</code>; per dataset. Report median and p95 per-pattern latency, plus
+index size on the same axis, as a space/time trade-off curve.
+<em>Pilot says:</em> 274× on COVID-294 — but that pilot used the pre-fix cartesian pattern set
+and must be re-run with a seeded source-aware one. <em>Gated by B4.</em></p>
+<h3 id="e2-query-time-vs-pattern-length">E2 — Query time vs pattern length<a class="headerlink" href="#e2-query-time-vs-pattern-length" title="Permanent link">&para;</a></h3>
+<p>Fixed <code>l ∈ {9, 19}</code>; sweep <code>|P| ∈ {20,40,60,80,100,120,160,200}</code> (multiples of 10 and 20
+respectively). Establishes whether cost is linear in <code>|P|/(l+1)</code> as the chunking implies.</p>
+<h3 id="e3-query-composition">E3 — Query composition<a class="headerlink" href="#e3-query-composition" title="Permanent link">&para;</a></h3>
+<p>At fixed <code>l = 19</code>, <code>|P| = 120</code>, stratify the pattern set into: (a) pure-reference,
+(b) crossing exactly one degenerate set, (c) crossing ≥ 2, (d) <strong>negative controls</strong> (random
+strings, absent). FM-index negative queries terminate early, so mixing them into E1 without
+labelling them is misleading. This is the experiment that shows what the dual-index design
+actually costs when a match spans variation.</p>
+<h3 id="e4-build-cost-and-the-feasibility-frontier-tests-h1">E4 — Build cost and the feasibility frontier <em>(tests H1)</em><a class="headerlink" href="#e4-build-cost-and-the-feasibility-frontier-tests-h1" title="Permanent link">&para;</a></h3>
+<p>Sweep <code>panel × l</code> per dataset, recording l-EDS size, merge peak RSS, runtime, iterations,
+<code>ctx_avg</code>, index size and build time, under a hard <code>MemoryMax</code> so a blow-up is a logged
+failure. Plot the reachable region; overlay contours of <code>l/ctx_avg</code> and of
+<code>num_paths × genome_length</code>. <strong>H1 predicts the ceiling explains the frontier and the ratio
+does not.</strong> Deliverable: a figure that tells a user which <code>l</code> they can afford.</p>
+<h3 id="e5-linear-vs-cartesian-merge-measured-see-5">E5 — LINEAR vs CARTESIAN merge <em>(measured — see §5)</em><a class="headerlink" href="#e5-linear-vs-cartesian-merge-measured-see-5" title="Permanent link">&para;</a></h3>
+<p>The same transform with and without source information: CARTESIAN keeps every combination
+of adjacent alternatives, LINEAR keeps only those some path carries. Sweep both across <code>l</code>,
+measuring l-EDS size, index size, build feasibility, query time, and — via the decoy set —
+query <em>precision</em>. Harness: <code>~/Data/experiments/biofmi/specs/merge_mode.yaml</code>, run with
+<code>~/Data/experiments/biofmi/run.sh merge_mode</code>.</p>
+<h3 id="e6-baseline-comparison-scope-open-see-9">E6 — Baseline comparison <em>(scope open — see §9)</em><a class="headerlink" href="#e6-baseline-comparison-scope-open-see-9" title="Permanent link">&para;</a></h3>
+<hr />
+<h2 id="8-metrics-and-protocol">8. Metrics and protocol<a class="headerlink" href="#8-metrics-and-protocol" title="Permanent link">&para;</a></h2>
+<p>Per run record: wall-clock, peak RSS (<code>/usr/bin/time -v</code>), output sizes per index component
+(<code>.ri</code>, <code>.ci</code>, <code>.loc</code>/<code>.iloc</code>/<code>.tloc</code>, <code>.abp</code>/<code>.ss</code>/<code>.aof</code>), <code>ctx_min</code>/<code>ctx_avg</code>, merge
+iterations, occurrence and entry counts.</p>
+<p>Rules, several of which the pilot shows are not optional:</p>
+<ol>
+<li><strong>One pattern set per dataset</strong>, seeded, reused across all <code>l</code>. Regenerating per <code>l</code>
+   compares different queries.</li>
+<li><strong>Report entries and distinct positions separately.</strong> <code>count()</code> returns paths, not
+   positions; the pilot shows these diverge by 100× at large <code>l</code>.</li>
+<li><strong>Report negative queries separately</strong> (E3).</li>
+<li><strong>Timings from ≥ 10 repetitions</strong>, median + p95, warm cache, after a discarded warmup —
+   the pilot's single-shot numbers are indicative only.</li>
+<li><strong>Record the binary stamp.</strong> <code>--version</code> now emits <code>COMMIT</code>/<code>COMMIT_DATE</code>/<code>DIRTY</code>; refuse
+   to publish any run whose <code>DIRTY=1</code>. This is not bureaucracy: an installed <code>eds2leds</code>
+   predating 2026-08-04 silently emits l-EDS containing strings no genome carries, and a
+   whole sweep has already been lost to exactly that.</li>
+<li><strong>Document the machine.</strong> TODO §3a — still open, still the cheapest unblocker.</li>
+</ol>
+<hr />
+<h2 id="9-open-decisions">9. Open decisions<a class="headerlink" href="#9-open-decisions" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Baseline.</strong> No comparison against any other tool exists anywhere in either repo. Without
+   one the results characterise BIO-FMI but do not position it. This is the largest remaining
+   gap and needs a decision on candidates and scope.</li>
+<li><strong>Position semantics (B3)</strong> — map back to genome coordinates, or publish counts/timings
+   only and document the limitation?</li>
+<li><strong>TB unfiltered arm.</strong> TODO §1a is a correctness question as well as a size one (a sample
+   with ALTs at two variants in one group is recorded in both single-variant strings). Include
+   as a documented contrast, or exclude pending the fix?</li>
+<li><strong>Venue and deadline</strong>, which determine how much of §8.1 is affordable.</li>
+</ol>
+<hr />
+<h2 id="10-execution-order">10. Execution order<a class="headerlink" href="#10-execution-order" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Step</th>
+<th>Blocked by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>~~Fix <code>genpatterns</code>: <code>--seed</code> + source-aware sampling~~ <strong>done</strong> (<code>3faa4cb</code>)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Extend <code>test_locate_correctness</code> to large <code>l</code>; root-cause B4</td>
+<td>—</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Pilot E1/E2/E3 on local COVID; freeze the harness</td>
+<td>2</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Port the harness to the TB server; rebuild + verify stamps</td>
+<td>3</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Full E1–E4 sweep, both organisms</td>
+<td>4</td>
+</tr>
+<tr>
+<td>6</td>
+<td>E6 baseline</td>
+<td>§9.1</td>
+</tr>
+</tbody>
+</table>
+<p>Steps 1–3 are local, need no server, and are where the remaining correctness risk lives.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

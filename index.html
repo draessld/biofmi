@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
@@ -751,7 +751,7 @@
 <h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>l-EDS</strong>: every <em>internal</em> non-degenerate segment (flanked by degenerate symbols on both sides) must have length ≥ <code>l</code>. Boundary segments at the start/end of the EDS may be shorter.</li>
-<li><strong>Pattern length</strong>: must be a positive multiple of <code>l+1</code>. Shorter or non-multiple lengths throw.</li>
+<li><strong>Pattern length</strong>: must be at least <code>l+1</code>. Shorter patterns throw; non-multiples are fine — the remainder is searched as a short final chunk.</li>
 </ul>
 <h3 id="typical-workflow">Typical workflow<a class="headerlink" href="#typical-workflow" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># 1. Generate or bring an EDS</span>
@@ -764,7 +764,7 @@
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>biofmi-build<span class="w"> </span>-i<span class="w"> </span>data.l5.leds<span class="w"> </span>-l<span class="w"> </span><span class="m">5</span><span class="w"> </span>-o<span class="w"> </span>data.l5.index
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># 4. Query</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l5.index<span class="w"> </span>-l<span class="w"> </span><span class="m">5</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;ACGTACGTACGT&quot;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l5.index<span class="w"> </span>-l<span class="w"> </span><span class="m">5</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">"ACGTACGTACGT"</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l5.index<span class="w"> </span>-l<span class="w"> </span><span class="m">5</span><span class="w"> </span>-P<span class="w"> </span>patterns.txt
 </code></pre></div>
 <h3 id="key-constraint-chunk-size-l1">Key constraint: chunk size = <code>l+1</code><a class="headerlink" href="#key-constraint-chunk-size-l1" title="Permanent link">&para;</a></h3>
@@ -827,7 +827,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

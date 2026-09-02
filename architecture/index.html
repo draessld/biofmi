@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -898,11 +898,11 @@
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>      ▼
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  EDS object  ──┐
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>                │  parse_eds()
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                ├──► reference.txt   &quot;#seg0#seg1#seg2#...&quot;
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>                │    + tloc bit vector (1 at each &#39;#&#39;)
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                ├──► reference.txt   "#seg0#seg1#seg2#..."
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>                │    + tloc bit vector (1 at each '#')
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>                │
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>                └──► changes.txt    &quot;#[ctx_L][alt][ctx_R]#...&quot;
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>                     + loc bit vector  (1 at end of each alt&#39;s content)
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>                └──► changes.txt    "#[ctx_L][alt][ctx_R]#..."
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>                     + loc bit vector  (1 at end of each alt's content)
 <a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>                     + iloc bit vector (1 at last alt of each set)
 <a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>                     + base_positions[], set_sizes[], offsets[]
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
@@ -910,7 +910,7 @@
 <a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>  changes.txt    ──► SDSL construct() ──► csa_wt&lt;&gt; (in memory, saved as .ci)
 </code></pre></div>
 <h3 id="query-phase">Query phase<a class="headerlink" href="#query-phase" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>  pattern string  (length must be a multiple of l+1)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>  pattern string  (length must be at least l+1; need not be a multiple)
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>      │
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>      │  locate(pattern)
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>      ▼
@@ -1119,7 +1119,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

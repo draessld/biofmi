@@ -2,22 +2,26 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://draessld.github.io/biofmi/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-09-02</lastmod>
     </url>
     <url>
          <loc>https://draessld.github.io/biofmi/architecture/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-09-02</lastmod>
+    </url>
+    <url>
+         <loc>https://draessld.github.io/biofmi/experiment_design/</loc>
+         <lastmod>2026-09-02</lastmod>
     </url>
     <url>
          <loc>https://draessld.github.io/biofmi/file_formats/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-09-02</lastmod>
     </url>
     <url>
          <loc>https://draessld.github.io/biofmi/index_internals/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-09-02</lastmod>
     </url>
     <url>
          <loc>https://draessld.github.io/biofmi/locate_spec/</loc>
-         <lastmod>2026-06-10</lastmod>
+         <lastmod>2026-09-02</lastmod>
     </url>
 </urlset>

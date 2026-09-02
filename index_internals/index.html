@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1059,7 +1059,7 @@
 </ul>
 <p>Boundary handling: when the EDS starts with a degenerate symbol, <code>context_left</code> is initialised to <code>l</code> separator characters so that every entry in the changes string has exactly <code>l</code> context chars on the left.</p>
 <p>Example — <code>AAATTT{G,C}AAATTT</code>, l=3:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>changes_text = &quot;#TTTGAAA#TTTCAAA#&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>changes_text = "#TTTGAAA#TTTCAAA#"
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>loc_ones     = [0, 8, 16]
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>iloc_ones    = [0, 16]
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>base_positions = [6, 12]
@@ -1138,7 +1138,7 @@
 <hr />
 <h2 id="4-locatepattern">4. <code>locate(pattern)</code><a class="headerlink" href="#4-locatepattern" title="Permanent link">&para;</a></h2>
 <h3 id="41-preconditions">4.1 Preconditions<a class="headerlink" href="#41-preconditions" title="Permanent link">&para;</a></h3>
-<p><code>len(pattern)</code> must be a positive multiple of <code>l+1</code>. If not, a <code>std::runtime_error</code> is thrown. Patterns shorter than <code>l+1</code> or with <code>len % (l+1) != 0</code> are rejected.</p>
+<p><code>len(pattern)</code> must be at least <code>l+1</code>; shorter patterns raise <code>std::runtime_error</code>. It need not be a multiple of <code>l+1</code> — the <code>r = len % (l+1)</code> tail is searched as a short final chunk (see <code>docs/locate_spec.md</code> § Pattern validity for the invariant that makes short chunks safe).</p>
 <h3 id="42-chunk-based-hash-map-propagation">4.2 Chunk-based hash-map propagation<a class="headerlink" href="#42-chunk-based-hash-map-propagation" title="Permanent link">&para;</a></h3>
 <p>The pattern is split into <code>num_chunks = len(pattern) / (l+1)</code> consecutive non-overlapping chunks of length <code>l+1</code> each.</p>
 <p>Two hash maps alternate as "previous" and "current" slots:</p>
@@ -1240,7 +1240,7 @@
 <h2 id="6-worked-example">6. Worked example<a class="headerlink" href="#6-worked-example" title="Permanent link">&para;</a></h2>
 <p><strong>EDS</strong>: <code>AAATTT{G,C}AAATTT</code>, <code>l=3</code> (chunk_size = 4).
 <strong>Pattern</strong>: <code>"TTTGAAAT"</code> (length 8, 2 chunks).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>changes_text  = &quot;#TTTGAAA#TTTCAAA#&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>changes_text  = "#TTTGAAA#TTTCAAA#"
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>base_positions = [6, 12]
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>offsets        = [1, 1]      (G and C each have length 1)
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>loc_ones       = [0, 8, 16]
@@ -1331,7 +1331,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
