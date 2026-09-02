@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://draessld.github.io/biofmi/locate_spec/">
+        <link rel="canonical" href="https://draessld.github.io/biofmi/cli/">
       
       
-        <link rel="prev" href="../cli/">
+        <link rel="prev" href="../experiments/">
       
       
-        <link rel="next" href="../file_formats/">
+        <link rel="next" href="../locate_spec/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>locate() specification - BioFMI</title>
+        <title>CLI reference - BioFMI</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#biofmi-locate-behavioural-specification" class="md-skip">
+        <a href="#command-line-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              locate() specification
+              CLI reference
             
           </span>
         </div>
@@ -264,7 +264,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../cli/" class="md-tabs__link">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -628,34 +628,6 @@
                 
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CLI reference
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -675,7 +647,7 @@
   <span class="md-ellipsis">
     
   
-    locate() specification
+    CLI reference
   
 
     
@@ -693,7 +665,7 @@
   <span class="md-ellipsis">
     
   
-    locate() specification
+    CLI reference
   
 
     
@@ -719,55 +691,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
+  <a href="#biofmi-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context
+        biofmi-build
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#definitions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Definitions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Definitions">
+    <nav class="md-nav" aria-label="biofmi-build">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#reference-string-t0" class="md-nav__link">
+  <a href="#the-l-eds-check" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reference string T₀
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#change-numbering" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Change numbering
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#match-position" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Match position
+        The l-EDS check
       
     </span>
   </a>
@@ -780,21 +719,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#result-type" class="md-nav__link">
+  <a href="#biofmi-locate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Result type
+        biofmi-locate
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="biofmi-locate">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-and-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input and output
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#search-modes-what-counts-as-a-valid-path" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#source-aware-search" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search modes: what counts as a "valid path"
+        Source-aware search
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measurement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output format
       
     </span>
   </a>
@@ -810,113 +788,13 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Pattern validity">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cost-prefer-p-a-multiple-of-l1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cost: prefer |P| a multiple of l+1
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#summary-of-accepted-input" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary of accepted input
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
-  <a href="#worked-examples" class="md-nav__link">
+  <a href="#exit-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Worked examples
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Worked examples">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#single-chunk-patterns-length-4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Single-chunk patterns (length 4)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#two-chunk-patterns-length-8" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two-chunk patterns (length 8)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#second-eds-example-agctatacggttacc-l3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Second EDS example: AGCT{A,TAC}GGT{T,A}CC, l=3
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#locate-behaviour" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        locate() behaviour
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#count-behaviour" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        count() behaviour
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#future-improvements-out-of-scope-for-now" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Future improvements (out of scope for now)
+        Exit codes
       
     </span>
   </a>
@@ -927,6 +805,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../locate_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    locate() specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1200,55 +1106,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
+  <a href="#biofmi-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context
+        biofmi-build
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#definitions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Definitions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Definitions">
+    <nav class="md-nav" aria-label="biofmi-build">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#reference-string-t0" class="md-nav__link">
+  <a href="#the-l-eds-check" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reference string T₀
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#change-numbering" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Change numbering
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#match-position" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Match position
+        The l-EDS check
       
     </span>
   </a>
@@ -1261,21 +1134,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#result-type" class="md-nav__link">
+  <a href="#biofmi-locate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Result type
+        biofmi-locate
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="biofmi-locate">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-and-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input and output
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#search-modes-what-counts-as-a-valid-path" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#source-aware-search" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search modes: what counts as a "valid path"
+        Source-aware search
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measurement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output format
       
     </span>
   </a>
@@ -1291,113 +1203,13 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Pattern validity">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cost-prefer-p-a-multiple-of-l1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cost: prefer |P| a multiple of l+1
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#summary-of-accepted-input" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary of accepted input
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
-  <a href="#worked-examples" class="md-nav__link">
+  <a href="#exit-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Worked examples
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Worked examples">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#single-chunk-patterns-length-4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Single-chunk patterns (length 4)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#two-chunk-patterns-length-8" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two-chunk patterns (length 8)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#second-eds-example-agctatacggttacc-l3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Second EDS example: AGCT{A,TAC}GGT{T,A}CC, l=3
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#locate-behaviour" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        locate() behaviour
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#count-behaviour" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        count() behaviour
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#future-improvements-out-of-scope-for-now" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Future improvements (out of scope for now)
+        Exit codes
       
     </span>
   </a>
@@ -1421,7 +1233,7 @@
 
 
   
-    <a href="https://github.com/draessld/biofmi/edit/main/docs/locate_spec.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/draessld/biofmi/edit/main/docs/cli.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1429,334 +1241,309 @@
   
 
 
-<h1 id="biofmi-locate-behavioural-specification">BioFMI <code>locate()</code> — Behavioural Specification<a class="headerlink" href="#biofmi-locate-behavioural-specification" title="Permanent link">&para;</a></h1>
-<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>This document defines the expected behaviour of <code>BioFMI::locate()</code> and <code>BioFMI::count()</code>. It serves as the ground truth for writing correctness tests.</p>
+<h1 id="command-line-reference">Command-line reference<a class="headerlink" href="#command-line-reference" title="Permanent link">&para;</a></h1>
+<p>Two tools: <code>biofmi-build</code> turns an l-EDS into an index, <code>biofmi-locate</code> queries
+it. Both live in <code>build/tools/</code> after a build, and both print a
+<code>[Performance] Runtime / Peak Memory</code> line to stderr when they finish.</p>
 <hr />
-<h2 id="definitions">Definitions<a class="headerlink" href="#definitions" title="Permanent link">&para;</a></h2>
-<h3 id="reference-string-t0">Reference string T₀<a class="headerlink" href="#reference-string-t0" title="Permanent link">&para;</a></h3>
-<p>Concatenation of all non-degenerate symbols in the EDS, in order. 0-based indexed.</p>
-<h3 id="change-numbering">Change numbering<a class="headerlink" href="#change-numbering" title="Permanent link">&para;</a></h3>
-<p>Changes are numbered <strong>0-based globally</strong> across all alternatives of all degenerate sets, in the order they appear in the EDS.</p>
-<p>Example: <code>AGCT{A,TAC}GGT{T,A}CC</code>
-- change 0 = <code>A</code>    (alternative 0 of set 0)
-- change 1 = <code>TAC</code>  (alternative 1 of set 0)
-- change 2 = <code>T</code>    (alternative 0 of set 1)
-- change 3 = <code>A</code>    (alternative 1 of set 1)</p>
-<h3 id="match-position">Match position<a class="headerlink" href="#match-position" title="Permanent link">&para;</a></h3>
-<p>The <strong>0-based start position</strong> of the match, defined as:</p>
-<ul>
-<li><strong>Match starts in reference</strong>: 0-based index in T₀ where the first character of the pattern appears.</li>
-<li><strong>Match starts inside a degenerate alternative</strong>: <code>base_position_of_set + offset_within_alternative</code>, where <code>base_position_of_set</code> = total length of all non-degenerate characters before that set in T₀ (equivalently, the number of T₀ characters before the set begins).</li>
-</ul>
-<hr />
-<h2 id="result-type">Result type<a class="headerlink" href="#result-type" title="Permanent link">&para;</a></h2>
-<p><code>locate()</code> returns a list of entries. Each entry is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>(position: int, changes: list[int], paths: PathSet)
+<h2 id="biofmi-build"><code>biofmi-build</code><a class="headerlink" href="#biofmi-build" title="Permanent link">&para;</a></h2>
+<p>Builds the dual FM-index from an l-EDS file.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>biofmi-build<span class="w"> </span>-i<span class="w"> </span>data.l9.leds<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-o<span class="w"> </span>data.l9.index
 </code></pre></div>
-<ul>
-<li><code>position</code> — start position as defined above (0-based)</li>
-<li><code>changes</code> — ordered list of 0-based change indices that the match passes through (empty if the match is entirely within the reference)</li>
-<li><code>paths</code> — the genomes carrying this occurrence. <strong>Complement-encoded</strong>: <code>{0}</code> is every path, <code>{0,5}</code> is every path except 5, <code>{3,7}</code> is exactly 3 and 7. Use <code>BioFMI::expand_paths()</code> to resolve it to explicit ascending 1-based ids rather than iterating it, or roughly half of all values read as their own opposite. Meaningful only in LINEAR mode — see Search modes.</li>
-</ul>
-<p><strong>One entry per valid path through the EDS.</strong> If two paths produce the same start position but traverse different changes, they appear as two separate entries. Result order is undefined.</p>
-<p><strong>A zero-length alternative counts as traversed.</strong> If a match spans a degenerate symbol whose chosen alternative is empty, that alternative appears in <code>changes</code> even though it contributes no character to the matched text. The occurrence exists only on the path that chose it — any other alternative of that symbol would insert characters and break the match — so it is a genuine part of the path. This matters for correctness, not only bookkeeping: <code>changes</code> drives the source-set intersection, so omitting an empty alternative would credit the match to genomes that took a different one.</p>
-<p>A consequence worth stating, because it is easy to assume otherwise: two reference blocks separated by a symbol with an empty alternative are <strong>adjacent</strong> along that path, and a match may run from one into the next without touching any change character.</p>
-<p><strong>A symbol may offer more than one empty alternative</strong>, and each is its own occurrence. <code>{ATG,,}</code> is legal EDS: the second and third alternatives spell the same (empty) text but are distinct alternatives with distinct source sets, so a match crossing that symbol is reported once per empty alternative, differing only in <code>changes</code>. Collapsing them to the first is a recall bug, not a deduplication — under LINEAR the genomes carrying the two are generally different.</p>
-<hr />
-<h2 id="search-modes-what-counts-as-a-valid-path">Search modes: what counts as a "valid path"<a class="headerlink" href="#search-modes-what-counts-as-a-valid-path" title="Permanent link">&para;</a></h2>
-<p><code>locate()</code> has two modes, selected by whether source (haplotype) sets are attached with <code>BioFMI::attach_sources()</code> — <code>biofmi-locate -s &lt;file&gt;</code> or <code>-z &lt;file&gt;</code>.</p>
 <table>
 <thead>
 <tr>
-<th>mode</th>
-<th>condition</th>
-<th>a path is valid when</th>
+<th>Flag</th>
+<th>Argument</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>CARTESIAN</strong></td>
-<td>no sources attached (default)</td>
-<td>its alternatives are adjacent in the EDS</td>
+<td><code>-i</code>, <code>--input</code></td>
+<td>path</td>
+<td>Input <strong>l-EDS</strong> file. Must already satisfy the l-EDS constraint — see below.</td>
 </tr>
 <tr>
-<td><strong>LINEAR</strong></td>
-<td>sources attached</td>
-<td>additionally, <em>some genome carries all of them</em></td>
+<td><code>-o</code>, <code>--output</code></td>
+<td>path</td>
+<td>Output index <strong>directory</strong>. Created if absent.</td>
+</tr>
+<tr>
+<td><code>-l</code>, <code>--context-length</code></td>
+<td>integer</td>
+<td>Context length <code>l</code>. Minimum 3. Must match the <code>l</code> the l-EDS was merged at, and the <code>l</code> used at query time.</td>
+</tr>
+<tr>
+<td><code>--dump</code></td>
+<td>—</td>
+<td>Also write <code>&lt;output&gt;/index.dump.txt</code>, a human-readable dump of the internal arrays. Useful for debugging, large on real data.</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>—</td>
+<td>Show help.</td>
 </tr>
 </tbody>
 </table>
-<p>CARTESIAN pairs every alternative of one degenerate symbol with every alternative of the next. That is the correct semantics for an l-EDS merged <strong>without</strong> sources, where the cartesian product is the intended language. On an l-EDS merged <strong>with</strong> sources it over-reports, because the panel contains only the combinations some genome carries — this was issue B4 (see <code>CLAUDE.md</code>), and on COVID-294 it reached a 201× over-report.</p>
-<p>In LINEAR mode each candidate carries a running intersection of the source sets of every alternative it has traversed, and the branch is dropped as soon as that intersection is empty. That surviving intersection <strong>is</strong> the set of genomes carrying the occurrence, and it is reported as <code>Occurrence::paths</code> — it costs nothing extra, having already been computed and tested during the search. Validated against <code>occurrence_oracle.py</code> on COVID-294: for all 200 patterns the reported sample sets equal the genomes containing them exactly, with no false positives and no false negatives.</p>
-<p>In CARTESIAN mode nothing is ever intersected, so every set is <code>{0}</code>. That means "nothing ruled any path out", not "the occurrence was shown to lie on all of them" — <code>expand_paths()</code> returns empty there rather than naming genomes the index has no basis to name.</p>
-<p>Two further consequences, because both are easy to get wrong:</p>
+<h3 id="the-l-eds-check">The l-EDS check<a class="headerlink" href="#the-l-eds-check" title="Permanent link">&para;</a></h3>
+<p>Before building, <code>biofmi-build</code> verifies that every <strong>internal</strong> non-degenerate
+segment — one with a degenerate symbol on both sides — is at least <code>l</code>
+characters long. Boundary segments at the very start or end of the EDS may be
+shorter and are handled correctly.</p>
+<p>A file that fails this is rejected rather than indexed, because the chunked
+search depends on it: a chunk of <code>l+1</code> characters must never be able to span two
+degenerate symbols.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>l</code> must agree in three places</p>
+<p>The <code>l</code> given to <code>eds2leds</code>, the <code>l</code> given to <code>biofmi-build</code>, and the <code>l</code>
+given to <code>biofmi-locate</code> must be the same number. Nothing checks this for
+you across tool invocations, and a mismatch produces wrong answers rather
+than an error.</p>
+</div>
+<hr />
+<h2 id="biofmi-locate"><code>biofmi-locate</code><a class="headerlink" href="#biofmi-locate" title="Permanent link">&para;</a></h2>
+<p>Queries an index. Reports one entry per valid path through the EDS.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-p<span class="w"> </span>ACGTACGTACGT
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-P<span class="w"> </span>patterns.txt<span class="w"> </span>-o<span class="w"> </span>hits.txt
+</code></pre></div>
+<h3 id="input-and-output">Input and output<a class="headerlink" href="#input-and-output" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i</code>, <code>--index</code></td>
+<td>path</td>
+<td>Index directory produced by <code>biofmi-build</code>.</td>
+</tr>
+<tr>
+<td><code>-l</code>, <code>--context-length</code></td>
+<td>integer</td>
+<td>Must match the build.</td>
+</tr>
+<tr>
+<td><code>-p</code>, <code>--pattern</code></td>
+<td>string</td>
+<td>A single pattern.</td>
+</tr>
+<tr>
+<td><code>-P</code>, <code>--pattern-file</code></td>
+<td>path</td>
+<td>A file of patterns, one per line. Mutually useful with <code>-p</code>; use one or the other.</td>
+</tr>
+<tr>
+<td><code>-o</code>, <code>--output</code></td>
+<td>path</td>
+<td>Write results here instead of stdout. <code>-o /dev/null</code> discards them, which matters when a pattern set is megabytes.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="source-aware-search">Source-aware search<a class="headerlink" href="#source-aware-search" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-s</code>, <code>--seds</code></td>
+<td>path</td>
+<td>Source file of the indexed l-EDS (<code>.seds</code> or <code>.edz</code>; format auto-detected). Switches the search to <strong>LINEAR</strong> — a match must lie on a single path through the panel.</td>
+</tr>
+<tr>
+<td><code>-z</code>, <code>--edz</code></td>
+<td>path</td>
+<td>Same, but forces binary EDZ parsing regardless of extension. Mutually exclusive with <code>-s</code>.</td>
+</tr>
+<tr>
+<td><code>--samples</code></td>
+<td>—</td>
+<td>List the genome ids carrying each occurrence rather than just their count. Requires <code>-s</code> or <code>-z</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Without <code>-s</code>/<code>-z</code> the search is <strong>CARTESIAN</strong> and pairs every alternative of one
+degenerate symbol with every alternative of the next. On an l-EDS that was
+merged with sources this over-reports. See
+<a href="../search_modes/">Search modes</a> for what that means and when it matters.</p>
+<h3 id="measurement">Measurement<a class="headerlink" href="#measurement" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--benchmark</code></td>
+<td>—</td>
+<td>Report timing and counts rather than the occurrences themselves.</td>
+</tr>
+<tr>
+<td><code>--chunk-stats</code></td>
+<td>path</td>
+<td>Write a per-chunk cost trace to this CSV and print per-chunk aggregates on stderr. Implies <code>--benchmark</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><code>--chunk-stats</code> exists because a query time on its own conflates two unrelated
+quantities. <code>locate()</code> splits a pattern into <code>l+1</code>-character chunks and returns
+the moment the candidate set empties, so</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>query time  ≈  (cost of one chunk)  ×  (chunks the pattern survived)
+</code></pre></div>
+<p>and the second factor is a property of the <em>pattern set</em>, not of the index. A
+random 1000-mer that dies after 1.15 chunks out of 100 looks 42× faster than a
+real one while nothing about the index is faster at all.</p>
+<p>The CSV carries one row per chunk:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pattern_id, chunk_idx, time_us, ref_hits, chg_hits, cand_in, cand_out
+</code></pre></div>
+<p>and stderr carries the aggregates, all computed over chunks <strong>actually
+executed</strong> rather than chunks planned:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>us_per_chunk</code></td>
+<td>Time for one chunk — the quantity of interest</td>
+</tr>
+<tr>
+<td><code>hits_per_chunk</code></td>
+<td>Raw <code>sdsl::locate()</code> hits, before the stitch is checked</td>
+</tr>
+<tr>
+<td><code>candidates_per_chunk</code></td>
+<td>What survived the continuity check</td>
+</tr>
+<tr>
+<td><code>chunks_per_pattern</code></td>
+<td>How far a pattern got before its candidates died</td>
+</tr>
+<tr>
+<td><code>chunk_completion</code></td>
+<td>chunks searched / chunks planned — the early exit</td>
+</tr>
+<tr>
+<td><code>us_per_pattern</code></td>
+<td>Timed inside the process, so index load is excluded</td>
+</tr>
+</tbody>
+</table>
+<p>The per-chunk timer costs two clock reads per chunk (~3% at typical sizes),
+which is why it is opt-in rather than part of the plain <code>--benchmark</code> path.</p>
+<hr />
+<h2 id="output-format">Output format<a class="headerlink" href="#output-format" title="Permanent link">&para;</a></h2>
+<p>Human-readable output groups occurrences under each pattern:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Pattern: ACCCGCAATTCTGCTAACAATG...
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>10716[ 2345 2348 2350 2352 2356 ] samples=8
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>Pattern: TTGTTAAATTTATCTCAACCTG...
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>No occurrences found
+</code></pre></div>
+<p>Each result line is <code>position[ changes ]</code>, optionally followed by <code>samples=N</code>:</p>
 <ul>
-<li>The check is an <strong>accumulation over the whole match</strong>, not a pairwise test at each stitch. Non-empty intersection is not transitive: <code>{1,2} ∩ {2,3} ≠ ∅</code> and <code>{2,3} ∩ {3,4} ≠ ∅</code>, yet <code>{1,2} ∩ {2,3} ∩ {3,4} = ∅</code>. Validating only adjacent pairs admits matches no genome carries.</li>
-<li>LINEAR results are always a <strong>subset</strong> of CARTESIAN results on the same index. Attaching sources never invents a match; it only removes ones no path carries. Recall is therefore unaffected.</li>
+<li><strong>position</strong> — 0-based. A T₀ index when the match starts in the reference;
+  <code>base_position_of_set + offset_within_alternative</code> when it starts inside a
+  degenerate alternative.</li>
+<li><strong>changes</strong> — the 0-based global alternative indices the match passes
+  through, in order. Empty for a match lying entirely in the reference.</li>
+<li><strong>samples</strong> — how many genomes carry this occurrence. Shown only in LINEAR
+  mode; <code>--samples</code> replaces the count with the ids themselves.</li>
 </ul>
-<p><strong>Entry counts are not occurrence counts in either mode.</strong> An entry is one path through a <em>representation</em>, and merging changes the path structure, so the count varies with <code>l</code> even when nothing about the genomes has changed. In LINEAR mode the count is bounded above by the true <code>(genome, offset)</code> occurrence count and approaches it from below as <code>l</code> grows (genomes that agree across the whole window collapse onto one entry); in CARTESIAN mode it is not bounded by anything about the genomes. <code>experiments/occurrence_oracle.py</code> computes the true count from the alignment, and <code>compare_locate_oracle.py</code> gates a run on it.</p>
+<p>Under <code>--benchmark</code>, output is instead <code>&lt;pattern&gt;\t&lt;count&gt;</code> per line, with
+summary counts on stderr (<code>Total patterns</code>, <code>Patterns matched</code>,
+<code>Total occurrences</code>).</p>
+<div class="admonition info">
+<p class="admonition-title"><code>count()</code> counts paths, not positions</p>
+<p>Two paths that spell the same text at the same position are two entries. A
+count and a number of distinct positions are different quantities, and on
+real data they diverge by orders of magnitude at large <code>l</code>.</p>
+</div>
 <hr />
 <h2 id="pattern-validity">Pattern validity<a class="headerlink" href="#pattern-validity" title="Permanent link">&para;</a></h2>
-<p><code>|P|</code> must be <strong>at least <code>l+1</code></strong>. Shorter patterns throw — one full chunk is the minimum
-unit the search works in.</p>
-<p><code>|P|</code> need <strong>not</strong> be a multiple of <code>l+1</code>. The <code>r = |P| mod (l+1)</code> characters left over
-after the full chunks are searched as a short final chunk.</p>
-<p>That short chunk is where the one non-obvious invariant lives. A changes-index entry is
-<code>left_ctx(l) + alt + right_ctx(l) + '#'</code>, and a chunk of <code>l+1</code> characters <strong>cannot fit
-inside either flank</strong> — which is precisely why the chunk size is <code>l+1</code>. Every changes hit
-from a full chunk is therefore guaranteed to touch the alternative. A shorter tail chunk
-breaks that guarantee: it can match entirely within the context, which replicates
-<em>reference</em> text, and would then be credited with an alternative the match never
-traverses. <code>process_changes_matches()</code> rejects hits that do not overlap the alternative
-content for exactly this reason.</p>
-<h3 id="cost-prefer-p-a-multiple-of-l1">Cost: prefer <code>|P|</code> a multiple of <code>l+1</code><a class="headerlink" href="#cost-prefer-p-a-multiple-of-l1" title="Permanent link">&para;</a></h3>
-<p>Supporting an arbitrary length is not the same as it being cheap. A tail of <code>r</code> characters
-has only <code>|alphabet|^r</code> distinct values, so the shorter it is, the less selective its
-lookup — and the cost of the <em>whole query</em> is dominated by it. Measured on an 8 MB panel
-at <code>l=9</code>, 20 patterns, varying only <code>|P|</code>:</p>
+<p>A pattern must be at least <code>l+1</code> characters. Shorter throws.</p>
+<p>It need <strong>not</strong> be a multiple of <code>l+1</code> — the remainder is searched as a short
+final chunk — but a short tail is far less selective than a full chunk, so cost
+rises steeply as the remainder shrinks. Measured on an 8 MB panel at <code>l=9</code>,
+varying only <code>|P|</code>:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: right;">|P|</th>
-<th style="text-align: right;">r</th>
+<th style="text-align: right;"><code>r = |P| mod (l+1)</code></th>
 <th style="text-align: right;">per pattern</th>
-<th style="text-align: right;">vs <code>r=0</code></th>
+<th style="text-align: right;">vs <code>r = 0</code></th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: right;">120</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0.9 ms</td>
-<td style="text-align: right;">1x</td>
+<td style="text-align: right;">1×</td>
 </tr>
 <tr>
-<td style="text-align: right;">121</td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">&gt; 3000 ms</td>
-<td style="text-align: right;"><strong>&gt; 3000x</strong></td>
+<td style="text-align: right;"><strong>&gt; 3000×</strong></td>
 </tr>
 <tr>
-<td style="text-align: right;">123</td>
 <td style="text-align: right;">3</td>
 <td style="text-align: right;">191 ms</td>
-<td style="text-align: right;">212x</td>
+<td style="text-align: right;">212×</td>
 </tr>
 <tr>
-<td style="text-align: right;">125</td>
 <td style="text-align: right;">5</td>
 <td style="text-align: right;">13.7 ms</td>
-<td style="text-align: right;">15x</td>
+<td style="text-align: right;">15×</td>
 </tr>
 <tr>
-<td style="text-align: right;">127</td>
 <td style="text-align: right;">7</td>
 <td style="text-align: right;">1.8 ms</td>
-<td style="text-align: right;">1.9x</td>
+<td style="text-align: right;">1.9×</td>
 </tr>
 <tr>
-<td style="text-align: right;">129</td>
 <td style="text-align: right;">9</td>
 <td style="text-align: right;">1.0 ms</td>
-<td style="text-align: right;">1.1x</td>
+<td style="text-align: right;">1.1×</td>
 </tr>
 </tbody>
 </table>
-<p>Each character removed from the tail multiplies the cost by roughly <code>|alphabet|</code> — the
-4x per character a 4-letter alphabet predicts. A one-character tail is over three orders
-of magnitude slower than no tail at all.</p>
-<p><strong>Recommendation: choose <code>|P|</code> as a multiple of <code>l+1</code> wherever the caller controls it.</strong>
-The support exists so arbitrary lengths are not a hard error, not because they are free.
-A tail of <code>r &gt;= 7</code> is affordable on this data; <code>r &lt;= 5</code> is not.</p>
-<p>The alternative to searching the tail is to <em>extend</em> the surviving candidates — walk the
-<code>r</code> remaining characters forward from each candidate's own position, branching at
-degenerate symbols, instead of asking the index where the tail occurs. That removes the
-selectivity problem entirely: the work becomes <code>O(candidates x r)</code>, with no dependence on
-<code>|alphabet|^r</code>.</p>
-<p>It is implementable but not free. It needs a path-walker over the index rather than the
-EDS — a loaded index has no EDS to consult — handling three cases: a tail inside one
-reference segment, a tail inside one alternative, and a tail that crosses a symbol
-boundary. The first two are implemented (<code>extend_candidates()</code>); the third, the common
-case, is not, so <code>set_tail_threshold()</code> refuses any value but 0 rather than silently
-dropping matches. Its own runtime cost is unmeasured, and the crossover against searching
-sits around <code>r = 7</code>, so it would supplement the search path rather than replace it.</p>
-<p>That combination — a real implementation cost, an unmeasured runtime cost, and a benefit
-confined to short tails — is why the guidance above is to keep <code>|P|</code> a multiple of <code>l+1</code>
-rather than to rely on either tail strategy.</p>
-<h3 id="summary-of-accepted-input">Summary of accepted input<a class="headerlink" href="#summary-of-accepted-input" title="Permanent link">&para;</a></h3>
+<p><strong>Prefer <code>|P|</code> a multiple of <code>l+1</code>.</strong> <code>r ≥ 7</code> is affordable; <code>r ≤ 5</code> is not.
+See <a href="../locate_spec/"><code>locate()</code> specification</a> for the full rule.</p>
+<hr />
+<h2 id="exit-codes">Exit codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Condition</th>
-<th>Result</th>
+<th>Code</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>|P| &lt; l+1</code></td>
-<td><strong>Error</strong> — throws <code>std::runtime_error</code></td>
+<td>0</td>
+<td>Success — including "no occurrences found", which is an answer, not an error</td>
 </tr>
 <tr>
-<td><code>|P| &gt;= l+1</code> and <code>|P| % (l+1) == 0</code></td>
-<td>Valid — every chunk is full; the cheap case</td>
-</tr>
-<tr>
-<td><code>|P| &gt;= l+1</code> and <code>|P| % (l+1) != 0</code></td>
-<td>Valid — the <code>r</code>-character tail is searched as a short final chunk, at the cost above</td>
-</tr>
-<tr>
-<td>Characters not in the index alphabet</td>
-<td>No match — an empty result, not an error</td>
+<td>1</td>
+<td>Bad arguments, unreadable input, or a failed invariant (e.g. pattern shorter than <code>l+1</code>, sources whose cardinality does not match the index)</td>
 </tr>
 </tbody>
 </table>
-<p>The valid alphabet is not hardcoded — it is whatever was indexed from the input EDS. The chunk size <code>l+1</code> is the fundamental unit: every (l+1)-char chunk covers exactly <code>l</code> chars of reference context plus 1 char of content (or pure reference), guaranteeing that a chunk query can straddle any reference–alternative boundary in a valid l-EDS.</p>
-<hr />
-<h2 id="worked-examples">Worked examples<a class="headerlink" href="#worked-examples" title="Permanent link">&para;</a></h2>
-<p>The examples below use <code>EDS = AAATTT{G,C}AAATTT</code>, <code>l=3</code> (chunk_size = 4).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>T₀ = "AAATTTAAATTT"  (indices 0–11)
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Changes:  0 = G   (alternative 0 of set 0)
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>          1 = C   (alternative 1 of set 0)
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>base_position of set 0 = 6  (length of "AAATTT")
-</code></pre></div>
-<h3 id="single-chunk-patterns-length-4">Single-chunk patterns (length 4)<a class="headerlink" href="#single-chunk-patterns-length-4" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Pattern</th>
-<th>Result</th>
-<th>Explanation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>AAAT</code></td>
-<td><code>(0,[])</code>, <code>(6,[])</code></td>
-<td>"AAAT" appears at T₀[0] and T₀[6]; entirely in reference</td>
-</tr>
-<tr>
-<td><code>TTTG</code></td>
-<td><code>(3,[0])</code></td>
-<td>"TTT" = T₀[3..5], then change 0 <code>G</code>; starts in reference at T₀[3]</td>
-</tr>
-<tr>
-<td><code>TTTC</code></td>
-<td><code>(3,[1])</code></td>
-<td>Same but change 1 <code>C</code></td>
-</tr>
-<tr>
-<td><code>GAAA</code></td>
-<td><code>(6,[0])</code></td>
-<td>Starts at first char of change 0 (offset 0 in alt); base_pos=6 + offset=0 = 6</td>
-</tr>
-<tr>
-<td><code>CAAA</code></td>
-<td><code>(6,[1])</code></td>
-<td>Same for change 1</td>
-</tr>
-</tbody>
-</table>
-<h3 id="two-chunk-patterns-length-8">Two-chunk patterns (length 8)<a class="headerlink" href="#two-chunk-patterns-length-8" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Pattern</th>
-<th>Result</th>
-<th>Explanation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>TTTGAAAT</code></td>
-<td><code>(3,[0])</code></td>
-<td>Chunk 0 "TTTG": ref→change G; chunk 1 "AAAT": change→ref at T₀[6]</td>
-</tr>
-<tr>
-<td><code>TTTCAAAT</code></td>
-<td><code>(3,[1])</code></td>
-<td>Same path through change 1 C</td>
-</tr>
-<tr>
-<td><code>AAATTTGA</code></td>
-<td><code>(0,[0])</code></td>
-<td>Chunk 0 "AAAT" at T₀[0]; chunk 1 "TTGA": T₀[3..5] + change 0 G</td>
-</tr>
-<tr>
-<td><code>AAATTTCA</code></td>
-<td><code>(0,[1])</code></td>
-<td>Same path through change 1 C</td>
-</tr>
-</tbody>
-</table>
-<h3 id="second-eds-example-agctatacggttacc-l3">Second EDS example: <code>AGCT{A,TAC}GGT{T,A}CC</code>, <code>l=3</code><a class="headerlink" href="#second-eds-example-agctatacggttacc-l3" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>T₀ = "AGCTGGTCC"  (indices 0–8)
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Changes:  0 = A    (alternative 0 of set 0)  base_pos = 4
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>          1 = TAC  (alternative 1 of set 0)  base_pos = 4
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>          2 = T    (alternative 0 of set 1)  base_pos = 7
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>          3 = A    (alternative 1 of set 1)  base_pos = 7
-</code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Pattern</th>
-<th>Result</th>
-<th>Explanation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>TAGG</code></td>
-<td><code>(3,[0])</code></td>
-<td>T=T₀[3], change 0 <code>A</code>, GG=T₀[4..5]; starts in reference at T₀[3]</td>
-</tr>
-<tr>
-<td><code>ACGG</code></td>
-<td><code>(5,[1])</code></td>
-<td>AC from change 1 <code>TAC</code> at offset 1, GG=T₀[4..5]; pos = 4+1 = 5</td>
-</tr>
-<tr>
-<td><code>TACG</code></td>
-<td><code>(4,[1])</code></td>
-<td>T,A,C are the full content of change 1 at offset 0; G=T₀[4]; pos = 4+0 = 4</td>
-</tr>
-<tr>
-<td><code>TACC</code></td>
-<td><code>(6,[3])</code></td>
-<td>T=T₀[6], change 3 <code>A</code>, CC=T₀[7..8]; starts in reference at T₀[6]</td>
-</tr>
-<tr>
-<td><code>GGTACC</code></td>
-<td>valid</td>
-<td>Length 6 = one full chunk + a 2-character tail</td>
-</tr>
-<tr>
-<td><code>TAGGTACC</code></td>
-<td><code>(3,[0,3])</code></td>
-<td>2 chunks: "TAGG" (T₀[3], change 0 <code>A</code>, T₀[4..5]); "TACC" (T₀[6], change 3 <code>A</code>, T₀[7..8]). Changes=[0,3].</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="locate-behaviour"><code>locate()</code> behaviour<a class="headerlink" href="#locate-behaviour" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Returns an <strong>empty result</strong> when the pattern is not found anywhere.</li>
-<li>Returns <strong>one entry per valid path</strong> through the EDS — "valid" as defined by the active search mode above.</li>
-<li>Paths that share a start position but differ in which changes they traverse are reported as <strong>separate entries</strong>.</li>
-<li>A match <strong>entirely within a single degenerate alternative</strong> is valid (when the alternative is long enough to contain a full <code>(l+1)</code>-char chunk beyond its context window).</li>
-<li>A match <strong>entirely within reference</strong> (no changes) has an empty changes list.</li>
-<li>Result order is <strong>undefined</strong>.</li>
-</ul>
-<hr />
-<h2 id="count-behaviour"><code>count()</code> behaviour<a class="headerlink" href="#count-behaviour" title="Permanent link">&para;</a></h2>
-<p>Returns the total number of entries that <code>locate()</code> would return. Counts <strong>paths</strong> (one per valid EDS traversal), not distinct positions — and, as noted under Search modes, not <code>(genome, offset)</code> occurrences either. The name is historical; read it as "entries".</p>
-<hr />
-<h2 id="future-improvements-out-of-scope-for-now">Future improvements (out of scope for now)<a class="headerlink" href="#future-improvements-out-of-scope-for-now" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Patterns of arbitrary length (not restricted to multiples of <code>l+1</code>)</li>
-<li>Matches at EDS boundaries (very start/end of the EDS) — currently only partially covered</li>
-<li>Parallel locate across multiple query threads</li>
-</ul>
 
 
 

@@ -9,7 +9,15 @@
          <lastmod>2026-09-02</lastmod>
     </url>
     <url>
+         <loc>https://draessld.github.io/biofmi/cli/</loc>
+         <lastmod>2026-09-02</lastmod>
+    </url>
+    <url>
          <loc>https://draessld.github.io/biofmi/experiment_design/</loc>
+         <lastmod>2026-09-02</lastmod>
+    </url>
+    <url>
+         <loc>https://draessld.github.io/biofmi/experiments/</loc>
          <lastmod>2026-09-02</lastmod>
     </url>
     <url>
@@ -21,7 +29,19 @@
          <lastmod>2026-09-02</lastmod>
     </url>
     <url>
+         <loc>https://draessld.github.io/biofmi/installation/</loc>
+         <lastmod>2026-09-02</lastmod>
+    </url>
+    <url>
          <loc>https://draessld.github.io/biofmi/locate_spec/</loc>
+         <lastmod>2026-09-02</lastmod>
+    </url>
+    <url>
+         <loc>https://draessld.github.io/biofmi/quickstart/</loc>
+         <lastmod>2026-09-02</lastmod>
+    </url>
+    <url>
+         <loc>https://draessld.github.io/biofmi/search_modes/</loc>
          <lastmod>2026-09-02</lastmod>
     </url>
 </urlset>
