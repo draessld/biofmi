@@ -132,6 +132,13 @@ add_subdirectory(tools)
 set(TEST_DIR ${CMAKE_SOURCE_DIR}/../../tests/unit)
 
 # Test: Index building
+# The test suite asserts with plain cassert, and the default build type is
+# Release, which defines NDEBUG and compiles every assert() to nothing. Until
+# this was added the tests ran, printed PASSED and verified nothing. Keep
+# assertions live in test binaries regardless of build type.
+add_compile_options($<$<CONFIG:Release>:-UNDEBUG>)
+add_compile_options($<$<CONFIG:RelWithDebInfo>:-UNDEBUG>)
+
 add_executable(test_build ${TEST_DIR}/test_build.cpp)
 target_link_libraries(test_build biofmi_lib)
 add_test(NAME test_build COMMAND test_build)
@@ -155,6 +162,24 @@ add_test(NAME test_locate_validation COMMAND test_locate_validation)
 add_executable(test_locate_correctness ${TEST_DIR}/test_locate_correctness.cpp)
 target_link_libraries(test_locate_correctness biofmi_lib)
 add_test(NAME test_locate_correctness COMMAND test_locate_correctness)
+
+# Test: randomised differential locate() vs a brute-force oracle, both modes.
+# Seeded, so a failure names the seed that reproduces it. It takes ~15 s against
+# the ~2 s of the rest of the suite, which is the price of the nine stitch bugs
+# it has found; run `ctest -E fuzz` to skip it during a tight edit loop.
+add_executable(test_locate_fuzz ${TEST_DIR}/test_locate_fuzz.cpp)
+target_link_libraries(test_locate_fuzz biofmi_lib)
+add_test(NAME test_locate_fuzz COMMAND test_locate_fuzz)
+
+# Test: arbitrary |P| against a brute-force oracle at every length
+add_executable(test_locate_arbitrary ${TEST_DIR}/test_locate_arbitrary.cpp)
+target_link_libraries(test_locate_arbitrary biofmi_lib)
+add_test(NAME test_locate_arbitrary COMMAND test_locate_arbitrary)
+
+# Test: source-aware (LINEAR) search -- EDZ round-trip, .d2g, sample sets
+add_executable(test_locate_sources ${TEST_DIR}/test_locate_sources.cpp)
+target_link_libraries(test_locate_sources biofmi_lib)
+add_test(NAME test_locate_sources COMMAND test_locate_sources)
 
 # Test: Offset arithmetic cross-check (snapshot byte positions vs locate results)
 add_executable(test_locate_offset ${TEST_DIR}/test_locate_offset.cpp)

@@ -57,7 +57,7 @@ static std::set<Occ> flatten(const BioFMI::ResultMap& r) {
     std::set<Occ> s;
     for (const auto& [seq, occs] : r)
         for (const auto& o : occs)
-            s.insert(o);
+            s.insert({(int)o.position, o.changes});
     return s;
 }
 

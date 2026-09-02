@@ -67,8 +67,9 @@ int main() {
             std::cout << count << " occurrence(s) found\n";
             // Print details
             for (const auto& [seq_id, occs] : result4) {
-                for (const auto& [pos, changes] : occs) {
-                    std::cout << "      Position " << pos << ", changes: [";
+                for (const auto& occ : occs) {
+                    std::cout << "      Position " << occ.position << ", changes: [";
+                    const auto& changes = occ.changes;
                     for (size_t i = 0; i < changes.size(); i++) {
                         std::cout << changes[i];
                         if (i + 1 < changes.size()) std::cout << ", ";

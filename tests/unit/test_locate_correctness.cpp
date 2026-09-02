@@ -131,8 +131,8 @@ std::set<OccInfo> brute_force_locate(const EDS& eds, const std::string& pattern)
 std::set<OccInfo> collect_result(const BioFMI::ResultMap& rm) {
     std::set<OccInfo> out;
     for (const auto& [seq_id, occs] : rm) {
-        for (const auto& [pos, changes] : occs) {
-            out.insert({(int)pos, changes});
+        for (const auto& occ : occs) {
+            out.insert({(int)occ.position, occ.changes});
         }
     }
     return out;
@@ -199,18 +199,21 @@ void test_error_pattern_too_short() {
 }
 
 void test_error_pattern_not_multiple_of_l() {
-    std::cout << "Test 1b: pattern length not multiple of (l+1) -> exception... ";
+    std::cout << "Test 1b: pattern length not a multiple of (l+1) is now allowed... ";
 
-    // l=3 → chunk_size=4; length 5 is not a multiple of 4 → must throw
+    // This used to assert that such a pattern threw. Arbitrary lengths are
+    // supported now: the r = |P| mod (l+1) tail is searched as a short final
+    // chunk. Correctness across every length is covered by
+    // test_locate_arbitrary.cpp against a brute-force oracle; here we only
+    // check that it no longer throws and agrees with brute force.
     BioFMI idx = build_index("AAATTT{G,C}AAATTT", 3);
+    EDS eds = make_eds("AAATTT{G,C}AAATTT");
 
-    bool threw = false;
-    try {
-        idx.locate("AAAAA");  // length 5, not multiple of 4
-    } catch (const std::runtime_error&) {
-        threw = true;
+    for (const char* pat : {"AAATT", "AAATTTG", "TTTGAAATT"}) {
+        auto got = collect_result(idx.locate(pat));
+        auto want = brute_force_locate(eds, pat);
+        assert(got == want && "arbitrary-length locate disagrees with brute force");
     }
-    assert(threw && "Expected exception for pattern length not multiple of (l+1)");
     std::cout << "PASSED\n";
 }
 
