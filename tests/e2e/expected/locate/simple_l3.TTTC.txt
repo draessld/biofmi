@@ -1,0 +1,2 @@
+Pattern: TTTC
+3[ 1 ]

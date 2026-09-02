@@ -1,0 +1,13 @@
+timestamp,preset,scenario,phase,tool,input_size_mb,context_length,pattern_length,n_patterns,n_occurrences,n_reps,runtime_median_s,runtime_mean_s,runtime_stddev_s,runtime_p95_s,runtime_p99_s,memory_median_mb,memory_mean_mb,memory_stddev_mb,memory_p95_mb,memory_p99_mb
+2026-09-02_16-59-09,standard,build_size_1mb,build,biofmi-build,1.679,5,,,,10,0.855,0.856,0.019,0.890,0.890,34.800,34.760,0.136,34.900,34.900
+2026-09-02_16-59-09,standard,build_size_5mb,build,biofmi-build,8.393,5,,,,10,4.990,4.983,0.067,5.110,5.110,149.200,149.170,0.261,149.500,149.500
+2026-09-02_16-59-09,standard,build_size_10mb,build,biofmi-build,16.788,5,,,,10,10.390,10.389,0.054,10.470,10.470,306.650,306.610,0.270,307.000,307.000
+2026-09-02_16-59-09,standard,build_ctx_l3,build,biofmi-build,8.275,3,,,,10,3.955,3.965,0.040,4.070,4.070,120.150,120.090,0.192,120.300,120.300
+2026-09-02_16-59-09,standard,build_ctx_l5,build,biofmi-build,8.394,5,,,,10,4.850,4.857,0.047,4.990,4.990,149.550,149.480,0.183,149.700,149.700
+2026-09-02_16-59-09,standard,build_ctx_l10,build,biofmi-build,13.584,10,,,,10,4.650,4.671,0.061,4.800,4.800,164.600,164.600,0.063,164.700,164.700
+2026-09-02_16-59-09,standard,locate_patlen_l6,locate,biofmi-locate,8.397,5,6,200,574054,10,1.670,1.703,0.111,2.010,2.010,47.600,47.570,0.135,47.900,47.900
+2026-09-02_16-59-09,standard,locate_patlen_l12,locate,biofmi-locate,8.397,5,12,200,509,10,2.760,2.744,0.033,2.780,2.780,46.500,46.520,0.178,46.800,46.800
+2026-09-02_16-59-09,standard,locate_patlen_l24,locate,biofmi-locate,8.397,5,24,200,281,10,5.310,5.342,0.110,5.640,5.640,46.600,46.600,0.148,46.800,46.800
+2026-09-02_16-59-09,standard,locate_patlen_l48,locate,biofmi-locate,8.397,5,48,200,365,10,9.920,10.030,0.247,10.540,10.540,46.600,46.640,0.136,46.800,46.800
+2026-09-02_16-59-09,standard,locate_dataset_5mb,locate,biofmi-locate,8.393,5,12,200,510,10,2.770,2.802,0.107,3.090,3.090,46.600,46.570,0.205,46.800,46.800
+2026-09-02_16-59-09,standard,locate_dataset_10mb,locate,biofmi-locate,16.788,5,12,200,796,10,10.935,10.978,0.110,11.210,11.210,88.900,88.880,0.133,89.100,89.100

@@ -1,8 +1,9 @@
 # BIO-FMI — open work
 
 Resolved issues are not kept here. B4, the decoy-regex bug and the chunk stitch
-are written up in `CLAUDE.md`, `docs/experiment_design.md` §5b and
-`docs/locate_spec.md`; the full history is in git.
+are written up in `CLAUDE.md` and `docs/locate_spec.md`; the full history is in
+git, including `docs/experiment_design.md` as it stood before it was removed on
+2026-09-02.
 
 ---
 
@@ -124,6 +125,60 @@ If built: a bitset artifact keyed by degenerate-string-number, with the running 
 `ceil(num_paths/64)` word array, making each stitch a few `AND`s and a zero test. A single
 `uint64_t` is valid only for `num_paths <= 63`; covid294 has 294.
 
+**The one benefit the measurements above do not capture** is allocation. Today every
+stitch calls `source_of_change()`, which returns a `PathSet` — a `std::vector<int>` — by
+value. A bitset artifact makes the running set a fixed word array carried in the
+candidate, so the innermost loop allocates nothing. The existing numbers are dominated by
+the search around it, so this is unmeasured rather than measured-and-small.
+
+### 2a. Source formats: measured 2026-09-02, and it settles two questions
+
+`Sources` supports five encodings. Sizes on covid294 `l=9` (294 paths, 3,049 entries) and
+tb_p100_snv50 `l=9` (100 paths, 53,400 entries):
+
+| format | covid294 | tb100 |
+|---|---:|---:|
+| `seds` (dense text, range+complement) | 45,028 | 542,256 |
+| `seds_sparse` | 53,773 | 497,537 |
+| `edz` (dense bitset) | 112,837 | 694,224 |
+| `edz_sparse` | 98,353 | 478,165 |
+| **`edz_compressed`** (zstd blocks) | **10,507** | **86,297** |
+| (`gzip` of dense seds, for scale) | 9,335 | 59,193 |
+
+**biofmi already reads all five.** `Sources::load()` auto-detects and `read_source()` is
+format-agnostic, so nothing in the index is format-specific. Verified: the same index and
+the same 200 patterns give 1,682 occurrences through every one of the five. Query time and
+peak RSS were indistinguishable (0.00-0.05 s, 5.75-6.5 MB) because `Sources` streams with
+an LRU cache. **So "add sparse support to biofmi" is not open work; it is already true.**
+
+**Sparse is not a strict improvement, and on covid294 it is a regression.** Sparse omits
+universal `{0}` entries and pays for a presence bitvec plus prefix popcount. That only wins
+when a large fraction of entries are universal, i.e. when common symbols outnumber
+degenerate ones -- and merging drives that fraction *down* as `l` grows:
+
+| covid294 `l` | entries | universal | sparse / dense |
+|---:|---:|---:|---:|
+| 3 | 3,365 | 16.6% | **1.44x** |
+| 9 | 3,049 | 13.2% | 1.19x |
+| 19 | 2,701 | 9.0% | 1.09x |
+| 39 | 2,171 | 3.9% | 1.03x |
+| 59 | 1,739 | 1.9% | 1.01x |
+
+Never smaller, 44% larger at `l=3`. On tb_p100_snv50 sparse *does* help (32.1% universal,
+8-12% smaller) -- so the benefit is a property of the panel, not of the format.
+
+**Therefore: do not remove the dense formats.** Doing so would enlarge covid294's sources
+at every `l`, invalidate every `.seds` under `~/Data` and all 171 entries of
+`dgx/checksums/inputs.md5`, and change `eds2leds`'s default output. If the goal is smaller
+sources on disk, `edz_compressed` is 4.3x smaller than dense seds and needs no format
+removal at all.
+
+Open question for the day this is picked up: whether the embedded artifact should be a
+plain bitset (simple, `ceil(num_paths/8)` per entry, and the measurements above say the
+memory is affordable) or block-compressed like `edz_compressed` (4x smaller, one
+decompress per block touched). At covid294's size the plain bitset is 113 KB against a
+4.9 MB index, which argues for simple.
+
 ## 3. Validate on a genuinely more diverse panel
 
 *Partly closed 2026-08-27.* The **source-set width** cost was isolated by duplicating each
@@ -155,16 +210,20 @@ carry this combination", not "this haplotype does". Cannot be fixed in `locate()
 covid294 is MSA-derived (one row = one genome), so current results are unaffected — but
 this gates any VCF-derived result.
 
-## 5. Housekeeping
+## 5. Toolchain: C++17 → C++20, and the SDSL version
 
-- The `iterations` extractor warns "matched nothing" on every cell of both specs; the
-  regex matches `eds2leds` stdout only in some modes. Fix or drop it.
-- Re-audit anything that rested on the unit tests passing before 2026-08-30. Until then
-  `CMAKE_CXX_FLAGS_RELEASE` carried `-DNDEBUG` and Release was the default, so **every
-  `assert()` in the suite compiled to nothing** — the tests ran, printed PASSED and
-  verified nothing. Fixed with `-UNDEBUG` on test targets; with assertions live the suite
-  is 9/9, but two real failures surfaced the moment it was switched on.
-- `results/covid294` encodes numbers now known to be wrong (the flat decoy 149, pre-B4
-  occurrence counts). Still valid as a byte-for-byte reproduction target for
-  `merge_mode.yaml`, but not as ground truth. Consider regenerating from the corrected
-  specs and re-baselining `specs/acceptance_covid294.py`.
+*Not urgent; raised 2026-09-02, explicitly "not today".*
+
+Both projects pin the standard — `set(CMAKE_CXX_STANDARD 17)` in `src/cpp/CMakeLists.txt`
+and in edsparser's — and `docs/installation.md` states C++17 as a requirement, so moving
+means changing three places plus whatever the CI images give. Nothing in the code was
+checked for what C++20 would actually buy; that survey is the first step, not the bump.
+
+The SDSL question is the sharper one. The installed `libsdsl.a` is from **March 2023** and
+the headers carry no version file, so the build depends on a snapshot nobody can name.
+Before considering a newer SDSL, establish which one this is. It is a compatibility
+question rather than a version bump: `csa_wt<>` and `load_from_file` are what every index
+file on disk was written by, so a change there invalidates artifacts, not just builds.
+
+Do the two together or not at all — a C++20 switch that then fails against the pinned SDSL
+is the worst of both.

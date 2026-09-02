@@ -1,0 +1,2 @@
+Pattern: CAAA
+6[ 1 ]

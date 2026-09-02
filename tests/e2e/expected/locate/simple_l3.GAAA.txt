@@ -1,0 +1,2 @@
+Pattern: GAAA
+6[ 0 ]
