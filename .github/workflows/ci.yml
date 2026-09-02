@@ -101,11 +101,43 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libboost-all-dev
 
-      # EDSParser does not depend on sdsl — no cache step needed.
+      # EDSParser *does* depend on sdsl: edsparser_lib links SDSL_LIBRARY,
+      # DIVSUFSORT_LIBRARY and DIVSUFSORT64_LIBRARY. This job long carried a
+      # comment claiming otherwise and no install step, so it failed at the
+      # generate stage on every run with "variables ... set to NOTFOUND" while
+      # the BioFMI job beside it went green. Same cache key as that job, so the
+      # second of the two to run hits a warm cache.
+      - name: Cache sdsl-lite
+        id: cache-sdsl-edsparser
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/include/sdsl
+            ~/.local/include/divsufsort.h
+            ~/.local/include/divsufsort64.h
+            ~/.local/lib/libsdsl.a
+            ~/.local/lib/libdivsufsort.a
+            ~/.local/lib/libdivsufsort64.a
+          key: sdsl-lite-ubuntu-v2.1.1-v1
+
+      - name: Build and install sdsl-lite
+        if: steps.cache-sdsl-edsparser.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch v2.1.1 \
+            https://github.com/simongog/sdsl-lite.git
+          cmake sdsl-lite -B sdsl-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$HOME/.local
+          cmake --build sdsl-build -j$(nproc)
+          cmake --install sdsl-build
+
       - name: Configure
         run: |
           cmake external/edsparser/src/cpp -B edsparser-build \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INCLUDE_PATH=$HOME/.local/include \
+            -DCMAKE_LIBRARY_PATH=$HOME/.local/lib \
+            -DCMAKE_INSTALL_PREFIX=$HOME/.local
 
       - name: Build
         run: cmake --build edsparser-build -j$(nproc)

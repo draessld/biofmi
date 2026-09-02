@@ -1,2 +1,0 @@
-Pattern: TTC
-4[ 1 ]

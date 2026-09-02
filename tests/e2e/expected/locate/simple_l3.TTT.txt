@@ -1,3 +1,0 @@
-Pattern: TTT
-3[ ]
-9[ ]
