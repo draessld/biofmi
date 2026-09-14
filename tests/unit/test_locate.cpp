@@ -40,17 +40,19 @@ int main() {
         assert(result2.empty() && "Pattern 'ZZZZ' should not be found");
         std::cout << "    ✓ Correctly returned empty result for non-existent pattern\n";
 
-        // Test 4: Pattern length validation
+        // Test 4: Pattern length validation. The only refused length is 0 —
+        // arbitrary lengths landed 2026-08-30 and the l+1 floor went with the
+        // short-chunk guard, so "ACGT" at l=4 is a query, not an error.
         std::cout << "  Testing pattern length validation...\n";
+        index.locate("ACGT");   // shorter than l+1 = 5: searched, must not throw
         bool caught_exception = false;
         try {
-            std::string pattern3 = "ACGT"; // Length 4, not multiple of 5
-            index.locate(pattern3);
+            index.locate("");
         } catch (const std::runtime_error& e) {
             caught_exception = true;
-            std::cout << "    ✓ Correctly threw exception for invalid length: " << e.what() << "\n";
+            std::cout << "    ✓ Correctly threw exception for the empty pattern: " << e.what() << "\n";
         }
-        assert(caught_exception && "Should throw exception for invalid pattern length");
+        assert(caught_exception && "Should throw exception for the empty pattern");
 
         // Test 5: Longer pattern (10 characters = 2 chunks of 5)
         std::cout << "  Testing longer pattern (10 chars)...\n";

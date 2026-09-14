@@ -239,21 +239,114 @@ void test_search_branch_all_lengths() {
 // ---------------------------------------------------------------------------
 // 3. Threshold mode against brute force, at thresholds that exercise both of
 //    its branches — search the tail, and verify the tail
+// ---------------------------------------------------------------------------
+void test_verify_branch_all_lengths() {
+    std::cout << "Test 3: tail-verify branch vs brute force, every length... ";
+    int before = failures;
+    for (const char* src : {kEds, kEds2}) {
+        for (int l : {3, 4, 5}) {
+            EDS eds = make_eds(src);
+            BioFMI idx = build_index(src, l);
+            // Above l every tail is verified. Halfway, short tails are verified
+            // and long ones searched, so both branches run against one index.
+            for (size_t threshold : {(size_t)l + 1, (size_t)(l + 1) / 2 + 1}) {
+                idx.set_tail_threshold(threshold);
+                assert(idx.tail_threshold() == threshold);
+                for (const auto& pat : substrings(eds, 1, 3 * (l + 1)))
+                    check(idx, eds, pat, "tail verify");
+            }
+        }
+    }
+    assert(failures == before && "tail-verify branch disagrees with brute force");
+    std::cout << "PASSED\n";
+}
 
 // ---------------------------------------------------------------------------
-// 4. The two modes agree with each other
+// 4. The two modes agree with each other — on tails that do not occur too
+//
+// Substrings only ever occur, so they cannot catch a verify branch that admits
+// too much. Mutating a tail character makes most of these patterns absent.
+// ---------------------------------------------------------------------------
+void test_modes_agree() {
+    std::cout << "Test 4: search and verify agree, occurring or not... ";
+    int before = failures;
+    for (const char* src : {kEds, kEds2}) {
+        for (int l : {3, 4}) {
+            EDS eds = make_eds(src);
+            BioFMI idx = build_index(src, l);
+            const size_t cs = l + 1;
+
+            std::set<std::string> pats;
+            for (const auto& p : substrings(eds, cs + 1, 3 * cs)) {
+                if (p.size() % cs == 0) continue;            // no tail to compare
+                pats.insert(p);
+                for (size_t at : {p.size() - 1, (p.size() / cs) * cs})   // last, first of tail
+                    for (char c : std::string("ACGT")) {
+                        std::string q = p;
+                        q[at] = c;
+                        pats.insert(q);
+                    }
+            }
+
+            for (const auto& pat : pats) {
+                idx.set_tail_threshold(0);
+                check(idx, eds, pat, "mutated tail, searched");
+                const size_t n_searched = idx.count(pat);
+                idx.set_tail_threshold(cs);
+                check(idx, eds, pat, "mutated tail, verified");
+                assert(idx.count(pat) == n_searched && "count() depends on the tail mode");
+            }
+        }
+    }
+    assert(failures == before && "search and verify disagree");
+    std::cout << "PASSED\n";
+}
 
 // ---------------------------------------------------------------------------
-// 5. A pattern shorter than one chunk is still rejected
+// 5. Below the old minimum: |P| < l+1 is searched, not rejected
+//
+// The l+1 floor was never a correctness constraint once the short-tail guard
+// existed. What a full chunk guarantees is that a changes hit touches the
+// alternative rather than hiding in a context flank, and
+// process_changes_matches() checks that overlap directly, on every chunk —
+// including the first. A pattern that is nothing but a short chunk is therefore
+// the same case as a short tail. Only the empty pattern is refused.
 // ---------------------------------------------------------------------------
-void test_too_short_rejected() {
-    std::cout << "Test 5: |P| < l+1 rejected... ";
-    BioFMI idx = build_index(kEds, 4);
+void test_below_old_minimum() {
+    std::cout << "Test 5: |P| < l+1 searched, every length vs brute force... ";
+    int before = failures;
+    for (const char* src : {kEds, kEds2}) {
+        for (int l : {3, 4, 5}) {
+            EDS eds = make_eds(src);
+            BioFMI idx = build_index(src, l);
+            idx.set_tail_threshold(0);
+            for (const auto& pat : substrings(eds, 1, (size_t)l))
+                check(idx, eds, pat, "below l+1");
+        }
+    }
+    assert(failures == before && "short patterns disagree with brute force");
+
+    // Patterns that need not occur at all, so false positives are exercised too.
     {
-        idx.set_tail_threshold(0);
+        EDS eds = make_eds(kEds2);
+        BioFMI idx = build_index(kEds2, 4);
+        const char* alphabet = "ACGT";
+        for (size_t len = 1; len <= 4; len++)
+            for (size_t a = 0; a < 4; a++)
+                for (size_t b = 0; b < 4; b++) {
+                    std::string pat(len, alphabet[a]);
+                    pat[len - 1] = alphabet[b];
+                    check(idx, eds, pat, "below l+1, may not occur");
+                }
+    }
+    assert(failures == before && "short non-occurring patterns disagree with brute force");
+
+    // The empty pattern is the one length still refused.
+    {
+        BioFMI idx = build_index(kEds, 4);
         bool threw = false;
-        try { idx.locate("ACG"); } catch (const std::runtime_error&) { threw = true; }
-        assert(threw && "a pattern shorter than one chunk must throw");
+        try { idx.locate(""); } catch (const std::runtime_error&) { threw = true; }
+        assert(threw && "the empty pattern must throw");
     }
     std::cout << "PASSED\n";
 }
@@ -276,20 +369,6 @@ void test_count_matches_locate() {
     std::cout << "PASSED\n";
 }
 
-// ---------------------------------------------------------------------------
-// A non-zero threshold is refused rather than silently dropping matches
-// ---------------------------------------------------------------------------
-void test_verify_branch_rejected() {
-    std::cout << "Test 3: non-zero tail_threshold refused... ";
-    BioFMI idx = build_index(kEds, 4);
-    bool threw = false;
-    try { idx.set_tail_threshold(8); }
-    catch (const std::invalid_argument&) { threw = true; }
-    assert(threw && "the unimplemented verify path must not be reachable");
-    assert(idx.tail_threshold() == 0);
-    std::cout << "PASSED\n";
-}
-
 int main() {
     std::cout << "========================================\n";
     std::cout << "Arbitrary pattern length tests\n";
@@ -297,8 +376,9 @@ int main() {
     try {
         test_exact_multiples_unchanged();
         test_search_branch_all_lengths();
-        test_verify_branch_rejected();
-        test_too_short_rejected();
+        test_verify_branch_all_lengths();
+        test_modes_agree();
+        test_below_old_minimum();
         test_count_matches_locate();
 
         std::cout << "\n========================================\n";

@@ -108,9 +108,24 @@ docs/_build/
 # Text files
 *.pdf
 
-# Bench results and large generated data — keep the .gitkeep placeholders
+# Bench results and large generated data — keep the .gitkeep placeholders.
+# tests/bench/baseline.csv is deliberately NOT here: it is the regression anchor
+# bench_compare.sh reads, a couple of KB of text, and useless if every clone has
+# to regenerate it. It lives beside the scripts rather than under results/ so it
+# is never mistaken for a run by the "newest CSV" globs.
 tests/bench/results/*.csv
 tests/bench/results/plots/
+
+# Generated panels never enter the repo. bench.sh works in a mktemp -d under a
+# trap, and a 10 MB reference becomes a ~100 MB l-EDS and a ~230 MB index.
+*.eds
+*.leds
+*.seds
+*.edz
+*.patterns
+!tests/e2e/data/*
+!external/edsparser/tests/e2e/data/*
+!tests/data/*
 
 # Local data directory — sample/benchmark files, not test fixtures
 /data/
@@ -119,6 +134,7 @@ tests/bench/results/plots/
 /results/
 experiments/output/
 *.log
+*.txt
 
 # Temporary files
 *.tmp
@@ -141,6 +157,7 @@ site/
 
 *.md
 !tests/bench/README.md
+!tests/data/README.md
 !CLAUDE.md
 !README.md
 !TODO.md
@@ -156,3 +173,7 @@ site/
 # bundle). Nothing about measuring is versioned here; this rule is a backstop in
 # case a stray experiments/ directory reappears.
 experiments/
+
+# Tex
+tex
+*.zip

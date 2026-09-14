@@ -5,30 +5,46 @@
 # Tool discovery
 # ---------------------------------------------------------------------------
 
-# Find a BioFMI tool binary: checks PATH first, then $BIOFMI_ROOT/build/tools/.
+# Find a BioFMI tool binary: $BIOFMI_ROOT/build/tools/ first, then PATH.
+#
+# The build tree wins, always. ~/.local/bin is normally on PATH, so checking it
+# first meant benchmarking whatever was last installed rather than the tree the
+# run was launched from — on 2026-09-02 that was an Aug 11 biofmi-locate, three
+# weeks and two behaviour changes stale. Numbers that do not describe the code
+# you are holding are worse than no numbers.
+#
+# Set BIOFMI_TOOLS_FROM_PATH=1 to benchmark installed binaries deliberately.
 find_biofmi_tool() {
     local name="$1"
+    if [ "${BIOFMI_TOOLS_FROM_PATH:-0}" != "1" ]; then
+        local build_path="$BIOFMI_ROOT/build/tools/$name"
+        if [ -x "$build_path" ]; then
+            echo "$build_path"
+            return 0
+        fi
+    fi
     if command -v "$name" &>/dev/null; then
         command -v "$name"
-        return 0
-    fi
-    local build_path="$BIOFMI_ROOT/build/tools/$name"
-    if [ -x "$build_path" ]; then
-        echo "$build_path"
         return 0
     fi
     return 1
 }
 
 # Find an EDSParser tool (used for data generation):
-#   1. PATH, 2. $BIOFMI_ROOT/external/edsparser/build/tools/, 3. ~/.local/bin/
+#   1. $BIOFMI_ROOT/external/edsparser/build/tools/, 2. PATH, 3. that path again.
+# Same reasoning, and it matters more here: a stale eds2leds emits contaminated
+# l-EDS without erroring (see CLAUDE.md, the complement fix).
 find_edsparser_tool() {
     local name="$1"
+    local submod_path="$BIOFMI_ROOT/external/edsparser/build/tools/$name"
+    if [ "${BIOFMI_TOOLS_FROM_PATH:-0}" != "1" ] && [ -x "$submod_path" ]; then
+        echo "$submod_path"
+        return 0
+    fi
     if command -v "$name" &>/dev/null; then
         command -v "$name"
         return 0
     fi
-    local submod_path="$BIOFMI_ROOT/external/edsparser/build/tools/$name"
     if [ -x "$submod_path" ]; then
         echo "$submod_path"
         return 0

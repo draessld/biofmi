@@ -119,7 +119,8 @@ id over *all* symbols, common ones included. The two differ by the number of
 non-degenerate symbols passed so far, which is not recoverable from the index
 artifacts — a loaded index has no EDS to ask. So it is computed during
 `parse_eds()`, where the walk is left-to-right and the counter is free, and
-persisted. On a 4.9 MB index it costs 21 KB.
+persisted as an Elias-Fano bit vector: 15 KB on the 3.9 MB `tb_p100_norm` index at
+`l=9`, where the 64-bit array it replaced on 2026-09-12 took 287 KB.
 
 Attaching sources to an index built before `.d2g` existed, or to a sources file
 whose cardinality does not match the indexed l-EDS, **throws** rather than
@@ -187,3 +188,13 @@ in both the reference and the alt string at a site, so a surviving path set mean
 "this sample could carry this combination", not "this haplotype does". Haploid
 panels — *M. tuberculosis*, for instance — are unaffected, and so are
 MSA-derived panels where one row is one genome.
+
+Haploid VCF panels have a second, independent problem with the `vcf2eds`
+vendored at `external/edsparser` (`1cba45e`). Records that share a position or
+overlap are merged into one symbol, and a sample carrying an alternative at one
+of them is left under the reference option as well, so the source sets no longer
+partition the genomes and LINEAR admits genomes that do not carry the match —
+1,307 false-positive genome calls on 122 targeted patterns over `tb_p100_snv50`.
+edsparser fixed this on 2026-09-12; until the submodule is advanced, normalise
+the VCF and audit the partition before trusting a VCF-derived result
+(`TODO.md` §4b).

@@ -1,6 +1,6 @@
 # Installation
 
-BioFMI is a C++17 project built with CMake. It depends on
+BioFMI is a C++20 project built with CMake. It depends on
 [SDSL-lite](https://github.com/simongog/sdsl-lite) for the FM-index and on Boost
 `program_options` for its command-line parsing. Everything else is vendored or
 part of the toolchain.
@@ -11,9 +11,9 @@ part of the toolchain.
 
 | Requirement | Minimum | Notes |
 |---|---|---|
-| C++ compiler | C++17 | GCC 9+ or Clang 10+; tested on GCC 13 |
-| CMake | 3.10 | |
-| SDSL-lite | 2.1.1 | Provides `csa_wt<>`, bit vectors, rank/select |
+| C++ compiler | C++20 | GCC 10+ or Clang 10+; tested on GCC 13 and Clang 18 |
+| CMake | 3.12 | First release that accepts `CMAKE_CXX_STANDARD 20` |
+| SDSL-lite | commit `c32874c` | simongog v2 series, pinned by commit — see §4. Provides `csa_wt<>`, bit vectors, rank/select |
 | divsufsort / divsufsort64 | — | Suffix-array construction; installed *by* SDSL |
 | Boost | any recent | Only `program_options` is used |
 | OpenMP | optional | Enables parallel sections where available |
@@ -75,13 +75,30 @@ cmake --install . --prefix ~/.local
 ## 4. Installing SDSL-lite
 
 SDSL is not on most distributions. Build it from source; its installer takes a
-prefix and puts headers in `<prefix>/include` and libraries in `<prefix>/lib`:
+prefix and puts headers in `<prefix>/include` and libraries in `<prefix>/lib`.
+**Pin the commit, not a release tag:**
 
 ```bash
-git clone --depth 1 --branch v2.1.1 https://github.com/simongog/sdsl-lite.git
+git clone https://github.com/simongog/sdsl-lite.git
 cd sdsl-lite
+git checkout c32874cb2d8524119f25f3b501526fe692df29f4
 ./install.sh "$HOME"          # -> ~/include/sdsl, ~/lib/libsdsl.a
 ```
+
+`c32874c` is the tip of simongog/sdsl-lite `master` (2019-12-10); the repository is
+archived, so it will not move. It is what CI builds and what the development install
+was built from. The last release tag, `v2.1.1` (2016), is an older snapshot that differs
+from it in 25 headers, bug fixes in `bits.hpp`, `uint128_t.hpp` and
+`memory_management.hpp` among them. BioFMI builds and passes its unit tests against both,
+and on covid294 at `l=11` all four combinations tried — `c32874c` and `v2.1.1`, GCC 13
+and Clang 18, C++17 and C++20 — write the same index, file for file. Pin the commit
+anyway: identity on one panel is evidence, not a guarantee.
+
+The SDSL-lite that `xxsds/sdsl-lite` maintains (v3, header-only) is a different
+library and not the supported dependency. BioFMI compiles and passes its tests against
+it unchanged, but its on-disk format is not v2's: a v3 build refuses an index written
+by a v2 build (`Width of int_vector<1> was specified as 0`), so moving to it means
+rebuilding every index.
 
 `$HOME` is a deliberate choice: BioFMI's CMake searches `$ENV{HOME}/include` and
 `$ENV{HOME}/lib` explicitly, alongside `/usr/local` and `/usr`, so an

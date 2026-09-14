@@ -4,8 +4,12 @@
 
 // SDSL headers included in implementation only
 #include <sdsl/suffix_arrays.hpp>
+#include <sdsl/sd_vector.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <map>
+#include <vector>
 #include <iomanip>
 
 namespace biofmi {
@@ -40,16 +44,58 @@ struct BioFMI::IndexData {
     std::vector<int> base_positions;
     std::vector<int> set_sizes;
     std::vector<int> offsets;
+
+    // Degenerate-string number -> global string id (see BioFMI::source_of_change).
+    // Bit g is set iff global string g is a degenerate alternative, so
+    // change_number cn maps to select_1(cn). Here rather than on BioFMI because
+    // the select structure points into the vector, and IndexData's address
+    // survives a move.
+    sdsl::sd_vector<> d2g;
+    sdsl::select_support_sd<1> d2g_select;
+    size_t d2g_count = 0;       // degenerate strings mapped
+    bool d2g_present = false;   // false for an index built before .d2g existed
 };
+
+// .d2g opens with these eight bytes, followed by an sdsl::sd_vector. Until
+// 2026-09-12 it held a bare std::vector<int64_t>, which sdsl writes length
+// first — a length no index comes near to spelling these bytes — so the magic
+// separates the two layouts without renaming the file.
+static constexpr char kD2gMagic[8] = {'B', 'F', 'M', 'I', 'D', '2', 'G', '1'};
+
+// mkdtemp gives a directory no other process holds, created 0700. C++17 has no
+// portable equivalent — filesystem offers no unique_path — so this is the POSIX
+// call rather than a hand-rolled name from a PID or a clock, both of which
+// collide under the exact conditions that matter.
+static std::filesystem::path make_scratch_dir(unsigned context_length) {
+    const std::string tmpl =
+        (std::filesystem::temp_directory_path() /
+         ("biofmi_index_" + std::to_string(context_length) + "_XXXXXX")).string();
+    std::vector<char> buf(tmpl.begin(), tmpl.end());
+    buf.push_back('\0');
+    if (mkdtemp(buf.data()) == nullptr) {
+        throw std::runtime_error("Could not create a scratch directory from template " + tmpl);
+    }
+    return std::filesystem::path(buf.data());
+}
 
 BioFMI::BioFMI(EDS&& eds, Length context_length)
     : data_(std::make_unique<IndexData>()),
       context_length_(context_length),
       eds_(std::move(eds)),
       n_(0), m_(0), N_(0) {
-    // Create temporary directory for index
-    index_dir_ = std::filesystem::temp_directory_path() / ("biofmi_index_" + std::to_string(context_length));
-    std::filesystem::create_directories(index_dir_);
+    // A scratch directory of our own, not a name anyone else can guess.
+    //
+    // This used to be temp_directory_path() / ("biofmi_index_" + l), a fixed
+    // path per context length shared by every build on the machine. Two
+    // concurrent builds at the same l therefore wrote reference.txt and
+    // changes.txt into the same directory and corrupted each other — reproduced
+    // 2026-09-02 by running the e2e suite while the benchmark suite was
+    // building at l=5, which failed a build that succeeds on its own. It also
+    // left the directory behind every time, and on a shared machine a
+    // predictable path in a world-writable /tmp is something another user can
+    // get there first with.
+    index_dir_ = make_scratch_dir(context_length);
+    owns_index_dir_ = true;
 
     // Set up metadata file paths
     reference_filepath_ = index_dir_ / "reference.txt";
@@ -82,7 +128,16 @@ BioFMI::BioFMI(const std::filesystem::path& index_dir)
     load(index_dir);
 }
 
-BioFMI::~BioFMI() = default;
+BioFMI::~BioFMI() {
+    // Remove the scratch directory, but only one we made. build() already
+    // deletes the two files it writes; that leaves the directory, and it does
+    // not run at all if building threw. A destructor may not throw, so failure
+    // here is silent — a leaked temp directory is not worth terminating over.
+    if (owns_index_dir_ && !index_dir_.empty()) {
+        std::error_code ec;
+        std::filesystem::remove_all(index_dir_, ec);
+    }
+}
 BioFMI::BioFMI(BioFMI&&) noexcept = default;
 BioFMI& BioFMI::operator=(BioFMI&&) noexcept = default;
 
@@ -134,53 +189,84 @@ void BioFMI::save(const std::filesystem::path& output_dir) {
     sdsl::store_to_file(data_->offsets, base_name + ".aof");
 
     // Degenerate-string -> global-string-id map, for source-aware search.
-    sdsl::store_to_file(deg_to_global_, base_name + ".d2g");
-
-    // Save index metadata (context_length, n, m, N)
-    std::ofstream meta_file(base_name + ".meta");
-    if (meta_file.is_open()) {
-        meta_file << context_length_ << "\n";
-        meta_file << n_ << "\n";
-        meta_file << m_ << "\n";
-        meta_file << N_ << "\n";
-        meta_file.close();
+    {
+        const std::string d2g_path = base_name + ".d2g";
+        std::ofstream d2g(d2g_path, std::ios::binary);
+        if (d2g) {
+            d2g.write(kD2gMagic, sizeof kD2gMagic);
+            data_->d2g.serialize(d2g);
+        }
+        if (!d2g) throw std::runtime_error("Could not write " + d2g_path);
     }
+
+    // Save index metadata (context_length, n, m, N). Required, not best-effort:
+    // load() cannot check a query's -l without it.
+    std::ofstream meta_file(base_name + ".meta");
+    if (!meta_file) {
+        throw std::runtime_error("Could not write " + base_name + ".meta");
+    }
+    meta_file << context_length_ << "\n";
+    meta_file << n_ << "\n";
+    meta_file << m_ << "\n";
+    meta_file << N_ << "\n";
+    meta_file.close();
 }
 
 void BioFMI::load(const std::filesystem::path& index_dir) {
-    std::string base_name = index_dir / "index";
-
-    // Load metadata first
-    std::ifstream meta_file(base_name + ".meta");
-    if (meta_file.is_open()) {
-        meta_file >> context_length_;
-        meta_file >> n_;
-        meta_file >> m_;
-        meta_file >> N_;
-        meta_file.close();
+    // Every loader below reports failure only through a return value, and all of
+    // them used to be dropped; the .meta read was guarded by is_open() and
+    // otherwise skipped. A missing index therefore left every structure
+    // default-constructed and answered each query "No occurrences found" with
+    // exit 0, so a mistyped -i was indistinguishable from a genuine no-match.
+    // Found 2026-09-02 by the e2e suite, once it was pointed at the build tree.
+    if (!std::filesystem::is_directory(index_dir)) {
+        throw std::runtime_error("No index directory at " + index_dir.string());
     }
 
+    std::string base_name = index_dir / "index";
+
+    auto require = [&](auto& target, const char* ext) {
+        const std::string path = base_name + ext;
+        if (!std::filesystem::exists(path)) {
+            throw std::runtime_error("Index is missing " + path);
+        }
+        if (!sdsl::load_from_file(target, path)) {
+            throw std::runtime_error("Could not read " + path);
+        }
+    };
+
+    // Metadata first: context_length_ is what a caller's -l is checked against,
+    // so a silently absent .meta left it at 0 and made every length legal.
+    const std::string meta_path = base_name + ".meta";
+    std::ifstream meta_file(meta_path);
+    if (!meta_file) {
+        throw std::runtime_error("Index is missing " + meta_path);
+    }
+    if (!(meta_file >> context_length_ >> n_ >> m_ >> N_)) {
+        throw std::runtime_error("Could not read " + meta_path);
+    }
+    meta_file.close();
+
     // Load FM-indexes
-    sdsl::load_from_file(data_->reference_index, base_name + ".ri");
-    sdsl::load_from_file(data_->changes_index, base_name + ".ci");
+    require(data_->reference_index, ".ri");
+    require(data_->changes_index, ".ci");
 
     // Load bit vectors
-    sdsl::load_from_file(data_->loc, base_name + ".loc");
-    sdsl::load_from_file(data_->iloc, base_name + ".iloc");
-    sdsl::load_from_file(data_->tloc, base_name + ".tloc");
+    require(data_->loc, ".loc");
+    require(data_->iloc, ".iloc");
+    require(data_->tloc, ".tloc");
 
     // Load metadata arrays
-    sdsl::load_from_file(data_->base_positions, base_name + ".abp");
-    sdsl::load_from_file(data_->set_sizes, base_name + ".ss");
-    sdsl::load_from_file(data_->offsets, base_name + ".aof");
+    require(data_->base_positions, ".abp");
+    require(data_->set_sizes, ".ss");
+    require(data_->offsets, ".aof");
 
     // Optional: indexes built before source-aware search have no .d2g. Leave the
     // map empty rather than failing — such an index still answers CARTESIAN
     // queries, and attach_sources() is what rejects the combination.
+    data_->d2g_present = false;
     if (std::filesystem::exists(base_name + ".d2g")) {
-        sdsl::load_from_file(deg_to_global_, base_name + ".d2g");
-    } else {
-        deg_to_global_.clear();
+        load_deg_to_global(base_name + ".d2g");
     }
 
     // Build rank and select support structures from loaded bit vectors
@@ -188,6 +274,32 @@ void BioFMI::load(const std::filesystem::path& index_dir) {
     data_->rloc = sdsl::rank_support_v<>(&data_->loc);
     data_->rtloc = sdsl::rank_support_v<>(&data_->tloc);
     data_->sloc = sdsl::select_support_mcl<>(&data_->loc);
+}
+
+void BioFMI::load_deg_to_global(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    char magic[sizeof kD2gMagic] = {};
+    if (!in.read(magic, sizeof magic)) {
+        throw std::runtime_error("Could not read " + path);
+    }
+
+    if (std::equal(magic, magic + sizeof magic, kD2gMagic)) {
+        data_->d2g.load(in);
+        if (!in) throw std::runtime_error("Could not read " + path);
+    } else {
+        // The layout before 2026-09-12: 64 bits an entry. Compact it in memory;
+        // rebuilding the index rewrites the file in the new layout.
+        in.close();
+        std::vector<int64_t> legacy;
+        if (!sdsl::load_from_file(legacy, path)) {
+            throw std::runtime_error("Could not read " + path);
+        }
+        data_->d2g = sdsl::sd_vector<>(legacy.begin(), legacy.end());
+    }
+
+    data_->d2g_count = data_->d2g.low.size();
+    sdsl::util::init_support(data_->d2g_select, &data_->d2g);
+    data_->d2g_present = true;
 }
 
 // ---------------------------------------------------------------- sources
@@ -212,7 +324,7 @@ void BioFMI::attach_sources_impl(std::shared_ptr<Sources> src,
     // Without the map there is no way to turn a change_number into the global
     // string id Sources is keyed by, so source-aware search would silently
     // associate the wrong path sets. Refuse instead.
-    if (deg_to_global_.empty()) {
+    if (!data_->d2g_present) {
         throw std::runtime_error(
             "Index has no .d2g map, so sources cannot be attached: it was built "
             "before source-aware search existed. Rebuild it with biofmi-build.");
@@ -315,14 +427,14 @@ PathSet BioFMI::source_of_change(int change_number) const {
     // behaves exactly as it did before, i.e. CARTESIAN.
     if (!sources_) return PathSet{0};
 
-    const size_t deg_idx = static_cast<size_t>(change_number - 1);  // 1-based -> 0-based
-    if (deg_idx >= deg_to_global_.size()) {
+    if (change_number < 1 || static_cast<size_t>(change_number) > data_->d2g_count) {
         throw std::out_of_range(
             "change_number " + std::to_string(change_number) +
             " is outside the degenerate-string map (" +
-            std::to_string(deg_to_global_.size()) + " entries)");
+            std::to_string(data_->d2g_count) + " entries)");
     }
-    return sources_->read_source(static_cast<size_t>(deg_to_global_[deg_idx]));
+    // select_1 counts from 1, exactly as change_number does.
+    return sources_->read_source(data_->d2g_select(static_cast<size_t>(change_number)));
 }
 
 BioFMI::ResultMap BioFMI::locate(const String& pattern) {
@@ -414,12 +526,8 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
 }
 
 void BioFMI::set_tail_threshold(size_t t) {
-    if (t != 0) {
-        throw std::invalid_argument(
-            "tail_threshold must be 0: verifying a short tail against candidates "
-            "is not implemented for tails that cross a symbol boundary, so any "
-            "other value would silently drop matches. See extend_candidates().");
-    }
+    // Any value is sound: both branches agree with brute force at every length
+    // (test_locate_arbitrary, test_locate_fuzz). It is purely a cost choice.
     tail_threshold_ = t;
 }
 
@@ -429,13 +537,28 @@ std::vector<BioFMI::ChunkPlan> BioFMI::plan_chunks(size_t pattern_len) const {
     const size_t chunk_size = context_length_ + 1;
     const int    full_step  = (int)chunk_size;
 
-    if (pattern_len < chunk_size) {
-        throw std::runtime_error(
-            "Pattern must be at least context_length + 1 (" +
-            std::to_string(chunk_size) + ") characters; got " +
-            std::to_string(pattern_len));
+    if (pattern_len == 0) {
+        throw std::runtime_error("Pattern must be non-empty");
     }
 
+    // |P| < l+1 used to throw, on the reasoning that one full chunk is the
+    // minimum unit the search works in. That was true only until the short-tail
+    // guard existed. The invariant a full chunk provides is that a changes hit
+    // must touch the alternative — each flank is l characters, so an l+1 chunk
+    // cannot hide inside one — and process_changes_matches() now enforces that
+    // by measuring the overlap instead of inferring it from the chunk length.
+    // It runs on every chunk, chunk_idx 0 included, so a pattern that is nothing
+    // but a short chunk is covered by the same check as a short tail.
+    //
+    // Verified rather than reasoned: 31,699 patterns of length 1..l over the 360
+    // seeded fuzz panels, both modes, plus 4,800 random patterns that mostly do
+    // not occur — no disagreement with the brute-force oracle. See
+    // test_locate_arbitrary.cpp, "below the old minimum".
+    //
+    // The cost is a different question, and short patterns are dominated by how
+    // much they match rather than by an unselective lookup: see the table in
+    // docs/locate_spec.md. A one-character pattern on an 8 MB panel is a
+    // 9 GB answer, so callers under a memory cap should still avoid them.
     const size_t q = pattern_len / chunk_size;   // full chunks
     const size_t r = pattern_len % chunk_size;   // tail
 
@@ -456,7 +579,10 @@ std::vector<BioFMI::ChunkPlan> BioFMI::plan_chunks(size_t pattern_len) const {
     // `loc - r` misses whenever change content falls in the overlapped region.
     // It produces false negatives on exactly those patterns whose overlap
     // straddles a degenerate symbol; test_locate_arbitrary caught it.
-    const bool searchable = r >= tail_threshold_;
+    // A short chunk can be verified against surviving candidates only if there
+    // are any; when q == 0 the short chunk *is* the first one and has nothing to
+    // verify against, so it must be searched.
+    const bool searchable = (q == 0) || (r >= tail_threshold_);
     plan.push_back({q * chunk_size, r, full_step, !searchable});
     return plan;
 }
@@ -485,7 +611,9 @@ BioFMI::IndexStats BioFMI::get_statistics() const {
 
     double metadata_size = sdsl::size_in_mega_bytes(data_->base_positions) +
                            sdsl::size_in_mega_bytes(data_->set_sizes) +
-                           sdsl::size_in_mega_bytes(data_->offsets);
+                           sdsl::size_in_mega_bytes(data_->offsets) +
+                           sdsl::size_in_mega_bytes(data_->d2g) +
+                           sdsl::size_in_mega_bytes(data_->d2g_select);
 
     double rank_select_size = sdsl::size_in_mega_bytes(data_->rloc) +
                               sdsl::size_in_mega_bytes(data_->riloc) +
@@ -608,7 +736,7 @@ void BioFMI::parse_eds() {
     data_->loc[0] = 1;
     data_->iloc[0] = 1;
 
-    deg_to_global_.clear();
+    std::vector<uint64_t> deg_to_global;
 
     size_t chi = 0;  // Current string index across all symbols
     int base_pos = 0;  // Current position in reference sequence
@@ -669,7 +797,7 @@ void BioFMI::parse_eds() {
                 // alternative's global string id — the id Sources is keyed by.
                 // Pushed in degenerate order, so the array is indexed by
                 // (change_number - 1) at query time.
-                deg_to_global_.push_back(static_cast<int64_t>(chi + i));
+                deg_to_global.push_back(chi + i);
                 data_->offsets.push_back(symbol[i].size());
 
                 // Write: left_context + string + right_context + separator
@@ -693,6 +821,15 @@ void BioFMI::parse_eds() {
 
     ref_file.close();
     chan_file.close();
+
+    // Strictly increasing, so Elias-Fano: a payload of about 2 + log2(m / m_deg)
+    // bits an entry, where the std::vector<int64_t> it replaced spent 64. With
+    // the header and the select structure the file measures 3.3-4.7 bits per
+    // degenerate string (nmN_scaling/2026-09-12_22-08-04).
+    data_->d2g = sdsl::sd_vector<>(deg_to_global.begin(), deg_to_global.end());
+    data_->d2g_count = deg_to_global.size();
+    sdsl::util::init_support(data_->d2g_select, &data_->d2g);
+    data_->d2g_present = true;
 }
 
 void BioFMI::build_reference_index() {
@@ -716,116 +853,151 @@ void BioFMI::build_metadata_structures() {
 // ------------------------------------------------------- tail verification
 
 void BioFMI::extend_candidates(const String& tail, int step) {
-    // The continuity rule the searching path uses is: a chunk whose T0 start is
-    // `loc` continues a candidate stored under key `loc - step`. Read backwards,
-    // a candidate under key K fixes where its continuation must begin —
+    // Verify a short tail against the surviving candidates instead of asking the
+    // FM-index where it occurs. A lookup of r characters returns every one of
+    // the ~N/|alphabet|^r places they occur; walking forward from each candidate
+    // costs O(candidates x r) and has no |alphabet|^r term.
     //
-    //     reference, or a *different* change   ->  T0 = K + step
-    //     the *same* change, continuing        ->  T0 = K + change_offset + step
+    // Each candidate already records where its next character lies. The key
+    // fixes the coordinate — it inverts the continuity rule of the searching
+    // path, where a chunk starting at T0 `loc` continues the candidates stored
+    // under `loc - step` — and (in_change, next_set) fixes which side of a
+    // degenerate set that coordinate is on:
     //
-    // — so instead of asking the FM-index where `tail` occurs (the lookup this
-    // mode exists to avoid), check the text at the one or two places each
-    // candidate permits.
-    // Note this leaves `in_change`/`next_set` as the previous chunk left them.
-    // A verified tail is always the final chunk, so no stitch ever reads them
-    // again; finishing this path across a symbol boundary means maintaining them
-    // here too.
-    const size_t tlen = tail.size();
-    if (tlen == 0) { new_hash_map_ = old_hash_map_; return; }
+    //   in_change == 0   next character in the reference at T0 key + step,
+    //                    every set before next_set already passed;
+    //   in_change == cn  next character inside alternative cn, at offset
+    //                    key + step + |cn| - base_positions[next_set]
+    //                    (validate_change_continuity's `key_out - step` lookup,
+    //                    solved for the offset).
+    //
+    // The first attempt at this inferred the continuation from `changes.back()`
+    // and scanned every set for one beginning there. That was the same
+    // conflation `last_change` made in the stitch, and it could not follow a
+    // tail across a symbol boundary at all. The explicit end state is what
+    // makes the walk possible.
+    //
+    // Candidates under one key that agree on the pair stand at the same place,
+    // so the text is read once for all of them and only path sets are folded
+    // per candidate.
+    if (tail.empty()) { new_hash_map_ = old_hash_map_; return; }
 
-    const int cl = (int)context_length_;
-
+    std::map<std::pair<int, int>, std::vector<OccurrenceInfo>> at_same_place;
     for (const auto& [key, occs] : old_hash_map_) {
-        if (occs.empty()) continue;
-        const int p = key + step;          // continuation in reference / new change
-        if (p < 0) continue;
+        at_same_place.clear();
+        for (const auto& occ : occs)
+            at_same_place[{occ.in_change, occ.next_set}].push_back(occ);
 
-        // ---- (a) the continuation lies in the reference ---------------------
-        const int rpos = t0_to_ref_pos(p);
-        if (rpos >= 0 && rpos + (int)tlen <= (int)data_->reference_index.size()) {
-            const std::string got =
-                sdsl::extract(data_->reference_index, (size_t)rpos, (size_t)(rpos + tlen - 1));
-            // A separator inside the window means the run crossed a segment
-            // boundary, so this is not a contiguous reference stretch.
-            if (got == tail && got.find(CHANGE_SEPARATOR) == std::string::npos) {
-                for (const auto& occ : occs) {
-                    // Reference adds no alternative: changes and paths ride through.
-                    new_hash_map_[p].push_back(occ);
-                }
+        for (auto& [state, group] : at_same_place) {
+            TailCursor at{state.first, 0, (int)key + step, state.second};
+            if (at.in_change != 0) {
+                if (at.next_set >= (int)data_->base_positions.size()) continue;
+                const int alt_len = change_offset_of(at.in_change);
+                at.alt_off = at.t0 + alt_len - data_->base_positions[at.next_set];
+                // Stopped inside: at least one character spelled, not the last.
+                if (at.alt_off <= 0 || at.alt_off >= alt_len) continue;
             }
-        }
-
-        // ---- (b) the continuation lies inside a degenerate alternative ------
-        // Every alternative of the set beginning at this T0 position is a
-        // candidate; which ones survive is decided by the text and, in LINEAR
-        // mode, by whether any genome carries the whole match.
-        for (int block = 0; block < (int)data_->set_sizes.size(); block++) {
-            if (data_->base_positions.empty() ||
-                block >= (int)data_->base_positions.size()) break;
-
-            const int first = (block == 0) ? 1 : data_->set_sizes[block - 1] + 1;
-            const int last  = data_->set_sizes[block];
-
-            for (int cn = first; cn <= last; cn++) {
-                const int change_offset = data_->offsets[cn - 1];
-
-                // Two ways in: crossing into this alternative (T0 = K + step), or
-                // continuing inside it (T0 = K + change_offset + step).
-                for (int variant = 0; variant < 2; variant++) {
-                    const int want_t0 = (variant == 0) ? p : key + change_offset + step;
-                    const int base    = data_->base_positions[block];
-                    const int off     = want_t0 - base;
-                    if (off < 0 || off >= change_offset) continue;
-
-                    const int pre  = (int)data_->sloc(cn);
-                    const int cpos = pre + cl + 1 + off;
-                    if (cpos < 0 || cpos + (int)tlen > (int)data_->changes_index.size()) continue;
-
-                    const std::string got =
-                        sdsl::extract(data_->changes_index, (size_t)cpos, (size_t)(cpos + tlen - 1));
-                    if (got != tail) continue;
-
-                    const PathSet here = source_of_change(cn);
-                    for (auto occ : occs) {          // by value: branches diverge
-                        const bool same = !occ.changes.empty() && occ.changes.back() == cn;
-                        if (variant == 1 && !same) continue;   // "continuing" needs the same alt
-                        if (variant == 0 && same)  continue;   // "crossing" needs a new one
-
-                        if (!same) {
-                            PathSet next = Sources::intersect_sources(occ.paths, here);
-                            if (pathset_empty(next, num_paths_)) continue;
-                            occ.changes.push_back(cn);
-                            occ.paths = std::move(next);
-                        }
-                        new_hash_map_[want_t0 - change_offset].push_back(std::move(occ));
-                    }
-                }
-            }
+            walk_tail(tail, 0, at, key, std::move(group));
         }
     }
 }
 
-int BioFMI::t0_to_ref_pos(int t0) const {
-    // The reference text is seg0 # seg1 # ... , so a T0 coordinate and its
-    // position in that text differ by exactly the number of separators before
-    // it. process_reference_matches() goes the other way with
-    // `t0 = ref_pos - rtloc(ref_pos)`; this inverts it by finding the k for
-    // which that holds, k being the count of preceding separators.
-    if (t0 < 0) return -1;
-    // The mapping is many-to-one: the reference text is `#seg#seg#...`, so a
-    // separator and the character after it share a T0 coordinate (ref[18]='#'
-    // and ref[19]='G' both give t0=16). Only the character is a real position,
-    // so separators are skipped — taking the first hit lands on the '#' and
-    // reads the wrong window.
-    const int n_seg = (int)data_->base_positions.size() + 2;
-    for (int k = 0; k <= n_seg; k++) {
-        const int ref_pos = t0 + k;
-        if (ref_pos >= (int)data_->reference_index.size()) return -1;
-        if ((int)data_->rtloc(ref_pos) != k) continue;
-        if (data_->tloc[ref_pos]) continue;          // a separator, not a character
-        return ref_pos;
+void BioFMI::walk_tail(const String& tail, size_t done, TailCursor at, Position key,
+                       std::vector<OccurrenceInfo> group) {
+    const auto& bp = data_->base_positions;
+    const int num_sets = (int)data_->set_sizes.size();
+    const int t0_end   = bp.back();   // T0 length, whether or not the EDS ends degenerate
+
+    // Whether the text at `pos` in `index` spells the next `take` tail characters.
+    auto spells = [&](const IndexType& index, size_t pos, size_t take) {
+        return sdsl::extract(index, pos, pos + take - 1).compare(0, take, tail, done, take) == 0;
+    };
+
+    while (done < tail.size()) {
+        const size_t want = tail.size() - done;
+
+        if (at.in_change != 0) {
+            // Inside an alternative: spell as much of the tail as it still holds.
+            const int alt_len = change_offset_of(at.in_change);
+            const size_t take = std::min(want, (size_t)(alt_len - at.alt_off));
+            const size_t pos  = data_->sloc(at.in_change) + context_length_ + 1 + at.alt_off;
+            if (!spells(data_->changes_index, pos, take)) return;
+            done += take;
+            at.alt_off += (int)take;
+            if (at.alt_off == alt_len) {
+                // Spelled to its end: resume in the reference past the set.
+                at.t0 = bp[at.next_set];
+                at.next_set++;
+                at.in_change = at.alt_off = 0;
+            }
+            continue;
+        }
+
+        if (at.next_set < num_sets && bp[at.next_set] <= at.t0) {
+            if (bp[at.next_set] < at.t0) return;   // a set behind it was never crossed
+
+            // A degenerate set stands at this coordinate and must be crossed
+            // before the next character, through each alternative separately:
+            // each is its own way on, with its own `changes` and path set.
+            const int s = at.next_set;
+            const int first = (s == 0) ? 1 : data_->set_sizes[s - 1] + 1;
+            for (int cn = first; cn <= data_->set_sizes[s]; cn++) {
+                const PathSet here = source_of_change(cn);
+                std::vector<OccurrenceInfo> branch;
+                branch.reserve(group.size());
+                for (const auto& occ : group) {
+                    PathSet ps = Sources::intersect_sources(occ.paths, here);
+                    if (pathset_empty(ps, num_paths_)) continue;   // no genome carries it
+                    OccurrenceInfo b = occ;
+                    b.changes.push_back(cn);
+                    b.paths = std::move(ps);
+                    branch.push_back(std::move(b));
+                }
+                if (branch.empty()) continue;
+
+                // A zero-length alternative is traversed without a character,
+                // leaving the match at this T0 past the set. Sets are crossed
+                // only with a character still to spell, so an empty alternative
+                // after the tail's last character is rightly not in the match.
+                TailCursor next = at;
+                if (change_offset_of(cn) == 0) next.next_set = s + 1;
+                else                           next.in_change = cn;
+                walk_tail(tail, done, next, key, std::move(branch));
+            }
+            return;
+        }
+
+        // Plain reference, up to the next set or the end of T0.
+        const int seg_end = (at.next_set < num_sets) ? bp[at.next_set] : t0_end;
+        if (at.t0 >= seg_end) return;                  // the text ends first
+        const size_t take = std::min(want, (size_t)(seg_end - at.t0));
+        const int rpos = t0_to_ref_pos(at.t0);
+        if (rpos < 0 || !spells(data_->reference_index, (size_t)rpos, take)) return;
+        done += take;
+        at.t0 += (int)take;
     }
-    return -1;
+
+    // Whole tail spelled. Record the end state a further chunk would need,
+    // though a verified tail is always the last chunk.
+    for (auto& occ : group) {
+        occ.in_change = at.in_change;
+        occ.next_set  = at.next_set;
+        new_hash_map_[key].push_back(std::move(occ));
+    }
+}
+
+int BioFMI::t0_to_ref_pos(int t0) const {
+    // The reference text is `#seg#seg#...#`, so a character's position in it is
+    // its T0 coordinate plus the separators before it: the opening one, and one
+    // after every segment ending at or before t0. Segment ends are exactly
+    // base_positions, less the leading 0 recorded when the EDS opens with a
+    // degenerate symbol — so this is a binary search, where it used to be a
+    // linear probe of rtloc over every segment.
+    const auto& bp = data_->base_positions;
+    if (t0 < 0 || bp.empty() || t0 >= bp.back()) return -1;
+    const auto first_end = bp.begin() + (eds_starts_degenerate() ? 1 : 0);
+    const int ended = (int)(std::upper_bound(first_end, bp.end(), t0) - first_end);
+    return t0 + 1 + ended;
 }
 
 size_t BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx, int step) {

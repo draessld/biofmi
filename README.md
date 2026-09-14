@@ -73,8 +73,8 @@ Install to `~/.local/`:
 cd build && cmake --install . --prefix ~/.local
 ```
 
-**Dependencies:** CMake 3.10+, C++17 compiler, Boost (`program_options`),
-[SDSL-lite](https://github.com/simongog/sdsl-lite), divsufsort/divsufsort64,
+**Dependencies:** CMake 3.12+, C++20 compiler, Boost (`program_options`),
+[SDSL-lite](https://github.com/simongog/sdsl-lite) at commit `c32874c` (see `docs/installation.md` §4), divsufsort/divsufsort64,
 OpenMP (optional)
 
 ---
@@ -146,7 +146,8 @@ biofmi-locate -i <index_dir> -l <context_length> (-p PATTERN | -P FILE)
               [-o output] [--benchmark]
 ```
 
-- Pattern length must be a multiple of `l+1` and ≥ `l+1`
+- Any non-empty pattern length. A tail of `|P| mod (l+1)` characters is verified
+  against the candidates the full chunks left; `--tail-threshold 0` searches it instead
 - `--benchmark` suppresses per-hit output; writes total patterns and total
   occurrences to stderr (used by the bench suite)
 - Output format: `position [ change_idx ... ]` per occurrence; see
@@ -251,9 +252,9 @@ cumulative set sizes, and per-change string lengths.
 
 ### `locate()` result semantics (summary)
 
-- Pattern length must be a multiple of `l+1`, minimum `l+1` (throws otherwise).
-  The chunk size is `l+1` — `l` characters of context plus one of content —
-  so the pattern must divide into whole chunks
+- Any non-empty pattern length; only the empty pattern throws. The chunk size is
+  `l+1` — `l` characters of context plus one of content — and a tail shorter than
+  a chunk is verified against the candidates the full chunks left
 - Returns `(position, changes)` pairs:
   - **position** — 0-based T₀ index if match starts in reference;
     `base_pos_of_set + offset_within_alt` if match starts inside a change

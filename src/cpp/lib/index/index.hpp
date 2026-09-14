@@ -6,6 +6,7 @@
 #include <edsparser/formats/sources.hpp>
 
 #include <filesystem>
+#include <limits>
 #include <unordered_map>
 #include <memory>
 #include <vector>
@@ -107,11 +108,18 @@ public:
      * Measured at l=3 (a 4-character chunk) on an 8 MB panel: 1.3 s per pattern,
      * against 0.16 ms at l=9.
      *
-     * The intended remedy is to verify a short tail against the surviving
-     * candidates instead of looking it up. That path is **not implemented** —
-     * see extend_candidates() for what is missing — so this currently only
-     * accepts 0, meaning "always search the tail". Setting anything else throws
-     * rather than silently returning wrong answers.
+     * A tail shorter than the threshold is verified against the surviving
+     * candidates instead (extend_candidates()), which costs O(candidates x r)
+     * with no |alphabet|^r term. 0 searches every tail; any value above l
+     * verifies every tail. A pattern with no full chunk (|P| < l+1) has nothing
+     * to verify against and is always searched. Both branches return the same
+     * answer, so this is a cost choice only.
+     *
+     * The default verifies every tail. On tb_p100_norm at l=9 (LINEAR, run
+     * tail_cost/2026-09-12_21-57-45, medians) verifying was never slower:
+     * equal at r=0, 2.5x faster at r=9, 21,000x at r=1, flat at 65-101 us a
+     * pattern while searching went from 0.16 ms to 2.15 s. Set 0 only to
+     * measure the search.
      */
     void set_tail_threshold(size_t t);
     size_t tail_threshold() const { return tail_threshold_; }
@@ -293,7 +301,7 @@ private:
     std::unique_ptr<IndexData> data_;
 
     Length context_length_;
-    size_t tail_threshold_ = 0;
+    size_t tail_threshold_ = std::numeric_limits<size_t>::max();  // verify every tail
     EDS eds_;
     ResultMap last_result_;
 
@@ -311,12 +319,24 @@ private:
     // (load() never populates eds_), so the mapping is built during parse_eds()
     // — where the walk is left-to-right and the counter is free — and persisted
     // as `.d2g`.
-    std::vector<int64_t> deg_to_global_;
+    //
+    // It is held in IndexData as an Elias-Fano bit vector with select support.
+    // Until 2026-09-12 it was a std::vector<int64_t>, 64 bits an entry for a
+    // strictly increasing sequence — 6-7% of a TB index, up to 11% of a synthetic one.
+    // load_deg_to_global() still reads that layout.
+
+    // Read `.d2g` in either layout into IndexData::d2g.
+    void load_deg_to_global(const std::string& path);
 
     // Index directory and metadata files
     std::filesystem::path index_dir_;
     std::filesystem::path reference_filepath_;
     std::filesystem::path changes_filepath_;
+
+    // True when index_dir_ is a scratch directory this object created under
+    // /tmp and is responsible for removing. False when it was derived from the
+    // caller's own paths, which are not ours to delete.
+    bool owns_index_dir_ = false;
 
     // EDS statistics (cached from eds_)
     size_t n_;  // Number of sets
@@ -359,23 +379,36 @@ private:
 
     /**
      * Advance every surviving candidate by the tail characters, checking them
-     * at the one position each candidate allows rather than asking the index
-     * where the tail occurs.
+     * at the one place each candidate allows rather than asking the index where
+     * the tail occurs.
      *
-     * INCOMPLETE — not reachable while set_tail_threshold() rejects non-zero
-     * values. It resolves a tail that lies wholly in the reference, and one that
-     * lies wholly inside a single alternative, but not a tail that **crosses a
-     * symbol boundary** — "CAA" continuing from reference into an alternative,
-     * which is the common case. Finishing it means walking the tail character by
-     * character across symbol boundaries, branching at each degenerate symbol:
-     * a small path-walker over the index, since a loaded index has no EDS to
-     * ask. Validated by test_locate_arbitrary once it exists.
+     * The walk crosses symbol boundaries: from the reference into every
+     * alternative of a set in the way (zero-length ones included), and out of
+     * an alternative into the reference past it, folding each alternative
+     * entered into `changes` and `paths` exactly as a stitch does. A loaded
+     * index has no EDS to consult, so the text is read back out of the two
+     * FM-indexes. Validated against brute force by test_locate_arbitrary and
+     * test_locate_fuzz, in both modes.
      */
     void extend_candidates(const String& tail, int step);
 
-    // T0 coordinate -> position in the reference index text, or -1 when the
-    // coordinate does not land in a reference segment. Inverse of the
-    // `t0 = ref_pos - rtloc(ref_pos)` mapping process_reference_matches() uses.
+    // Where a candidate's next character lies, during extend_candidates().
+    struct TailCursor {
+        int in_change;  // 1-based alternative being spelled, 0 in the reference
+        int alt_off;    // offset of the next character within that alternative
+        int t0;         // T0 of the next reference character (in_change == 0)
+        int next_set;   // 0-based first degenerate set not yet passed
+    };
+
+    // Spell tail[done..] forward from `at` for candidates all standing there,
+    // branching at each degenerate set on the way. Survivors are stored in
+    // new_hash_map_ under `key`.
+    void walk_tail(const String& tail, size_t done, TailCursor at, Position key,
+                   std::vector<OccurrenceInfo> group);
+
+    // T0 coordinate -> position in the reference index text, or -1 past the
+    // end of T0. Inverse of the `t0 = ref_pos - rtloc(ref_pos)` mapping
+    // process_reference_matches() uses. O(log segments).
     int t0_to_ref_pos(int t0) const;
 
     // Locate helper methods

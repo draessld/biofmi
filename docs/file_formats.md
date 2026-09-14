@@ -50,16 +50,18 @@ All index files are written to a directory (default: `<input>.index/`). The base
 | `.abp` | SDSL | `base_positions[]` — cumulative T₀ length before each EDS symbol |
 | `.ss` | SDSL | `set_sizes[]` — cumulative alternative count through each degenerate set |
 | `.aof` | SDSL | `offsets[]` — content length of each individual alternative (excluding context) |
-| `.d2g` | SDSL | `deg_to_global[]` — degenerate-string number → global string id, for source-aware search |
+| `.d2g` | magic + SDSL | Degenerate-string number → global string id, for source-aware search: the 8 bytes `BFMID2G1`, then an `sdsl::sd_vector<>` (Elias-Fano) with bit `g` set iff global string `g` is a degenerate alternative, so `change_number` maps to `select_1(change_number)` |
 | `.meta` | plain text | Four integers: `context_length`, `n`, `m`, `N` (one per line) |
 
-All SDSL binary files are produced and consumed by `sdsl::store_to_file` / `sdsl::load_from_file`. The `.meta` file is plain text and human-readable.
+The SDSL binary files are produced and consumed by `sdsl::store_to_file` / `sdsl::load_from_file`, except `.d2g`, which carries the magic header above. The `.meta` file is plain text and human-readable.
 
 ### Why `.d2g` exists
 
 `locate()` works in `change_number`, a 1-based rank over **degenerate strings only** — the index `offsets[change_number - 1]` is keyed by. A `Sources` file is indexed by a **global string id** over *all* strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.
 
-That count is not recoverable from the other index artifacts, and a loaded index has no EDS to ask, because `load()` never populates `eds_`. So the mapping is built during `parse_eds()` — where the walk is left-to-right and the counter is free — and persisted. It is small: 21 KB against a 4.9 MB index on COVID-294.
+That count is not recoverable from the other index artifacts, and a loaded index has no EDS to ask, because `load()` never populates `eds_`. So the mapping is built during `parse_eds()` — where the walk is left-to-right and the counter is free — and persisted.
+
+Until 2026-09-12 it was a `std::vector<int64_t>`: 64 bits an entry for a strictly increasing sequence, 6.3–7.1% of every `tb_scaling` index and 3.1–11.4% of `l_sweep`'s (a constant 227 KB). As an Elias-Fano bit vector it is **15 KB where it was 287 KB** on `tb_p100_norm` (0.4% of the 3.9 MB index); every other index file is byte-identical. `load()` still reads the old layout — the magic tells them apart, since the old file opens with an entry count — and compacts it in memory; rebuilding rewrites the file. A binary older than the change cannot read the new layout.
 
 An index built before `.d2g` existed cannot have sources attached; `attach_sources()` throws rather than mis-associating path sets. See [Search modes](search_modes.md#4-where-the-sources-live).
 

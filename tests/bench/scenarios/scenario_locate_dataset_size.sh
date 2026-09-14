@@ -2,7 +2,7 @@
 # Benchmark: locate with a fixed pattern length across increasing dataset sizes.
 #
 # For each requested size, builds a fresh index (setup, not measured), then
-# queries it with a fixed pattern length (2×l) and a fixed pattern count.
+# queries it with a fixed pattern length (2 chunks = 2(l+1)) and a fixed count.
 # Reports runtime, memory, and derived per-pattern timing.
 #
 # This scenario shows how locate throughput scales with the size of the
@@ -20,8 +20,10 @@ run_scenario_locate_dataset_size() {
     locate_tool=$(find_biofmi_tool biofmi-locate)         || { bench_err "biofmi-locate not found";         return 1; }
     pat_tool=$(find_edsparser_tool edsparser-genpatterns) || { bench_err "edsparser-genpatterns not found"; return 1; }
 
-    # Fixed pattern length = 2 × context length (always a valid multiple)
-    local pat_len=$(( l * 2 ))
+    # Fixed pattern length = 2 chunks. The chunk size is l+1, not l: at l=5 the
+    # old `l * 2` gave 10, which leaves r = 4 and so measured the short-tail path
+    # while the scenario claimed to be varying dataset size alone.
+    local pat_len=$(( (l + 1) * 2 ))
 
     for ref_size_mb in "$@"; do
         local input_eds="$tmpdir/locate_dataset_${ref_size_mb}mb.eds"

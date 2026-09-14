@@ -41,9 +41,22 @@ run_scenario_locate_pattern_length() {
 
     # ── measure locate for each pattern length ─────────────────────────────
     for pat_len in "$@"; do
-        # Validate: pat_len must be a multiple of l
-        if (( pat_len % l != 0 )); then
-            bench_warn "pattern length $pat_len is not a multiple of l=$l — skipping"
+        # Validate: pat_len must be a multiple of the chunk size, l+1.
+        #
+        # biofmi-locate accepts any length, and since 2026-09-12 a short tail is
+        # verified at about the cost of none. This scenario still keeps to whole
+        # chunks so each row is chunk work alone and stays comparable with the
+        # baseline; a ragged length would mix tail work into the curve.
+        #
+        # This said "% l" until 2026-09-02 — correct when the chunk size was l,
+        # and after the off-by-one fix it was wrong twice over. It let through
+        # lengths that leave an r = |P| mod (l+1) tail while calling them clean
+        # (and a tail was then an expensive lookup), and once the presets were
+        # corrected to multiples of l+1 it rejected every one of them, so the
+        # whole scenario silently produced no rows at all. Both failures were
+        # quiet: a warning, and a missing curve.
+        if (( pat_len % (l + 1) != 0 )); then
+            bench_warn "pattern length $pat_len is not a multiple of the chunk size l+1=$((l + 1)) — skipping"
             continue
         fi
 

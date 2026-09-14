@@ -109,7 +109,7 @@ See [file_formats.md](file_formats.md) for the full format reference.
 
 ### 4.1 Preconditions
 
-`len(pattern)` must be at least `l+1`; shorter patterns raise `std::runtime_error`. It need not be a multiple of `l+1` — the `r = len % (l+1)` tail is searched as a short final chunk (see `docs/locate_spec.md` § Pattern validity for the invariant that makes short chunks safe).
+`pattern` must be non-empty; the empty pattern raises `std::runtime_error`. It need not be a multiple of `l+1` — the `r = len % (l+1)` tail is verified against the surviving candidates (`extend_candidates()`), or searched as a short final chunk when there is no full chunk or `set_tail_threshold()` asks for it (see `docs/locate_spec.md` § Pattern validity for the invariant that makes short chunks safe).
 
 ### 4.2 Chunk-based hash-map propagation
 
@@ -271,13 +271,13 @@ The match starts at T₀ position 3 (the `T` in `AAATTT`) and passes through cha
 
 ## 7. Known limitations
 
-- **A short tail is searched, not verified.** A pattern whose length is not a
-  multiple of `l+1` is handled — the remainder `r = |P| mod (l+1)` becomes a
-  short final chunk — but a short chunk is an unselective lookup, and cost rises
-  by roughly a factor of the alphabet size for every character removed from it.
-  Extending the surviving candidates instead is implemented only for tails that
-  stay inside one symbol, so `set_tail_threshold()` accepts no value but 0. See
-  [`locate()` § Cost](locate_spec.md#cost-prefer-p-a-multiple-of-l1).
+- **A pattern shorter than `l+1` is one unselective lookup.** A longer pattern's
+  remainder `r = |P| mod (l+1)` is verified against the candidates its full
+  chunks left, walking forward across symbol boundaries, and costs the same at
+  every `r`. A pattern with no full chunk has no candidates to verify against,
+  so it is searched as a single short chunk, and its cost and memory grow by
+  about the alphabet size for every character removed. See
+  [`locate()` § Cost](locate_spec.md#cost-a-short-tail-is-verified-not-searched).
 - **`count()` fully materialises all occurrences** to count them; there is no
   short-circuit.
 - **Positions are l-EDS-internal, not genome coordinates.** A position is a T₀

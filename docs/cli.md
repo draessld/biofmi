@@ -59,6 +59,7 @@ biofmi-locate -i data.l9.index -l 9 -P patterns.txt -o hits.txt
 | `-p`, `--pattern` | string | A single pattern. |
 | `-P`, `--pattern-file` | path | A file of patterns, one per line. Mutually useful with `-p`; use one or the other. |
 | `-o`, `--output` | path | Write results here instead of stdout. `-o /dev/null` discards them, which matters when a pattern set is megabytes. |
+| `--tail-threshold` | integer | Shortest `|P| mod (l+1)` tail still searched in the index rather than verified against the surviving candidates. Default: verify every tail, which measured never slower. `0` searches every tail. Same answer either way — see [Pattern validity](#pattern-validity). |
 
 ### Source-aware search
 
@@ -150,23 +151,45 @@ summary counts on stderr (`Total patterns`, `Patterns matched`,
 
 ## Pattern validity
 
-A pattern must be at least `l+1` characters. Shorter throws.
+Only the empty pattern throws. Every other length is searched.
 
-It need **not** be a multiple of `l+1` — the remainder is searched as a short
-final chunk — but a short tail is far less selective than a full chunk, so cost
-rises steeply as the remainder shrinks. Measured on an 8 MB panel at `l=9`,
-varying only `|P|`:
+It need **not** be a multiple of `l+1`. The remainder `r = |P| mod (l+1)` is
+verified against the candidates the full chunks left, walking forward from each,
+which costs about the same at every `r`. Measured on `tb_p100_norm` at `l=9`,
+LINEAR, median per pattern (run `tail_cost/2026-09-12_21-57-45`):
 
-| `r = |P| mod (l+1)` | per pattern | vs `r = 0` |
+| `r = |P| mod (l+1)` | verified (default) | searched (`--tail-threshold 0`) |
 |---:|---:|---:|
-| 0 | 0.9 ms | 1× |
-| 1 | > 3000 ms | **> 3000×** |
-| 3 | 191 ms | 212× |
-| 5 | 13.7 ms | 15× |
-| 7 | 1.8 ms | 1.9× |
-| 9 | 1.0 ms | 1.1× |
+| 0 | 0.067 ms | 0.067 ms |
+| 1 | 0.101 ms | 2149 ms |
+| 3 | 0.093 ms | 131 ms |
+| 5 | 0.069 ms | 10.7 ms |
+| 7 | 0.070 ms | 0.86 ms |
+| 9 | 0.065 ms | 0.16 ms |
 
-**Prefer `|P|` a multiple of `l+1`.** `r ≥ 7` is affordable; `r ≤ 5` is not.
+`--tail-threshold t` searches tails of `r ≥ t` as a short final chunk instead; the
+answer is identical either way. See
+[`locate()` § Cost](locate_spec.md#cost-a-short-tail-is-verified-not-searched).
+
+`|P| < l+1` is allowed too — the whole pattern becomes one short chunk, searched,
+since there are no candidates to verify it against — and it is the length that
+still costs. The cost tracks the size of the answer: roughly `|alphabet|` more of
+both per character removed. On an 8 MB synthetic panel at `l=9`:
+
+| `\|P\|` | wall | peak RSS | occurrences |
+|---:|---:|---:|---:|
+| 10 | 0.41 s | — | 72 |
+| 7 | 0.37 s | — | 7,654 |
+| 5 | 0.87 s | — | 116,315 |
+| 4 | 2.53 s | — | 432,257 |
+| 3 | 9.5 s | 0.9 GB | — |
+| 2 | 37 s | 2.6 GB | — |
+| 1 | 154 s | 9.2 GB | — |
+
+Every occurrence is materialised before `locate()` returns, so **memory is the
+binding constraint**: a one-character pattern on an 8 MB panel wants 9.2 GB, and
+under a memory cap that surfaces as an OOM rather than as a very common pattern.
+
 See [`locate()` specification](locate_spec.md) for the full rule.
 
 ---

@@ -79,70 +79,110 @@ Two further consequences, because both are easy to get wrong:
 
 ## Pattern validity
 
-`|P|` must be **at least `l+1`**. Shorter patterns throw — one full chunk is the minimum
-unit the search works in.
+**Only the empty pattern is refused.** `|P|` need not be a multiple of `l+1`, and as of
+2026-09-02 it need not reach `l+1` either.
 
-`|P|` need **not** be a multiple of `l+1`. The `r = |P| mod (l+1)` characters left over
-after the full chunks are searched as a short final chunk.
+The `r = |P| mod (l+1)` characters left over after the full chunks are, by default, verified
+against the candidates those chunks left (see § Cost), or searched as a short final chunk
+when `set_tail_threshold()` says so. A pattern shorter than `l+1` has no full chunk and so
+nothing to verify against: `q = 0`, and the whole pattern is one short chunk, searched
+rather than stitched.
 
 That short chunk is where the one non-obvious invariant lives. A changes-index entry is
 `left_ctx(l) + alt + right_ctx(l) + '#'`, and a chunk of `l+1` characters **cannot fit
 inside either flank** — which is precisely why the chunk size is `l+1`. Every changes hit
-from a full chunk is therefore guaranteed to touch the alternative. A shorter tail chunk
-breaks that guarantee: it can match entirely within the context, which replicates
-*reference* text, and would then be credited with an alternative the match never
-traverses. `process_changes_matches()` rejects hits that do not overlap the alternative
-content for exactly this reason.
+from a full chunk is therefore guaranteed to touch the alternative. A shorter chunk breaks
+that guarantee: it can match entirely within the context, which replicates *reference*
+text, and would then be credited with an alternative the match never traverses.
+`process_changes_matches()` rejects hits that do not overlap the alternative content for
+exactly this reason.
 
-### Cost: prefer `|P|` a multiple of `l+1`
+That check is what retired the `l+1` floor. The floor was standing in for an invariant
+that is now measured directly, and it runs on **every** chunk, `chunk_idx == 0` included —
+so a pattern that is nothing but a short chunk is covered by the same guard as a short
+tail. Confirmed rather than argued: 31,699 patterns of length `1..l` over the 360 seeded
+fuzz panels, both search modes, plus 4,800 random patterns that mostly do not occur — no
+disagreement with the brute-force oracle. See `test_locate_arbitrary.cpp`, test 5.
 
-Supporting an arbitrary length is not the same as it being cheap. A tail of `r` characters
-has only `|alphabet|^r` distinct values, so the shorter it is, the less selective its
-lookup — and the cost of the *whole query* is dominated by it. Measured on an 8 MB panel
-at `l=9`, 20 patterns, varying only `|P|`:
+### Cost: a short tail is verified, not searched
 
-| \|P\| | r | per pattern | vs `r=0` |
+A tail of `r` characters has only `|alphabet|^r` distinct values, so *searching* it is an
+unselective lookup, and that lookup dominates the whole query. Since 2026-09-12 the tail is
+instead **verified** against the candidates the full chunks left (`extend_candidates()`).
+Each candidate already records where its next character lies — the key fixes the T0
+coordinate and `(in_change, next_set)` which side of a degenerate set it is on — so the
+tail is spelled forward from there, across symbol boundaries, branching into every
+alternative of a set in the way and folding each into `changes` and the path set exactly as
+a stitch does. That is `O(candidates x r)`, with no `|alphabet|^r` term.
+
+Measured by `~/Data/experiments/biofmi/specs/tail_cost.yaml` (run
+`tail_cost/2026-09-12_21-57-45`, 40/40 cells) on `tb_p100_norm` at `l=9`, LINEAR, each pattern
+two full chunks plus the tail; median per pattern over 40–400 source-aware patterns and 3
+reps:
+
+| \|P\| | r | searched | verified | searched / verified |
+|---:|---:|---:|---:|---:|
+| 20 | 0 | 0.067 ms | 0.067 ms | 0.99x |
+| 21 | 1 | 2149 ms | 0.101 ms | 21,253x |
+| 22 | 2 | 400 ms | 0.089 ms | 4,489x |
+| 23 | 3 | 131 ms | 0.093 ms | 1,401x |
+| 24 | 4 | 38.0 ms | 0.074 ms | 515x |
+| 25 | 5 | 10.7 ms | 0.069 ms | 154x |
+| 26 | 6 | 2.75 ms | 0.066 ms | 41x |
+| 27 | 7 | 0.86 ms | 0.070 ms | 12x |
+| 28 | 8 | 0.30 ms | 0.066 ms | 4.6x |
+| 29 | 9 | 0.16 ms | 0.065 ms | 2.5x |
+
+Searching loses roughly `|alphabet|` per character removed from the tail; verifying costs
+the same at every `r` and was never slower. It still wins at `l=3`, where the full chunks
+are themselves unselective (a scratch measurement, not a run; 20 patterns, `q=5`): 2.07 s → 0.25 s at `r=1`, 0.94 s → 0.24 s at
+`r=2`, 0.41 s → 0.23 s at `r=3`. Every run returned identical answers, sample sets included,
+and both branches are checked against brute force in both modes by `test_locate_arbitrary`
+and `test_locate_fuzz`.
+
+So **`|P|` no longer needs to be a multiple of `l+1` to be cheap.** `set_tail_threshold(t)`
+(`--tail-threshold t`) searches tails of `r >= t` instead; `0` searches every tail, which is
+only useful for measuring the search. The 2026-08-30 measurement that recommended multiples
+of `l+1` (`> 3000x` at `r=1` on an 8 MB panel) describes the searched branch.
+
+### Cost: a short pattern is not a short tail
+
+`|P| < l+1` is a different cost regime, and a much gentler one. A short *tail* is
+unselective against a candidate set it must be joined with; a short *pattern* is simply a
+query with a large answer, and its cost tracks the size of that answer rather than
+exploding against anything. Same panel and `l`, varying only `|P|`:
+
+| \|P\| | wall | peak RSS | occurrences |
 |---:|---:|---:|---:|
-| 120 | 0 | 0.9 ms | 1x |
-| 121 | 1 | > 3000 ms | **> 3000x** |
-| 123 | 3 | 191 ms | 212x |
-| 125 | 5 | 13.7 ms | 15x |
-| 127 | 7 | 1.8 ms | 1.9x |
-| 129 | 9 | 1.0 ms | 1.1x |
+| 10 (`r=0`) | 0.41 s | — | 72 |
+| 9 | 0.41 s | — | 634 |
+| 8 | 0.35 s | — | 2,076 |
+| 7 | 0.37 s | — | 7,654 |
+| 6 | 0.47 s | — | 28,582 |
+| 5 | 0.87 s | — | 116,315 |
+| 4 | 2.53 s | — | 432,257 |
+| 3 | 9.5 s | 0.9 GB | — |
+| 2 | 37 s | 2.6 GB | — |
+| 1 | 154 s | 9.2 GB | — |
 
-Each character removed from the tail multiplies the cost by roughly `|alphabet|` — the
-4x per character a 4-letter alphabet predicts. A one-character tail is over three orders
-of magnitude slower than no tail at all.
+Each character removed multiplies both the answer and the cost by roughly `|alphabet|`,
+which is the 4x a 4-letter alphabet predicts — no `> 3000x` cliff, because there is no
+candidate set to join against.
 
-**Recommendation: choose `|P|` as a multiple of `l+1` wherever the caller controls it.**
-The support exists so arbitrary lengths are not a hard error, not because they are free.
-A tail of `r >= 7` is affordable on this data; `r <= 5` is not.
-
-The alternative to searching the tail is to *extend* the surviving candidates — walk the
-`r` remaining characters forward from each candidate's own position, branching at
-degenerate symbols, instead of asking the index where the tail occurs. That removes the
-selectivity problem entirely: the work becomes `O(candidates x r)`, with no dependence on
-`|alphabet|^r`.
-
-It is implementable but not free. It needs a path-walker over the index rather than the
-EDS — a loaded index has no EDS to consult — handling three cases: a tail inside one
-reference segment, a tail inside one alternative, and a tail that crosses a symbol
-boundary. The first two are implemented (`extend_candidates()`); the third, the common
-case, is not, so `set_tail_threshold()` refuses any value but 0 rather than silently
-dropping matches. Its own runtime cost is unmeasured, and the crossover against searching
-sits around `r = 7`, so it would supplement the search path rather than replace it.
-
-That combination — a real implementation cost, an unmeasured runtime cost, and a benefit
-confined to short tails — is why the guidance above is to keep `|P|` a multiple of `l+1`
-rather than to rely on either tail strategy.
+**The binding constraint is memory, not time.** Every occurrence is materialised before
+`locate()` returns, so a one-character pattern on an 8 MB panel needs 9.2 GB. Under the
+experiment harness's `policy.mem_cap: 8G` that is an OOM, and it will look like a tool
+failure rather than a pattern that matched a hundred million times. Prefer `|P| >= l+1`
+for anything running under a cap.
 
 ### Summary of accepted input
 
 | Condition | Result |
 |---|---|
-| `|P| < l+1` | **Error** — throws `std::runtime_error` |
+| `|P| == 0` | **Error** — throws `std::runtime_error`; the only refused length |
 | `|P| >= l+1` and `|P| % (l+1) == 0` | Valid — every chunk is full; the cheap case |
-| `|P| >= l+1` and `|P| % (l+1) != 0` | Valid — the `r`-character tail is searched as a short final chunk, at the cost above |
+| `|P| >= l+1` and `|P| % (l+1) != 0` | Valid — the `r`-character tail is verified against the surviving candidates, at about the cost of an exact multiple (above) |
+| `0 < |P| < l+1` | Valid — the whole pattern is one short chunk; correct at every length, but the answer and the memory to hold it grow by `|alphabet|` per character removed |
 | Characters not in the index alphabet | No match — an empty result, not an error |
 
 The valid alphabet is not hardcoded — it is whatever was indexed from the input EDS. The chunk size `l+1` is the fundamental unit: every (l+1)-char chunk covers exactly `l` chars of reference context plus 1 char of content (or pure reference), guaranteeing that a chunk query can straddle any reference–alternative boundary in a valid l-EDS.
@@ -219,6 +259,12 @@ Returns the total number of entries that `locate()` would return. Counts **paths
 
 ## Future improvements (out of scope for now)
 
-- Patterns of arbitrary length (not restricted to multiples of `l+1`)
+- **A counting or streaming path.** Every occurrence is materialised before `locate()`
+  returns, which is what makes a very short pattern memory-bound rather than time-bound.
 - Matches at EDS boundaries (very start/end of the EDS) — currently only partially covered
 - Parallel locate across multiple query threads
+
+*Done since this list was written:* patterns of arbitrary length, no longer restricted to
+multiples of `l+1` (2026-08-30) nor to `|P| >= l+1` (2026-09-02); a short tail verified
+against the surviving candidates instead of searched, across symbol boundaries
+(2026-09-12).

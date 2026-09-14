@@ -183,18 +183,25 @@ EDS make_eds(const std::string& eds_str) {
 // Test 1: Invalid pattern length -> exception
 // ---------------------------------------------------------------------------
 void test_error_pattern_too_short() {
-    std::cout << "Test 1a: pattern shorter than l -> exception... ";
+    std::cout << "Test 1a: only the empty pattern is refused... ";
 
-    // l=3, so minimum pattern length is 3
     BioFMI idx = build_index("AAATTT{G,C}AAATTT", 3);
+
+    // This used to assert that |P| < l+1 threw. It no longer does: the guarantee
+    // a full chunk gave — a changes hit touches the alternative rather than
+    // hiding in a context flank — is checked directly by
+    // process_changes_matches() on every chunk, the first included, so a pattern
+    // that is nothing but a short chunk is the same case as a short tail.
+    // test_locate_arbitrary.cpp checks every such length against brute force.
+    idx.locate("AA");   // length 2 < l+1 = 4: searched, must not throw
 
     bool threw = false;
     try {
-        idx.locate("AA");   // length 2 < l=3
+        idx.locate("");
     } catch (const std::runtime_error&) {
         threw = true;
     }
-    assert(threw && "Expected exception for pattern shorter than l");
+    assert(threw && "Expected exception for the empty pattern");
     std::cout << "PASSED\n";
 }
 

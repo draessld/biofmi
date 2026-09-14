@@ -8,16 +8,27 @@ NC='\033[0m'
 TESTS_PASSED=0
 TESTS_FAILED=0
 
-# Find a tool binary: checks PATH first, then biofmi build/tools/.
+# Find a tool binary: the build tree before PATH, always.
+#
+# ~/.local/bin is normally on PATH, so checking it first meant the suite tested
+# whatever was last installed rather than the tree it was run from. On
+# 2026-09-02 that was an Aug 11 biofmi-locate — older than arbitrary |P|
+# (2026-08-30) and the chunk stitch (2026-09-02) — and eleven "failures" were
+# the stale binary disagreeing with the current expectations. edsparser's
+# harness was fixed this way on 2026-08-11; this one was missed.
+#
+# Set BIOFMI_TOOLS_FROM_PATH=1 to test installed binaries deliberately.
 find_tool() {
     local name="$1"
+    if [ "${BIOFMI_TOOLS_FROM_PATH:-0}" != "1" ]; then
+        local build_path="$BIOFMI_ROOT/build/tools/$name"
+        if [ -x "$build_path" ]; then
+            echo "$build_path"
+            return 0
+        fi
+    fi
     if command -v "$name" &>/dev/null; then
         command -v "$name"
-        return 0
-    fi
-    local build_path="$BIOFMI_ROOT/build/tools/$name"
-    if [ -x "$build_path" ]; then
-        echo "$build_path"
         return 0
     fi
     return 1

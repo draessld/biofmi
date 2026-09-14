@@ -129,7 +129,7 @@ the full layout.
 |--------|-------------|
 | `locate(pattern)` | All occurrences: position, traversed alternatives, carrying genomes |
 | `count(pattern)` | Total number of entries — paths, not distinct positions |
-| `set_tail_threshold(t)` | Shortest tail still worth searching. Accepts only 0; see [index internals § limitations](index_internals.md) |
+| `set_tail_threshold(t)` | Shortest tail still searched rather than verified against the surviving candidates. Default verifies every tail; 0 searches every tail. Same answer either way; see [`locate()` § Cost](locate_spec.md#cost-a-short-tail-is-verified-not-searched) |
 
 **Source-aware (LINEAR) search**
 
@@ -195,5 +195,5 @@ reproduces. Skip it during a tight edit loop with `ctest -E fuzz`.
 | divsufsort / divsufsort64 | Suffix array construction (used by SDSL) |
 | Boost `program_options` | CLI argument parsing in `biofmi-build` / `biofmi-locate` |
 | OpenMP (optional) | Parallel processing |
-| CMake 3.10+ | Build system |
-| C++17 | Language standard |
+| CMake 3.12+ | Build system |
+| C++20 | Language standard |

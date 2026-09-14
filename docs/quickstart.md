@@ -37,8 +37,17 @@ printf '{0}\n{1}\n{2,3}\n{0}\n{1,2}\n{3}\n{0}\n'      > demo.seds
 ```
 
 The `.seds` file has one entry per string in EDS order — common block, then each
-alternative, and so on. `{0}` is the complement encoding for *all paths*; `{2,3}`
+alternative, and so on. `{0}` is the universal marker for *all paths*; `{2,3}`
 means genomes 2 and 3. See [File formats](file_formats.md).
+
+The `{0}` on every common block does look like it is spelling out the obvious,
+and the format does have a way to drop it: **sparse mode**, which omits universal
+entries from the text body and records which string indices they were in a
+trailing bitvector. `vcf2eds` writes sparse by default. It is not something you
+can do by hand, though — the trailer is the only thing that says which indices
+were omitted, so a hand-written file with the `{0}`s deleted is not sparse, just
+short, and loading it fails with `Sources cardinality (4) does not match EDS
+cardinality (7)`. Written by hand, dense is the format.
 
 ---
 
@@ -98,7 +107,8 @@ internals](index_internals.md) covers the rest.
 
 ## Step 3 — Query
 
-`l` must match the build, and a pattern must be at least `l+1` = 6 characters.
+`l` must match the build. Any non-empty pattern is searchable; `l+1` = 6 characters
+or a multiple of it is the cheap case.
 
 ### A match inside the reference, crossing one variable site
 
@@ -184,7 +194,7 @@ See the [CLI reference](cli.md#measurement) for what the per-chunk metrics mean.
 | Know exactly what `locate()` returns | [`locate()` specification](locate_spec.md) |
 | Know what every flag does | [CLI reference](cli.md) |
 | Understand the data structures | [Index internals](index_internals.md) |
-| Reproduce the published measurements | [Running experiments](experiments.md) |
+| See build and query cost, in time and memory | [Benchmarks](benchmarks.md) |
 
 ---
 

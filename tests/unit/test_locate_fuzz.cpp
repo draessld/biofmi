@@ -261,6 +261,16 @@ std::set<OccInfo> collect(const BioFMI::ResultMap& rm) {
     return out;
 }
 
+// Each entry's genomes, keyed by the entry, so two tail modes can be compared
+// on what they report per occurrence and not only on which occurrences.
+std::map<OccInfo, std::vector<int>> collect_samples(const BioFMI& idx,
+                                                    const BioFMI::ResultMap& rm) {
+    std::map<OccInfo, std::vector<int>> out;
+    for (const auto& [seq, occs] : rm)
+        for (const auto& o : occs) out[{(int)o.position, o.changes}] = idx.expand_paths(o.paths);
+    return out;
+}
+
 // Substrings of every path, at every length in [lo, hi].
 std::set<std::string> path_substrings(const Panel& p, size_t lo, size_t hi) {
     std::set<std::string> out;
@@ -336,6 +346,7 @@ void test_fuzz_cartesian() {
             EDS eds(ss);
             BioFMI idx(std::move(eds), l);
             idx.build();
+            idx.set_tail_threshold(0);   // search every tail; the verify pass below sets its own
             panels++;
 
             for (const auto& pat : path_substrings(p, (size_t)l + 1, (size_t)(2 * l + 3))) {
@@ -343,6 +354,15 @@ void test_fuzz_cartesian() {
                 auto want = oracle_cartesian(p, pat);
                 patterns++;
                 if (got != want) report(seed, l, p, pat, "cartesian", got, want);
+
+                // The same pattern with its tail verified rather than searched.
+                if (pat.size() % (size_t)(l + 1) != 0) {
+                    idx.set_tail_threshold((size_t)l + 1);
+                    auto verified = collect(idx.locate(pat));
+                    idx.set_tail_threshold(0);
+                    if (verified != want)
+                        report(seed, l, p, pat, "cartesian/verify", verified, want);
+                }
             }
         }
     }
@@ -368,13 +388,28 @@ void test_fuzz_linear() {
             BioFMI idx(std::move(eds), l);
             idx.build();
             idx.attach_sources(edz, Sources::Format::EDZ);
+            idx.set_tail_threshold(0);   // search every tail; the verify pass below sets its own
             panels++;
 
             for (const auto& pat : path_substrings(p, (size_t)l + 1, (size_t)(2 * l + 3))) {
-                auto got = collect(idx.locate(pat));
+                const auto searched = idx.locate(pat);
+                auto got = collect(searched);
                 auto want = oracle_linear(p, pat);
                 patterns++;
                 if (got != want) report(seed, l, p, pat, "linear", got, want);
+
+                // Verified tail: the same entries, and the same genomes per entry.
+                if (pat.size() % (size_t)(l + 1) != 0) {
+                    idx.set_tail_threshold((size_t)l + 1);
+                    const auto verified_rm = idx.locate(pat);
+                    idx.set_tail_threshold(0);
+                    auto verified = collect(verified_rm);
+                    if (verified != want) {
+                        report(seed, l, p, pat, "linear/verify", verified, want);
+                    } else if (collect_samples(idx, verified_rm) != collect_samples(idx, searched)) {
+                        report(seed, l, p, pat, "linear/verify sample sets", verified, want);
+                    }
+                }
             }
         }
     }

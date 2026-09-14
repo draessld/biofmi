@@ -1088,7 +1088,7 @@ All tools:
 
 - **Boost Program Options**: Command-line parsing
 - **SDSL**: FM-index construction (build/locate tools)
-- **C++17**: Filesystem support
+- **C++20**: Language standard
 
 ---
 

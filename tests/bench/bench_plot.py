@@ -2,10 +2,11 @@
 """bench_plot.py — Generate performance plots from a BioFMI benchmark CSV.
 
 Usage:
-    python3 bench_plot.py [CSV_PATH_OR_RESULTS_DIR]
+    python3 bench_plot.py [--format png|svg|pdf] [CSV_PATH_OR_RESULTS_DIR]
 
 If no argument is given, the newest *.csv in the script's own results/ directory
-is used.  Plots are saved to results/plots/<csv_stem>/ as PNG files.
+is used.  Plots are saved to results/plots/<csv_stem>/, PNG unless --format says
+otherwise.
 
 CSV columns (produced by the 7-cardinal-rules bench suite):
     timestamp, preset, scenario, phase, tool,
@@ -37,6 +38,11 @@ COLORS = {
     "build":  "#2196F3",   # blue  — build phase
     "locate": "#FF9800",   # orange — locate phase
 }
+
+# Output image format. PNG by default, so existing runs are unchanged; the docs
+# ask for SVG, which for line plots is both smaller and scalable — and being
+# text, it diffs and compresses in git instead of landing as a new blob each run.
+FMT = "png"
 ALPHA_BAND = 0.18   # shaded stddev band opacity
 
 # ---------------------------------------------------------------------------
@@ -144,6 +150,13 @@ def load_and_enrich(csv_path: Path) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def _apply_style():
+    # Keep SVG text as <text>, not as outlined glyph paths. matplotlib's default
+    # ('path') embeds every character as vector outlines, which roughly doubles
+    # the file and makes it a binary-shaped blob in git. 'none' emits real text
+    # that the viewer's font renders — smaller, selectable, and diffable. No
+    # effect on PNG.
+    plt.rcParams["svg.fonttype"] = "none"
+
     for style in ("seaborn-v0_8-whitegrid", "seaborn-whitegrid"):
         try:
             plt.style.use(style)
@@ -226,10 +239,10 @@ def plot_build_size_sweep(df: pd.DataFrame, out_dir: Path) -> bool:
     _add_machine_footnote(fig)
     fig.tight_layout()
 
-    out = out_dir / "build_size_sweep.png"
+    out = out_dir / f"build_size_sweep.{FMT}"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"  build_size_sweep.png")
+    print(f"  build_size_sweep.{FMT}")
     return True
 
 
@@ -287,10 +300,10 @@ def plot_build_context_sweep(df: pd.DataFrame, out_dir: Path) -> bool:
     _add_machine_footnote(fig)
     fig.tight_layout()
 
-    out = out_dir / "build_context_sweep.png"
+    out = out_dir / f"build_context_sweep.{FMT}"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"  build_context_sweep.png")
+    print(f"  build_context_sweep.{FMT}")
     return True
 
 
@@ -370,10 +383,10 @@ def plot_locate_pattern_length(df: pd.DataFrame, out_dir: Path) -> bool:
     _add_machine_footnote(fig)
     fig.tight_layout()
 
-    out = out_dir / "locate_pattern_length.png"
+    out = out_dir / f"locate_pattern_length.{FMT}"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"  locate_pattern_length.png")
+    print(f"  locate_pattern_length.{FMT}")
     return True
 
 
@@ -418,10 +431,10 @@ def plot_locate_dataset_size(df: pd.DataFrame, out_dir: Path) -> bool:
     _add_machine_footnote(fig)
     fig.tight_layout()
 
-    out = out_dir / "locate_dataset_size.png"
+    out = out_dir / f"locate_dataset_size.{FMT}"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"  locate_dataset_size.png")
+    print(f"  locate_dataset_size.{FMT}")
     return True
 
 
@@ -495,10 +508,10 @@ def plot_summary(df: pd.DataFrame, out_dir: Path) -> bool:
     _add_machine_footnote(fig)
     fig.tight_layout()
 
-    out = out_dir / "summary.png"
+    out = out_dir / f"summary.{FMT}"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"  summary.png")
+    print(f"  summary.{FMT}")
     return True
 
 
@@ -506,23 +519,46 @@ def plot_summary(df: pd.DataFrame, out_dir: Path) -> bool:
 # Entry point
 # ---------------------------------------------------------------------------
 
+def _is_run_csv(path: Path) -> bool:
+    """A run CSV is named for its timestamp. Anything else in results/ — a
+    baseline someone dropped there, an export — is not a run, and picking it as
+    "the newest" silently plots the wrong thing."""
+    return re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}", path.stem) is not None
+
+
 def parse_args() -> Path:
-    if len(sys.argv) > 2:
-        print("Usage: bench_plot.py [CSV_PATH_OR_RESULTS_DIR]", file=sys.stderr)
+    global FMT
+    argv = list(sys.argv[1:])
+    for i, a in enumerate(argv):
+        if a.startswith("--format="):
+            FMT = a.split("=", 1)[1]
+            argv.pop(i)
+            break
+        if a == "--format" and i + 1 < len(argv):
+            FMT = argv[i + 1]
+            del argv[i:i + 2]
+            break
+    if FMT not in ("png", "svg", "pdf"):
+        print(f"Unsupported --format {FMT!r}; use png, svg or pdf", file=sys.stderr)
+        sys.exit(1)
+
+    if len(argv) > 1:
+        print("Usage: bench_plot.py [--format png|svg|pdf] [CSV_PATH_OR_RESULTS_DIR]",
+              file=sys.stderr)
         sys.exit(1)
 
     results_dir = Path(__file__).parent / "results"
 
-    if len(sys.argv) == 1:
-        csvs = sorted(results_dir.glob("*.csv"))
+    if not argv:
+        csvs = sorted(c for c in results_dir.glob("*.csv") if _is_run_csv(c))
         if not csvs:
             print(f"No CSV files found in {results_dir}", file=sys.stderr)
             sys.exit(1)
         return csvs[-1]
 
-    target = Path(sys.argv[1])
+    target = Path(argv[0])
     if target.is_dir():
-        csvs = sorted(target.glob("*.csv"))
+        csvs = sorted(c for c in target.glob("*.csv") if _is_run_csv(c))
         if not csvs:
             print(f"No CSV files found in {target}", file=sys.stderr)
             sys.exit(1)
@@ -562,7 +598,7 @@ def main():
         try:
             ok = fn(df, out_dir)
             if not ok:
-                print(f"  (skipped {fn.__name__.replace('plot_', '')}.png — no matching data)")
+                print(f"  (skipped {fn.__name__.replace('plot_', '')}.{FMT} — no matching data)")
             else:
                 generated += 1
         except Exception as e:

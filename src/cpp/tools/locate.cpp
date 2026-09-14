@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
         Length context_length;
         bool benchmark = false;
         bool list_samples = false;
+        size_t tail_threshold = 0;
         std::filesystem::path chunk_stats_file;
 
         po::options_description desc("Locate patterns in BIO-FMI index");
@@ -63,6 +64,11 @@ int main(int argc, char** argv) {
             ("samples", po::bool_switch(&list_samples),
                 "List the genome ids carrying each occurrence, not just how many. "
                 "Requires -s/-z; without sources the index has no basis to name them.")
+            ("tail-threshold", po::value<size_t>(&tail_threshold),
+                "Shortest tail of |P| mod (l+1) characters still searched in the index; "
+                "a shorter one is verified against the candidates the full chunks "
+                "left instead. By default every tail is verified, which measured never "
+                "slower; 0 searches every tail. The answer is the same either way.")
             ("benchmark", po::bool_switch(&benchmark), "Benchmark mode")
             ("chunk-stats", po::value<std::filesystem::path>(&chunk_stats_file),
                 "Write a per-chunk cost trace to this CSV and report per-chunk "
@@ -98,6 +104,7 @@ int main(int argc, char** argv) {
         // Load index
         std::cerr << "Loading index from " << index_file << "...\n";
         BioFMI index(index_file);
+        if (vm.count("tail-threshold")) index.set_tail_threshold(tail_threshold);
 
         // Attach sources, if given, for LINEAR (source-aware) search.
         if (vm.count("seds") || vm.count("edz")) {

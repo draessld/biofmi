@@ -96,7 +96,7 @@ if [ -d "$HOME/include/sdsl" ] || [ -d "/usr/local/include/sdsl" ] || [ -d "/usr
     print_status "SDSL library found"
 else
     print_info "SDSL library not found. Will attempt to use system installation."
-    print_info "If build fails, install SDSL from: https://github.com/simongog/sdsl-lite"
+    print_info "If build fails, install SDSL from https://github.com/simongog/sdsl-lite at commit c32874c (docs/installation.md §4)"
 fi
 
 echo ""

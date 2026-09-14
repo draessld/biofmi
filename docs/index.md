@@ -65,10 +65,12 @@ segments at the start or end may be shorter. `biofmi-build` verifies this and
 refuses input that fails it, because the chunked search depends on a chunk of
 `l+1` characters never spanning two degenerate symbols.
 
-**Pattern length.** A pattern must be at least `l+1` characters. It need *not*
-be a multiple of `l+1` — the remainder is searched as a short final chunk — but
-a short tail is much less selective than a full one, and cost rises steeply as
-it shrinks. **Prefer `|P|` a multiple of `l+1`**; see
+**Pattern length.** Only the empty pattern is refused. `|P|` need *not* be a
+multiple of `l+1` — the remainder is verified against the candidates the full
+chunks left, at about the cost of an exact multiple — and need not reach `l+1`
+either, in which case the whole pattern is one short chunk searched on its own.
+That second case is the one with a cost: a short *pattern* is a query with a very
+large answer, which has to be held in memory. See
 [the cost table](cli.md#pattern-validity).
 
 ---
@@ -82,7 +84,7 @@ it shrinks. **Prefer `|P|` a multiple of `l+1`**; see
 | [Installation](installation.md) | Requirements, build, SDSL and Boost, verifying the suite |
 | [Quick start](quickstart.md) | End-to-end on a hand-checkable panel |
 | [Search modes](search_modes.md) | LINEAR vs CARTESIAN, path sets, sample sets |
-| [Running experiments](experiments.md) | The measurement harness and how to reproduce results |
+| [Benchmarks](benchmarks.md) | The in-repo benchmark suite: build and query cost in time and memory |
 
 ### Reference
 
@@ -93,12 +95,6 @@ it shrinks. **Prefer `|P|` a multiple of `l+1`**; see
 | [File formats](file_formats.md) | EDS, l-EDS, sources, and every index file |
 | [Architecture](architecture.md) | Components, data flow, key classes |
 | [Index internals](index_internals.md) | Build pipeline, data structures, the locate algorithm |
-
-### Evaluation
-
-| Page | Contents |
-|---|---|
-| [Experiment design](experiment_design.md) | The questions, the datasets, the protocol, what has been measured |
 
 ---
 

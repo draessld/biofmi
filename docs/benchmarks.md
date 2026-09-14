@@ -94,14 +94,16 @@ Presets:
 
     The chunk size is `l+1`, so `|P|` a multiple of `l+1` is the case the search
     is built for — every chunk is full. Any other length leaves an
-    `r = |P| mod (l+1)` tail, which is a far less selective lookup.
+    `r = |P| mod (l+1)` tail. Since 2026-09-12 that tail is verified against the
+    surviving candidates at about the same cost; before, it was searched, a far
+    less selective lookup, which is what the paragraph below measured.
 
     These lists were multiples of `l` until 2026-09-02, with a comment saying so.
     That was correct when the chunk size *was* `l`; the off-by-one fix made it
     `l+1` and the presets were never updated. Every locate benchmark had been
     measuring the tail path without saying so — "pattern length 10" meant one
     full chunk plus a 4-character tail, and the tail dominated the number. See
-    [the tail cost table](locate_spec.md#cost-prefer-p-a-multiple-of-l1).
+    [the tail cost table](locate_spec.md#cost-a-short-tail-is-verified-not-searched).
 
 ---
 

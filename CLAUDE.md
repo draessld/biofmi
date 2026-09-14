@@ -28,9 +28,9 @@ cmake --install . --prefix ~/.local
 
 Build outputs go to `build/tools/` (executables) and `build/lib/` (libraries).
 
-**Dependencies:** CMake 3.10+, C++17 compiler, Boost (program_options), SDSL library, divsufsort/divsufsort64, OpenMP (optional)
+**Dependencies:** CMake 3.12+, C++20 compiler, Boost (program_options), SDSL library, divsufsort/divsufsort64, OpenMP (optional)
 
-SDSL must be installed to `~/include/sdsl/` or system include paths. See https://github.com/simongog/sdsl-lite.
+SDSL must be installed to `~/include/sdsl/` or system include paths. See https://github.com/simongog/sdsl-lite, **pinned to commit `c32874c`** (tip of the archived `master`), not the `v2.1.1` tag — `docs/installation.md` §4. This machine's `/usr/local` install is that commit plus two local header edits made in 2024 (`calculate_psv`/`nsv` added to `int_vector.hpp`, `select` → `select_bwt` in `suffix_array_helper.hpp`); neither project calls either, and the index it writes matches a pristine `c32874c` build file for file.
 
 ## Tests
 
@@ -41,7 +41,7 @@ ctest -R test_locate_correctness       # Run a single test by name
 ./tools/test_locate_correctness        # Run test executable directly
 ```
 
-Tests use plain `cassert` (no external framework). **`src/cpp/CMakeLists.txt` adds `-UNDEBUG` to test targets** — the default build type is Release, which defines `NDEBUG` and compiles every `assert()` to nothing. Before that was added (2026-08-30) the suite ran, printed PASSED and verified nothing; do not remove it. Test source files are in `tests/unit/`. E2E shell tests are in `tests/e2e/`. Test data is in `tests/e2e/data/`.
+Tests use plain `cassert` (no external framework). **Both `src/cpp/CMakeLists.txt` and `external/edsparser/src/cpp/CMakeLists.txt` add `-UNDEBUG` to test targets** — the default build type is Release, which defines `NDEBUG` and compiles every `assert()` to nothing. Before that was added (BioFMI 2026-08-30, edsparser 2026-09-02) the suites ran, printed PASSED and verified nothing; do not remove it. Test source files are in `tests/unit/`. E2E shell tests are in `tests/e2e/`. Test data is in `tests/e2e/data/`.
 
 | Test executable | Source | What it covers |
 |---|---|---|
@@ -57,7 +57,9 @@ Tests use plain `cassert` (no external framework). **`src/cpp/CMakeLists.txt` ad
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-08-11 everything passes** against edsparser `23dcff7`: BioFMI 6/6 (9/9 as of 2026-09-02), edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-09-02 everything passes with assertions live**: BioFMI 9/9 unit and 14/14 e2e, edsparser 7/7 unit and 9/9 e2e. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+
+The 2026-08-11 version of that claim was worth less than it looked. edsparser never got the `-UNDEBUG` fix BioFMI took on 2026-08-30, so its five assert-based unit tests — `test_eds`, `test_merge`, `test_sources`, `test_stats`, `test_vcf`, 591 assertions between them — had none of them compiled in; `nm -D --undefined-only <test> | grep __assert_fail` returned nothing for every binary. Fixed 2026-09-02, and the suite is 7/7 with them live, so nothing was hiding. Its other four tests (`test_msa`, `test_integration`, `test_memory_smoke`, `test_memory_stress`) check with `if` rather than `assert` and were never affected.
 
 **Always rebuild before trusting a test result, and never trust `~/.local/bin`.** Both failures seen on 2026-08-11 were stale artifacts, and the dangerous direction is silent: the installed `eds2leds` was from Jul 6, predating the complement fix (Aug 4), so it produced l-EDS containing strings no genome carries *without erroring*. Tools now report provenance:
 
@@ -65,7 +67,7 @@ EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp
 eds2leds --version     # COMMIT=<sha> COMMIT_DATE=<iso8601> DIRTY=<0|1>
 ```
 
-`experiments/scripts/run_tb_experiment.sh` refuses to run on a binary whose `COMMIT_DATE` predates the complement fix. The e2e harness resolves tools from `build/tools/` before `PATH` (override with `EDSPARSER_TOOLS_FROM_PATH=1`).
+`experiments/scripts/run_tb_experiment.sh` refuses to run on a binary whose `COMMIT_DATE` predates the complement fix. Both e2e harnesses now resolve tools from `build/tools/` before `PATH` (override with `EDSPARSER_TOOLS_FROM_PATH=1` / `BIOFMI_TOOLS_FROM_PATH=1`). BioFMI's was missed when edsparser's was fixed and only caught on 2026-09-02: it was running an Aug 11 `biofmi-locate` out of `~/.local/bin`, older than arbitrary `|P|` and the chunk stitch, and its eleven "failures" were that stale binary disagreeing with expectations the fresh one meets.
 
 **Note:** `tests/unit/` contains only the 9 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
 
@@ -146,12 +148,12 @@ Position mapping between the two indexes uses three SDSL bit vectors with rank/s
 Query processing splits the pattern into chunks of size `l` and tracks matches across both indexes using hash maps, with early termination on empty intermediate results. `locate_short()`, `locate_long()`, and `validate_chunk_positions()` are stub methods (not yet called by `locate()`) — the main `locate()` loop handles all pattern lengths directly.
 
 **`locate()` result semantics** (see `docs/locate_spec.md` for full spec):
-- Pattern length must be **at least `l+1`**; otherwise throws. It need *not* be a multiple of `l+1` — the `r = |P| mod (l+1)` tail is searched as a short final chunk (2026-08-30). Short chunks need a guard that full chunks get for free: see `docs/locate_spec.md` § Pattern validity. The chunk size is `l+1` (`chunk_size = context_length_ + 1` in `index.cpp`) — `l` characters of context plus one of content. Minimum `l` is 3.
+- **Only the empty pattern throws.** `|P|` need *not* be a multiple of `l+1` — the `r = |P| mod (l+1)` tail is verified against the surviving candidates (2026-09-12; before that searched as a short final chunk, still available with `set_tail_threshold(0)`) — and need not reach `l+1` either (2026-09-02), in which case the whole pattern is that one short chunk. Short chunks need a guard that full chunks get for free, and `process_changes_matches()` applies it to every chunk including the first, which is what retired the `l+1` floor: see `docs/locate_spec.md` § Pattern validity. The chunk size is `l+1` (`chunk_size = context_length_ + 1` in `index.cpp`) — `l` characters of context plus one of content. Minimum `l` is 3.
 - Returns one `(position, changes)` entry per valid path through the EDS.
 - **Position** — 0-based: T₀ index if match starts in reference; `base_position_of_set + offset_within_alternative` if match starts inside a degenerate alternative.
 - **Changes** — ordered list of 0-based global alternative indices (numbered across all alternatives of all degenerate sets in EDS order) that the match passes through. **A zero-length alternative counts as traversed** even though it contributes no character: the match exists only on the path that chose it, and `changes` drives the source intersection. Two reference blocks separated by such a symbol are adjacent along that path — a match crossing between them was silently lost until 2026-08-31.
 - `count()` returns total number of entries (paths), not distinct positions.
-- Future work: arbitrary pattern lengths, EDS boundary edge cases.
+- Future work: EDS boundary edge cases.
 
 ### l-EDS validation in `biofmi-build`
 
@@ -210,13 +212,36 @@ cost. `print_result()` shows the count; `--samples` lists the ids. `PathSet` is
 complement-encoded — resolve it with `BioFMI::expand_paths()`, never by iterating it.
 Validated against `occurrence_oracle.py`: on covid294 all 200 patterns' sample sets equal
 the genomes containing them exactly, 0 false positives and 0 false negatives.
+**On a VCF-derived panel they are only as good as the partition** (TODO §4): the vendored
+`vcf2eds` (edsparser `1cba45e`) leaves a sample carrying an alternative at a grouped record
+under the reference option too (`merge_variant_group()`), haploid data included, so LINEAR
+admits genomes that do not carry the match. Fixed upstream 2026-09-12, not yet in the
+submodule; `docs/search_modes.md` § Choosing.
 
 Sources are read at query time and are **not** embedded in the index; the one new
-artifact is `.d2g`, mapping degenerate-string number to global string id (21 KB against a
-4.9 MB index), because a loaded index has no EDS to derive it from — `load()` never
-populates `eds_`. Attaching sources to an index built before `.d2g`, or to a sources file
-whose cardinality does not match the indexed l-EDS, throws rather than silently
-mis-associating path sets.
+artifact is `.d2g`, mapping degenerate-string number to global string id, because a
+loaded index has no EDS to derive it from — `load()` never populates `eds_`.
+It used to be a `std::vector<int64_t>` holding a strictly increasing sequence, about 8
+bytes per degenerate string: 6.3–7.1% of every `tb_scaling` index and 3.1–11.4% of
+`l_sweep`'s (a constant 227 KB). An earlier note here put it at 18.6% of an 8 MB synthetic
+panel; no run, bench result or commit reproduces that figure, so it is not quoted. **Since
+2026-09-12 it is an Elias-Fano `sdsl::sd_vector` behind an 8-byte magic** (`BFMID2G1`),
+`change_number` mapping to `select_1(change_number)`: on `tb_p100_norm` at `l=9`, 287 KB →
+15 KB, every other index file byte-identical, full output with sample sets identical.
+`load()` still reads the old layout and compacts it in memory (`test_locate_sources`
+test 11); a binary older than the change cannot read the new one. Attaching sources to an
+index built before `.d2g`, or to a sources file whose cardinality does not match the
+indexed l-EDS, throws rather than silently mis-associating path sets.
+
+**Path sets stay out of the index (TODO §2, decided 2026-09-12).** Embedding them was
+already justified by neither time nor memory (run `linear/2026-08-26_19-22-21`). The one
+unmeasured benefit, an allocation-free inner loop instead of `source_of_change()` returning
+a `std::vector` by value, is bounded by what source handling costs at all: under callgrind
+on `tb_p100_norm` at `l=9`, 40 patterns of ten chunks, `locate()` runs 45.9 M instructions
+with sources and 44.1 M without — `source_of_change()` inclusive is 4.1%, `sdsl::locate` 90%.
+A bitset loop can win at most that, which leaves packaging, and packaging does not justify
+a second copy of the sources. The measurement is at 100 paths; revisit only if a panel with
+thousands shows the intersection rather than the FM-index dominating.
 
 Validated by `specs/linear.yaml` (run `linear/2026-08-26_19-22-21`, 108/108 cells), which
 queries one index both ways so every difference is the intersection alone:
@@ -232,18 +257,28 @@ queries one index both ways so every difference is the intersection alone:
 Source-awareness is not paid for in time: pruning a branch when its path set empties is
 cheaper than materialising the occurrences it would have produced.
 
-**This retired a headline result.** `docs/experiment_design.md` §5 reported "`l` is a
+**This retired a headline result.** The evaluation write-up had reported "`l` is a
 precision knob" — decoys admitted falling with `l`. That decay was B4's cross product
 having fewer seams to leak through as merging absorbed the constraint, not the index
 growing more faithful. With sources applied, precision is perfect at every `l` and does
-not depend on it. §5b records the correction; §5 is struck through rather than deleted.
+not depend on it. (`docs/experiment_design.md`, which carried that claim and its
+correction, was removed on 2026-09-02 — the evaluation belongs to the paper, not to the
+repo's documentation. Recover it from git history if the wording is needed.)
 
 Semantics are specified in `docs/locate_spec.md` § Search modes; the measured write-up is
 `~/Data/experiments/biofmi/notebooks/covid294_linear_evaluation.ipynb`.
 
-`TODO.md` holds only open work now. Arbitrary pattern lengths landed 2026-08-30; what
-remains there is verifying a short tail rather than searching it, which is a cost
-question, not a capability one.
+**Where measurement lives now (2026-09-02).** `docs/` documents the tool, not the
+research. The evaluation — datasets, protocol, the `l` sweep, the LINEAR/CARTESIAN
+comparison — goes in the paper, and `docs/experiments.md` and `docs/experiment_design.md`
+were deleted accordingly. What the repo keeps is `tests/bench/`: a self-contained
+benchmark suite over generated data, documented at `docs/benchmarks.md`, reporting build
+and query cost in time and memory. It is a regression check on this code, not an
+evaluation of the method. **No panel large enough to matter is ever committed** — the
+suite generates what it needs from a seed and deletes it.
+
+`TODO.md` holds only open work now. Arbitrary pattern lengths landed 2026-08-30, and
+verifying a short tail instead of searching it on 2026-09-12 (§1, closed — below).
 
 **The chunk stitch is closed (2026-09-02).** `tests/unit/test_locate_fuzz.cpp` generates
 seeded panels — biased towards empty alternatives, symbols at the very start and end,
@@ -270,6 +305,21 @@ source sets, so a match crossing the symbol is one occurrence per empty alternat
 match spanning several such symbols in a row. With this, `kGenerateEmptyAlternatives` is
 on and the harness is registered with ctest: 9/9, 15 s of the suite's 17 s.
 
+**A short tail is verified, not searched (2026-09-12, TODO §1).** Searching the `r`-character
+tail of an arbitrary-length pattern is an `|alphabet|^r`-unselective lookup; verifying it
+walks forward from each surviving candidate instead. The explicit end state above is what
+made that possible: the key fixes the T0 coordinate and `(in_change, next_set)` which side
+of a set it is on, so `walk_tail()` spells the tail across symbol boundaries, branching into
+every alternative of a set in the way (empty ones included) and folding `changes` and the
+path set as a stitch does. The earlier attempt inferred the continuation from
+`changes.back()` — the `last_change` conflation again — and could not cross a boundary.
+Measured by `~/Data/experiments/biofmi/specs/tail_cost.yaml` (run
+`tail_cost/2026-09-12_21-57-45`, `tb_p100_norm`, `l=9`, LINEAR, median per pattern): searched
+2.15 s at `r=1`, 131 ms at `r=3`, 0.86 ms at `r=7`, 0.16 ms at `r=9`; verified 65–101 µs at every
+`r`, never slower, identical answers in all 20 cell pairs. At `l=3` it still wins (8.4x at `r=1`). **Verify is
+the default**; `set_tail_threshold(t)` / `--tail-threshold t` searches tails of `r >= t`.
+`test_locate_arbitrary` tests 3–4 and both fuzz modes check it against brute force.
+
 ### Resolved
 
 | Issue | Fix location |
@@ -281,10 +331,30 @@ on and the harness is registered with ctest: 9/9, 15 s of the suite's 17 s.
 | Locate algorithm undocumented | `locate()` — block comment with worked example; `test_locate_offset.cpp` — offset arithmetic cross-check |
 | Chunk stitch inferred position from `last_change`, admitting matches that skip a degenerate symbol | `OccurrenceInfo::in_change`/`next_set` — the end state carried explicitly; `bridge_empty_sets()` |
 | A match crossing a symbol with several empty alternatives reported only the first | `bridge_empty_sets()` branches per empty alternative; `docs/locate_spec.md` § result semantics |
+| `load()` ignored every `sdsl::load_from_file` return and skipped an absent `.meta`, so a missing index answered every query "No occurrences found" with exit 0 | `BioFMI::load()` — directory and per-file checks that throw; `save()` no longer drops `.meta` silently |
+| BioFMI's e2e `find_tool()` searched `PATH` before `build/tools/`, testing whatever was last installed | `tests/e2e/helpers.sh`; `BIOFMI_TOOLS_FROM_PATH=1` to opt back in |
+| `tests/bench/` resolved tools the same way, and the chunk size was taken to be `l` rather than `l+1` in three places — the presets, the pattern-length guard, and the dataset-size scenario's `l * 2` | `bench_helpers.sh` (build tree first); `bench.sh` presets `6 12 24 48`; both scenario scripts |
+| Two concurrent `biofmi-build` runs at the same `l` corrupted each other: the scratch directory was `/tmp/biofmi_index_<l>`, a fixed name shared machine-wide, never removed | `BioFMI` ctor uses `mkdtemp`; destructor removes what it created |
+| e2e locate fixtures used `\|P\| = l`, one short of the `l+1` minimum, and had been failing since the chunk-size off-by-one fix | `tests/e2e/test_locate.sh` + `tests/e2e/expected/locate/` regenerated at valid lengths |
+| A short tail was always searched — 2.15 s against 0.10 ms verified at `r=1` — because verifying could not cross a symbol boundary, so `set_tail_threshold()` refused any value but 0 | `extend_candidates()` + `walk_tail()` from `in_change`/`next_set`; `t0_to_ref_pos()` a binary search; verify is the default; `biofmi-locate --tail-threshold` |
+| `.d2g` stored a strictly increasing sequence as 64-bit integers (up to 11% of a measured index) | Elias-Fano `sd_vector` behind a magic in `save()`; `load_deg_to_global()` still reads the old layout |
+
+**The benchmark suite measured the wrong thing for months (fixed 2026-09-02).** Three
+independent places assumed the chunk size was `l`, all correct before the off-by-one fix
+and stale after it: the preset pattern lengths `(5 10 20 40)`, a guard in
+`scenario_locate_pattern_length.sh` skipping anything not a multiple of `l`, and
+`pat_len=$(( l * 2 ))` in `scenario_locate_dataset_size.sh`. Every locate benchmark was
+therefore timing the short-tail path while labelling it by pattern length. The scale: at
+`l=5` the old "pattern length 10" measured 6.28 s for 50 patterns; the corrected two-chunk
+length 12 measures 0.84 s. Almost 90% of that number was tail.
+
+Fixing the presets alone made it worse and quieter — the guard then rejected all four
+lengths and the scenario produced no rows at all, with nothing but a warning to say so.
+Check `cut -d, -f3 results/<run>.csv | sort -u` lists all four scenarios before trusting a
+run.
 
 ### Future Work
 
-- **Extending candidates instead of searching a short tail**: arbitrary `|P|` works, but a short tail is an unselective lookup — measured at >3000x the `r=0` cost for a one-character tail. **Prefer `|P|` a multiple of `l+1`.** Extending candidates instead is implemented only for tails that do not cross a symbol boundary, so `set_tail_threshold()` refuses any value but 0. See `docs/locate_spec.md` § Cost and `TODO.md`.
-
+- **Short patterns are memory-bound.** `|P| < l+1` is correct at every length (31,699 patterns over the 360 fuzz panels, both modes, zero disagreement with the oracle) but every occurrence is materialised before `locate()` returns, so the answer and the RAM to hold it grow by ~`|alphabet|` per character removed: on an 8 MB panel at `l=9`, `|P|=1` takes 154 s and **9.2 GB**. Under the harness's `policy.mem_cap: 8G` that is an OOM that looks like a tool failure. A streaming or counting path would fix it; nothing needs it yet.
 ### Other notes
 - `count()` delegates to `locate()` and sums entries.

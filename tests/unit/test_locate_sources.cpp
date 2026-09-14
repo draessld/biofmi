@@ -331,6 +331,53 @@ void test_no_samples_without_sources() {
     std::cout << "PASSED\n";
 }
 
+// ---------------------------------------------------------------------------
+// 11. An index written with the old 64-bit .d2g still loads, into the same map
+//
+// .d2g held a std::vector<int64_t> until 2026-09-12 and now holds an Elias-Fano
+// bit vector behind a magic number. Indexes on disk predate the change, so
+// load() must still read the old layout — and read it into the same mapping, or
+// source sets attach to the wrong alternatives without any error.
+// ---------------------------------------------------------------------------
+void test_legacy_d2g_still_loads() {
+    std::cout << "Test 11: an index with the old 64-bit .d2g still loads... ";
+
+    auto path = write_edz();
+    auto dir = std::filesystem::temp_directory_path() / "biofmi_test_idx_legacy_d2g";
+    std::filesystem::remove_all(dir);
+    {
+        BioFMI idx = build_index(kEds, 3);
+        idx.save(dir);
+    }
+
+    {
+        std::ifstream in(dir / "index.d2g", std::ios::binary);
+        char magic[8] = {};
+        in.read(magic, 8);
+        assert(std::string(magic, 8) == "BFMID2G1" && "a fresh .d2g uses the compact layout");
+    }
+
+    // What biofmi-build used to write: the global ids of kEds's six degenerate
+    // strings, 1 2 4 5 7 8, as 64-bit integers.
+    const std::vector<int64_t> legacy = {1, 2, 4, 5, 7, 8};
+    assert(sdsl::store_to_file(legacy, (dir / "index.d2g").string()));
+
+    BioFMI loaded(dir);
+    loaded.attach_sources(path, Sources::Format::EDZ);
+    assert(total_entries(loaded.locate("AAATTTGAAATTTGAAATTTGAAA")) == 0 &&
+           "legacy map must still reject the non-transitive path");
+
+    auto r = loaded.locate("AAATTTGAAATTTCAAATTTCAAA");
+    assert(total_entries(r) > 0 && "legacy map must still find the real path");
+    for (const auto& [seq, occs] : r)
+        for (const auto& occ : occs)
+            assert(loaded.expand_paths(occ.paths) == std::vector<int>{1} &&
+                   "legacy map attached a source set to the wrong alternative");
+
+    std::filesystem::remove_all(dir);
+    std::cout << "PASSED\n";
+}
+
 int main() {
     std::cout << "========================================\n";
     std::cout << "Source-aware (LINEAR) locate tests\n";
@@ -347,6 +394,7 @@ int main() {
         test_sample_set_is_reported();
         test_expand_paths_handles_complement();
         test_no_samples_without_sources();
+        test_legacy_d2g_still_loads();
 
         std::cout << "\n========================================\n";
         std::cout << "ALL SOURCE-AWARE TESTS PASSED\n";

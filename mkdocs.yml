@@ -60,7 +60,7 @@ nav:
       - Installation: installation.md
       - Quick start: quickstart.md
       - Search modes: search_modes.md
-      - Running experiments: experiments.md
+      - Benchmarks: benchmarks.md
   - Reference:
       - CLI reference: cli.md
       - locate() specification: locate_spec.md
@@ -68,5 +68,3 @@ nav:
   - Internals:
       - Architecture: architecture.md
       - Index internals: index_internals.md
-  - Evaluation:
-      - Experiment design: experiment_design.md
