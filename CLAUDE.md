@@ -123,6 +123,7 @@ gitignored so it cannot creep back. The whole tree sits under `~/Data`:
     covid294_linear_evaluation.ipynb            LINEAR, source-aware vs withheld
 ~/Data/experiments/biofmi/results/covid294/     the reference bundle
 ~/Data/experiments/biofmi/runs/                 run directories
+~/Data/experiments/biofmi/dgx/                  DGX tier: bundle, setup, prepare, run, collect
 ~/Data/covid/                                   inputs
 ```
 
@@ -130,6 +131,13 @@ gitignored so it cannot creep back. The whole tree sits under `~/Data`:
 repo-relative paths (`resolve.prefer: build/tools`); it defaults to
 `~/Documents/uni_projects/biofmi` and takes `BIOFMI_REPO` as an override.
 `XBENCH_RUNS` moves the run directories.
+
+**The DGX tier (2026-09-14)** runs every experiment on the DGX, plus bigger panels with no
+laptop counterpart; `dgx/README.md` is the entry point, open items are `TODO.md` §7c. Its
+bundle ships this checkout's *working tree*, so provenance stamps read `DIRTY=1` while
+anything is uncommitted — and a plain clone does not build what the laptop does: the
+edsparser submodule is still at `1cba45e` with its C++20/`-UNDEBUG` CMake change
+uncommitted in its working tree (2026-09-15), so a fresh `git submodule update` loses it.
 
 Note `results/covid294` is no longer versioned anywhere: `specs/acceptance_covid294.py`
 still checks a fresh run against it quantity by quantity, but the baseline it

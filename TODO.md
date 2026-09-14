@@ -188,6 +188,24 @@ anything more from it.
 - **Dirty edsparser build tree** (`eds2leds`, `edsparser-stats` at 1cba45e, DIRTY=1) — xbench
   warned on `panel_growth`. Rebuild clean before submission-grade reruns.
 
+## 7c. The DGX tier (2026-09-14)
+
+Every experiment is runnable on the DGX, with bigger TB (all 1141 complete assemblies),
+covid (Nextclade-aligned GenBank panels to ~56,000 genomes) and synthetic data (genome count,
+reference length, density). Pipeline and decisions: `~/Data/experiments/biofmi/dgx/README.md`.
+Smoke-tested on the laptop end to end; the base tier rebuilds byte-identically.
+
+- **Push `5db672a` and commit the edsparser submodule's C++20/`-UNDEBUG` change.** Until then
+  the bundle carries the working tree (with `.git`, so provenance stamps are real, DIRTY=1),
+  and the DGX's `~/Projects/biofmi` clone would build older code.
+- **Re-scan the DGX once the VPN is approved**: bcftools/samtools/tabix presence and version,
+  outbound GitHub/NCBI, and whether the August pool is at `~/raid_storage/Data/tb`.
+  `sites/dgx-kti.sh` assumes the latter.
+- **Not yet exercised anywhere**: `10_setup.sh`, the `tb*` sections at 1141, `31_scripts.sh
+  efg_gap`/`breakeven`, and every `*_big` spec at full size.
+- `~/Data/experiments/biofmi` is still not under version control; the DGX scripts exist
+  there and in bundles only.
+
 ## 8. Order
 
 1. **6a** — choose the covid294 filter, then rebuild its arm. Everything in the results that
