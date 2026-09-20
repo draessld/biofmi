@@ -138,6 +138,12 @@ bundle ships this checkout's *working tree*, so provenance stamps read `DIRTY=1`
 anything is uncommitted — and a plain clone does not build what the laptop does: the
 edsparser submodule is still at `1cba45e` with its C++20/`-UNDEBUG` CMake change
 uncommitted in its working tree (2026-09-15), so a fresh `git submodule update` loses it.
+The 2026-09-15 re-scan settled what the machine provides: no TB pool survives there (only
+`panel_100_snv50`), so the 1141 panel is a fresh ~5 GB download, and samtools/tabix/bgzip/
+minimap2/Nextclade are absent with `~/.local/bin/bcftools` at 1.21 — `ALLOW_FETCH=1
+./10_setup.sh` builds 1.19 into the bundle. It has no swap and no per-user limit, with
+systemd-oomd active, so every unit runs under `memguard.py` (320 G ceiling, 64 G machine
+floor, kernel `MemoryMax` scopes).
 
 Note `results/covid294` is no longer versioned anywhere: `specs/acceptance_covid294.py`
 still checks a fresh run against it quantity by quantity, but the baseline it

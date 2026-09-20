@@ -198,9 +198,11 @@ Smoke-tested on the laptop end to end; the base tier rebuilds byte-identically.
 - **Push `5db672a` and commit the edsparser submodule's C++20/`-UNDEBUG` change.** Until then
   the bundle carries the working tree (with `.git`, so provenance stamps are real, DIRTY=1),
   and the DGX's `~/Projects/biofmi` clone would build older code.
-- **Re-scan the DGX once the VPN is approved**: bcftools/samtools/tabix presence and version,
-  outbound GitHub/NCBI, and whether the August pool is at `~/raid_storage/Data/tb`.
-  `sites/dgx-kti.sh` assumes the latter.
+- **DGX re-scanned 2026-09-15.** No TB pool survives (only `panel_100_snv50`), so the 1141
+  panel is a fresh ~5 GB download; samtools/tabix/bgzip/minimap2/Nextclade are absent and
+  `~/.local/bin/bcftools` is 1.21 — `ALLOW_FETCH=1 ./10_setup.sh` builds 1.19 into the bundle.
+  No swap, no per-user limit, systemd-oomd active: every unit now runs under `memguard.py`
+  (320 G ceiling, 64 G machine floor, kernel `MemoryMax` scopes verified on the DGX).
 - **Not yet exercised anywhere**: `10_setup.sh`, the `tb*` sections at 1141, `31_scripts.sh
   efg_gap`/`breakeven`, and every `*_big` spec at full size.
 - `~/Data/experiments/biofmi` is still not under version control; the DGX scripts exist
