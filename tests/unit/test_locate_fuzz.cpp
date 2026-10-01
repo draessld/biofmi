@@ -19,6 +19,7 @@
  */
 
 #include "index/index.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
@@ -44,10 +45,23 @@ struct Panel {
     std::vector<std::vector<int>> path_choice;      // path id-1 -> chosen alt per degen symbol
     int num_paths = 0;
     int l = 0;
+    // Optional: a regular symbol written as several consecutive regular
+    // symbols, {CGCG}{A}{TGCC}, the way older vcf2eds wrote one segment.
+    // Concatenated they are symbols[i][0]; empty = written as one bare run.
+    std::vector<std::vector<std::string>> pieces;
+
+    // Number of regular symbols symbol i is written as.
+    size_t written_as(size_t i) const {
+        return (i < pieces.size() && !pieces[i].empty()) ? pieces[i].size() : 1;
+    }
 
     std::string eds_text() const {
         std::string out;
         for (size_t i = 0; i < symbols.size(); i++) {
+            if (!is_degen[i] && i < pieces.size() && !pieces[i].empty()) {
+                for (const auto& piece : pieces[i]) out += "{" + piece + "}";
+                continue;
+            }
             if (!is_degen[i]) { out += symbols[i][0]; continue; }
             out += '{';
             for (size_t a = 0; a < symbols[i].size(); a++) {
@@ -147,6 +161,26 @@ Panel random_panel(std::mt19937& rng, int l) {
         }
     }
     return p;
+}
+
+/**
+ * Write every regular symbol of `p` as 1..3 consecutive regular symbols, cut at
+ * random points — empty pieces included, as `{}`. The panel spells exactly the
+ * same strings, so the oracle is unchanged and every answer, positions
+ * included, must be too: a run of regular symbols is one context segment.
+ */
+void split_regular_symbols(Panel& p, std::mt19937& rng) {
+    p.pieces.assign(p.symbols.size(), {});
+    for (size_t i = 0; i < p.symbols.size(); i++) {
+        if (p.is_degen[i]) continue;
+        const std::string& seg = p.symbols[i][0];
+        const size_t k = 1 + rng() % 3;
+        std::vector<size_t> cuts = {0, seg.size()};
+        for (size_t c = 1; c < k; c++) cuts.push_back(rng() % (seg.size() + 1));
+        std::sort(cuts.begin(), cuts.end());
+        for (size_t c = 0; c + 1 < cuts.size(); c++)
+            p.pieces[i].push_back(seg.substr(cuts[c], cuts[c + 1] - cuts[c]));
+    }
 }
 
 // -------------------------------------------------------------------- oracle
@@ -290,8 +324,10 @@ std::filesystem::path write_edz(const Panel& p) {
     size_t cardinality = 0;
     for (size_t i = 0; i < p.symbols.size(); i++) {
         if (!p.is_degen[i]) {
-            Sources::write_edz_entry(os, PathSet{0}, (size_t)p.num_paths);  // common: all paths
-            cardinality++;
+            for (size_t k = 0; k < p.written_as(i); k++) {             // common: all paths
+                Sources::write_edz_entry(os, PathSet{0}, (size_t)p.num_paths);
+                cardinality++;
+            }
         } else {
             for (size_t a = 0; a < p.symbols[i].size(); a++) {
                 Sources::write_edz_entry(os, p.alt_paths[p.global_alt(i, a)],
@@ -491,6 +527,50 @@ void test_fuzz_sample_sets() {
     std::cout << "PASSED\n";
 }
 
+// ---------------------------------------------------------------------------
+// 5. Split regular symbols: one segment, whatever the symbol count
+// ---------------------------------------------------------------------------
+void test_fuzz_split_regular() {
+    std::cout << "Test 5: split regular symbols, both modes, vs brute force... " << std::flush;
+    int before = failures, panels = 0, patterns = 0, split_runs = 0;
+
+    for (unsigned seed = 401; seed <= 420; seed++) {
+        std::mt19937 rng(seed);
+        for (int l : {3, 4, 5}) {
+            Panel p = random_panel(rng, l);
+            split_regular_symbols(p, rng);
+            for (size_t i = 0; i < p.symbols.size(); i++) split_runs += p.written_as(i) > 1;
+            auto edz = write_edz(p);
+
+            std::istringstream s1(p.eds_text());
+            EDS e1(s1);
+            BioFMI cart(std::move(e1), l);
+            cart.build();
+            std::istringstream s2(p.eds_text());
+            EDS e2(s2);
+            BioFMI lin(std::move(e2), l);
+            lin.build();
+            lin.attach_sources(edz, Sources::Format::EDZ);
+            panels++;
+
+            for (const auto& pat : path_substrings(p, 1, (size_t)(2 * l + 3))) {
+                patterns++;
+                auto got_c = collect(cart.locate(pat));
+                auto want_c = oracle_cartesian(p, pat);
+                if (got_c != want_c) report(seed, l, p, pat, "split/cartesian", got_c, want_c);
+                auto got_l = collect(lin.locate(pat));
+                auto want_l = oracle_linear(p, pat);
+                if (got_l != want_l) report(seed, l, p, pat, "split/linear", got_l, want_l);
+            }
+        }
+    }
+    std::cout << panels << " panels (" << split_runs << " split runs), "
+              << patterns << " patterns... ";
+    assert(split_runs > 0 && "the generator produced no split run");
+    assert(failures == before && "locate on split regular symbols disagrees with brute force");
+    std::cout << "PASSED\n";
+}
+
 int main() {
     std::cout << "========================================\n";
     std::cout << "Randomised differential locate tests\n";
@@ -500,6 +580,7 @@ int main() {
         test_fuzz_linear();
         test_fuzz_linear_subset();
         test_fuzz_sample_sets();
+        test_fuzz_split_regular();
         std::cout << "\n========================================\n";
         std::cout << "ALL FUZZ TESTS PASSED\n";
         std::cout << "========================================\n";

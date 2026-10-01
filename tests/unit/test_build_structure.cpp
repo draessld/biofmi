@@ -375,6 +375,40 @@ void test_boundary_first_degenerate_structure() {
 }
 
 // ---------------------------------------------------------------------------
+// Test 5: consecutive regular symbols are one segment
+//
+// {AA}{AT}{TT}{G,C}{A}{AA}{}{TTT} spells AAATTT{G,C}AAATTT, written the way
+// older vcf2eds wrote fixed variants (and a `{}` for a fixed deletion). Every
+// structure must be byte-identical to Test 1's: one T0 block per segment, the
+// right context read across the run, and the same base positions — so the T0
+// coordinates locate() reports cannot move. Only string ids, which number the
+// file's symbols, differ, and they never reach these structures.
+// ---------------------------------------------------------------------------
+void test_split_regular_symbols_structure() {
+    std::cout << "Test 5: {AA}{AT}{TT}{G,C}{A}{AA}{}{TTT}  l=3 (split runs)... ";
+
+    auto split  = build_index("{AA}{AT}{TT}{G,C}{A}{AA}{}{TTT}", 3).get_snapshot();
+    auto merged = build_index("AAATTT{G,C}AAATTT", 3).get_snapshot();
+
+    assert_str(split.ref_text,     merged.ref_text,     "ref_text");
+    assert_str(split.changes_text, merged.changes_text, "changes_text");
+    assert_vec(split.base_positions, merged.base_positions, "base_positions");
+    assert_vec(split.set_sizes,      merged.set_sizes,      "set_sizes");
+    assert_vec(split.offsets,        merged.offsets,        "offsets");
+    assert_vec(split.tloc_ones, merged.tloc_ones, "tloc_ones");
+    assert_vec(split.loc_ones,  merged.loc_ones,  "loc_ones");
+    assert_vec(split.iloc_ones, merged.iloc_ones, "iloc_ones");
+
+    // An empty leading segment is no segment: the EDS opens with a set.
+    auto lead  = build_index("{}{G,C}AAATTT", 3).get_snapshot();
+    auto plain = build_index("{G,C}AAATTT", 3).get_snapshot();
+    assert_str(lead.ref_text, plain.ref_text, "ref_text (empty lead)");
+    assert_vec(lead.base_positions, plain.base_positions, "base_positions (empty lead)");
+
+    std::cout << "PASSED\n";
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 int main() {
@@ -387,6 +421,7 @@ int main() {
         test_two_degenerate_sets();
         test_multi_char_alternative();
         test_boundary_first_degenerate_structure();
+        test_split_regular_symbols_structure();
 
         std::cout << "\n===========================================\n";
         std::cout << "ALL STRUCTURAL TESTS PASSED\n";

@@ -34,7 +34,27 @@ test_build_missing_context_length_fails() {
     [ $code -ne 0 ] || { echo -e "  ${RED}FAIL${NC}: missing -l — expected non-zero exit, got 0"; return 1; }
 }
 
+# The l-EDS check is per context SEGMENT, a maximal run of regular symbols:
+# {CGCG}{A}{TGCC} is one context of 9, whichever way it is written.
+test_build_split_run_is_one_context() {
+    printf '{ACGTA}{A,C}{CGCG}{A}{TGCC}{G,T}{TTTTT}' > "$TMPDIR/split.eds"
+    "$TOOL" -i "$TMPDIR/split.eds" -l 5 -o "$TMPDIR/idx_split" >/dev/null 2>&1
+    assert_exit_code 0 $? "split run of 9 accepted at l=5" || return 1
+    "$TOOL" -i "$TMPDIR/split.eds" -l 10 -o "$TMPDIR/idx_split10" >/dev/null 2>&1
+    local code=$?
+    [ $code -ne 0 ] || { echo -e "  ${RED}FAIL${NC}: split run of 9 accepted at l=10"; return 1; }
+}
+
+test_build_adjacent_degenerate_fails() {
+    printf '{ACGTA}{A,C}{G,T}{TTTTT}' > "$TMPDIR/adj.eds"
+    "$TOOL" -i "$TMPDIR/adj.eds" -l 3 -o "$TMPDIR/idx_adj" >/dev/null 2>&1
+    local code=$?
+    [ $code -ne 0 ] || { echo -e "  ${RED}FAIL${NC}: adjacent degenerate symbols accepted"; return 1; }
+}
+
 run_test "basic build succeeds"                  test_build_basic_succeeds
+run_test "split regular run is one context"      test_build_split_run_is_one_context
+run_test "adjacent degenerate symbols rejected"  test_build_adjacent_degenerate_fails
 run_test "build creates all index files"         test_build_creates_index_files
 run_test "missing input exits non-zero"          test_build_missing_input_fails
 run_test "missing context length exits non-zero" test_build_missing_context_length_fails

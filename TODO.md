@@ -174,11 +174,40 @@ anything more from it.
 - **E10 at k = 1141, with orders.** Local pool is the 500 isolates in `~/Data/tb/calls`; the DGX
   holds 1141. One order there already gave 116,166 degenerate symbols (k^0.72 from k=100).
   `gen_growth_panels.py` with `TB_POOL` pointed at the 1141 merge list, `KS` extended.
-- **Split regular symbols.** `vcf2eds` emits runs like `{CGCG}{A}{TGCC…}` — 72 on
-  `panel_100_snv50`. E1, edsparser-stats and E10 count each as its own regular symbol, so a
-  conserved stretch is split into short "internal" symbols (810 vs 773 below `l=3`). Decide
-  whether `biofmi-build`'s l-EDS check and `eds2leds` should treat consecutive regular symbols
-  as one; if so, E1's TB row moves slightly.
+- **Split regular symbols — resolved 2026-10-01** (branch `regular-symbol-merge`, both repos).
+  Consecutive regular symbols are one context segment everywhere now. All 72 extra symbols on
+  `panel_100_snv50` (27 runs, longest 23 symbols) were panel-fixed SNPs: a variant group whose
+  one surviving haplotype every sample carries, all with source `{0}`. Decisions:
+  - **Not at parse time.** Merging in `EDS::parse` would renumber strings and break the
+    one-to-one pairing with `.seds`/`.edz` (and biofmi's `.d2g`). The parser instead computes
+    context statistics over segments (`EDS::finalize_context_statistics()`, shared with the
+    merge writer).
+  - **`vcf2eds` writes the canonical form**: a fixed single haplotype joins the common text,
+    and the run is carried across block boundaries. On both TB panels the new output is
+    exactly the old one with runs concatenated (and the old SEDS minus the dropped `{0}`s). A
+    single haplotype only *some* samples carry (others missing) is still written as its own
+    symbol: its source set is a real restriction.
+  - **`eds2leds` was already right** — `needs_merge()` judges shortness by run length and
+    `ADJACENT_COMMON` coalesces runs. Verified: `-l 3,5,9,11,14` on old vs canonical input,
+    both panels, LINEAR — l-EDS and SEDS byte-identical, and identical to `~/Data/tb/derived`.
+    **No l-EDS changes.**
+  - **`biofmi-build`'s check** is per segment, and now also rejects adjacent degenerate
+    symbols (an internal segment of length 0). **`parse_eds()` had a real bug here**, not just
+    the check: it wrote one T0 block per *symbol*, so a run like `{CGCG}{ATGC}` (passes the
+    old check at l=3) got a `#` inside it and every base position after it shifted by a set —
+    matches across or after it were silently lost. It now accumulates a run into one block and
+    reads the right context across it. No eds2leds output ever had a run, so no existing index
+    is affected: TB `l=9`/`l=3` indexes are byte-identical to the old binary's, locate output
+    identical on 200 patterns each. `test_build_structure` test 5, `test_locate_fuzz` test 5
+    (random splits incl. `{}` pieces, both modes, `|P|` from 1), e2e `test_build.sh`.
+  - **E1's TB row** (per-symbol → per-segment, internal, `panel_100_snv50`): below l=3
+    810 → 773 (4.24% → 4.06%), l=5 1293 → 1253, l=9 2094 → 2052, l=11 2375 → 2330, l=14
+    2744 → 2697; 19,126 internal symbols → 19,054 segments; median 128 → 129, mean 229.0 →
+    229.9; l_max unchanged (1, or 0 with the 746 adjacent pairs). `panel_100_norm`: 823 → 786
+    at l=3, 2783 → 2736 at l=14. **Still open:** `eds_context.py`/`eds_growth.py` in `~/Data`
+    keep the per-symbol convention (their docstrings say so) — switch them to segments, or
+    regenerate the panels with the new `vcf2eds`, before the numbers are quoted again.
+
 - **covid294's blobs are the alignment ends.** Of the ten symbols holding 81.2% of N, the first
   (T0 0, 182 options) and last (190 options — H) are the 5'/3' ends, six more in the last 16% of
   T0. Masking alignment ends is standard SARS-CoV-2 practice (De Maio et al., virological.org) —
