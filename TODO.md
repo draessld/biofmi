@@ -64,12 +64,25 @@ position or overlap are merged into one symbol with every sample left under the 
 option — 309 of 19,801 symbols on `tb_p100_snv50`, 1,307 false-positive genome calls on 122
 targeted patterns. **Worked around at the data level**: `normalise_vcf.py` plus
 `source_partition_audit.py`; `tb_p100_norm` audits clean. Fixed in edsparser itself on
-2026-09-12 (its `CLAUDE.md`, VCF → EDS). Still open:
+2026-09-12 (its `CLAUDE.md`, VCF → EDS).
 
-- **Advance `external/edsparser`** to the commit carrying that fix; until then biofmi's
-  vendored `vcf2eds` still breaks the partition.
-- **Gate, don't advise:** `gen_tb_slices.sh` runs the audit, but no xbench spec that consumes
-  a VCF-derived panel does. Wire it in as a prepare-stage check.
+- **Submodule advanced (2026-10-01).** The fix had never been committed — it sat in the
+  standalone `~/Documents/uni_projects/edsparser` working tree beside an unrelated, also
+  uncommitted 2026-09-02 API cleanup. Its hunks alone are edsparser `d2cef03`, with the
+  C++20/`-UNDEBUG` change on top as `7c5482a`; branch `submodule-advance` in both repos,
+  **not pushed**. That standalone tree still holds the fix uncommitted and will conflict
+  with `d2cef03` when its owner commits there.
+- **Gated (2026-10-01).** `~/Data/experiments/biofmi/partition_gate.sh` runs the audit as
+  the `prepare` stage of `kp_cost_tb`, `tb_scaling`, `chunk_cost_tb`, `tail_cost`,
+  `panel_growth` and their generated `_big` twins; every later stage `needs` it, so a
+  breaching dataset measures nothing. Audited once per dataset per run, cached in
+  `<run>/partition/`. xbench still exits 0 on such a run — read `summary.csv`.
+- **Open — two experiments now refuse to run.** `chunk_cost_tb` is on `tb_p100_snv50` (309
+  breaches) and `panel_growth`'s TB arm on growth panels written by the old `vcf2eds` (26 at
+  k10 to 1,089 at k500; covid's six pass). Their published numbers carry the defect.
+  Repoint `chunk_cost_tb` at `tb_p100_norm`, or rewrite both from the fixed `vcf2eds`
+  (`gen_growth_panels.py`), then rerun. `chunk_cost_tb_big`'s `tb_p1141_snv50` will refuse
+  the same way on the DGX.
 
 ## 5. SDSL v3 is source-compatible and format-incompatible
 
@@ -186,7 +199,8 @@ anything more from it.
 - **`panel_growth` peak RSS reads 126.254 MB in all 52 cells** — the watchdog's floor, not a
   measurement. Not quoted; undiagnosed.
 - **Dirty edsparser build tree** (`eds2leds`, `edsparser-stats` at 1cba45e, DIRTY=1) — xbench
-  warned on `panel_growth`. Rebuild clean before submission-grade reruns.
+  warned on `panel_growth`. Rebuilt clean at `7c5482a` on 2026-10-01 (DIRTY=0); `panel_growth`
+  itself now waits on §4b.
 
 ## 7c. The DGX tier (2026-09-14)
 
@@ -195,9 +209,10 @@ covid (Nextclade-aligned GenBank panels to ~56,000 genomes) and synthetic data (
 reference length, density). Pipeline and decisions: `~/Data/experiments/biofmi/dgx/README.md`.
 Smoke-tested on the laptop end to end; the base tier rebuilds byte-identically.
 
-- **Push `5db672a` and commit the edsparser submodule's C++20/`-UNDEBUG` change.** Until then
-  the bundle carries the working tree (with `.git`, so provenance stamps are real, DIRTY=1),
-  and the DGX's `~/Projects/biofmi` clone would build older code.
+- **Push both repos' `submodule-advance` branches** (and `5db672a` with them). The edsparser
+  C++20/`-UNDEBUG` change is committed now (`7c5482a`, 2026-10-01), but only locally: until
+  edsparser's branch is on GitHub a DGX `git submodule update` cannot fetch the commit the
+  pointer names, and `~/Projects/biofmi` would build older code.
 - **DGX re-scanned 2026-09-15.** No TB pool survives (only `panel_100_snv50`), so the 1141
   panel is a fresh ~5 GB download; samtools/tabix/bgzip/minimap2/Nextclade are absent and
   `~/.local/bin/bcftools` is 1.21 — `ALLOW_FETCH=1 ./10_setup.sh` builds 1.19 into the bundle.
@@ -219,7 +234,7 @@ Smoke-tested on the laptop end to end; the base tier rebuilds byte-identically.
 5. **6c** — covid294 past its knee; the `l` axis on `nmN_scaling`.
 6. **6f** — the abstract, last.
 
-Code work — advancing `external/edsparser` to the 4b fix, and 4b's gate — is independent of
+Code work — rerunning `chunk_cost_tb` and `panel_growth` past 4b's gate — is independent of
 the paper and can run alongside any of it. §5 is a decision to take between experiment
 campaigns. §1 and §2 closed on 2026-09-12; see `CLAUDE.md`.
 

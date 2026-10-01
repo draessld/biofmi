@@ -57,7 +57,7 @@ Tests use plain `cassert` (no external framework). **Both `src/cpp/CMakeLists.tx
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-09-02 everything passes with assertions live**: BioFMI 9/9 unit and 14/14 e2e, edsparser 7/7 unit and 9/9 e2e. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-10-01 everything passes with assertions live**, from clean build trees on the advanced submodule: BioFMI 9/9 unit and 24/24 e2e (three suites: 4 + 15 + 5), edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
 
 The 2026-08-11 version of that claim was worth less than it looked. edsparser never got the `-UNDEBUG` fix BioFMI took on 2026-08-30, so its five assert-based unit tests — `test_eds`, `test_merge`, `test_sources`, `test_stats`, `test_vcf`, 591 assertions between them — had none of them compiled in; `nm -D --undefined-only <test> | grep __assert_fail` returned nothing for every binary. Fixed 2026-09-02, and the suite is 7/7 with them live, so nothing was hiding. Its other four tests (`test_msa`, `test_integration`, `test_memory_smoke`, `test_memory_stress`) check with `if` rather than `assert` and were never affected.
 
@@ -118,6 +118,7 @@ gitignored so it cannot creep back. The whole tree sits under `~/Data`:
 ~/Data/experiments/biofmi/specs/                xbench specs + hooks
 ~/Data/experiments/biofmi/occurrence_oracle.py  ground truth, straight from the MSA
 ~/Data/experiments/biofmi/compare_locate_oracle.py
+~/Data/experiments/biofmi/partition_gate.sh     prepare stage of every VCF-panel spec (TODO §4b)
 ~/Data/experiments/biofmi/notebooks/            written-up evaluations
     covid294_evaluation.ipynb                   CARTESIAN sweep
     covid294_linear_evaluation.ipynb            LINEAR, source-aware vs withheld
@@ -135,9 +136,10 @@ repo-relative paths (`resolve.prefer: build/tools`); it defaults to
 **The DGX tier (2026-09-14)** runs every experiment on the DGX, plus bigger panels with no
 laptop counterpart; `dgx/README.md` is the entry point, open items are `TODO.md` §7c. Its
 bundle ships this checkout's *working tree*, so provenance stamps read `DIRTY=1` while
-anything is uncommitted — and a plain clone does not build what the laptop does: the
-edsparser submodule is still at `1cba45e` with its C++20/`-UNDEBUG` CMake change
-uncommitted in its working tree (2026-09-15), so a fresh `git submodule update` loses it.
+anything is uncommitted. Since 2026-10-01 the edsparser submodule points at `7c5482a`
+(branch `submodule-advance` in both repos): the 4b grouping fix plus the C++20/`-UNDEBUG`
+CMake change that had sat uncommitted in its working tree. Neither is pushed, so a clone
+off GitHub cannot check that commit out yet — push edsparser's branch before the DGX pulls.
 The 2026-09-15 re-scan settled what the machine provides: no TB pool survives there (only
 `panel_100_snv50`), so the 1141 panel is a fresh ~5 GB download, and samtools/tabix/bgzip/
 minimap2/Nextclade are absent with `~/.local/bin/bcftools` at 1.21 — `ALLOW_FETCH=1
@@ -226,11 +228,14 @@ cost. `print_result()` shows the count; `--samples` lists the ids. `PathSet` is
 complement-encoded — resolve it with `BioFMI::expand_paths()`, never by iterating it.
 Validated against `occurrence_oracle.py`: on covid294 all 200 patterns' sample sets equal
 the genomes containing them exactly, 0 false positives and 0 false negatives.
-**On a VCF-derived panel they are only as good as the partition** (TODO §4): the vendored
-`vcf2eds` (edsparser `1cba45e`) leaves a sample carrying an alternative at a grouped record
+**On a VCF-derived panel they are only as good as the partition** (TODO §4): a `vcf2eds`
+older than edsparser `d2cef03` leaves a sample carrying an alternative at a grouped record
 under the reference option too (`merge_variant_group()`), haploid data included, so LINEAR
-admits genomes that do not carry the match. Fixed upstream 2026-09-12, not yet in the
-submodule; `docs/search_modes.md` § Choosing.
+admits genomes that do not carry the match. The submodule carries the fix since 2026-10-01
+(`test_vcf` test 17), but panels written before it keep the defect: `tb_p100_snv50` and the
+TB growth panels breach. Every xbench spec on a VCF-derived panel now audits it as its
+`prepare` stage (`partition_gate.sh`) and measures nothing if it breaches;
+`docs/search_modes.md` § Choosing.
 
 Sources are read at query time and are **not** embedded in the index; the one new
 artifact is `.d2g`, mapping degenerate-string number to global string id, because a

@@ -189,12 +189,13 @@ in both the reference and the alt string at a site, so a surviving path set mean
 panels — *M. tuberculosis*, for instance — are unaffected, and so are
 MSA-derived panels where one row is one genome.
 
-Haploid VCF panels have a second, independent problem with the `vcf2eds`
-vendored at `external/edsparser` (`1cba45e`). Records that share a position or
-overlap are merged into one symbol, and a sample carrying an alternative at one
-of them is left under the reference option as well, so the source sets no longer
-partition the genomes and LINEAR admits genomes that do not carry the match —
-1,307 false-positive genome calls on 122 targeted patterns over `tb_p100_snv50`.
-edsparser fixed this on 2026-09-12; until the submodule is advanced, normalise
-the VCF and audit the partition before trusting a VCF-derived result
-(`TODO.md` §4b).
+Haploid VCF panels had a second, independent problem with any `vcf2eds` older
+than edsparser `d2cef03` (the submodule was at `1cba45e` until 2026-10-01).
+Records that share a position or overlap are merged into one symbol, and a
+sample carrying an alternative at one of them was left under the reference
+option as well, so the source sets no longer partitioned the genomes and LINEAR
+admitted genomes that do not carry the match — 1,307 false-positive genome calls
+on 122 targeted patterns over `tb_p100_snv50`. The submodule now carries the fix,
+but every panel written before it still has the defect baked in: audit the
+partition before trusting a VCF-derived result (`TODO.md` §4b). The xbench specs
+that consume one do so as their `prepare` stage.
