@@ -146,8 +146,8 @@ cd build
 ctest --output-on-failure
 ```
 
-Expect **9 tests, all passing**, in roughly 17 seconds. `test_locate_fuzz`
-accounts for about 15 of those; skip it during a tight edit loop with
+Expect **9 tests, all passing**, in roughly 21 seconds. `test_locate_fuzz`
+accounts for about 19 of those; skip it during a tight edit loop with
 `ctest -E fuzz`.
 
 EDSParser has its own suite, registered in a subdirectory:

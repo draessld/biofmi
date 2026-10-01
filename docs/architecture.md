@@ -91,8 +91,8 @@ external/edsparser/              ← EDSParser submodule
   split into chunks of size l+1
       │
   for each chunk:
-      ├──► sdsl::locate(reference_index, chunk)  ──► T₀ positions
-      └──► sdsl::locate(changes_index, chunk)    ──► file positions
+      ├──► SA range of chunk in reference_index  ──► T₀ positions
+      └──► SA range of chunk in changes_index    ──► file positions
                 │
                 │  convert to T₀ coordinates + identify change number
                 ▼
@@ -128,7 +128,8 @@ the full layout.
 | Method | Description |
 |--------|-------------|
 | `locate(pattern)` | All occurrences: position, traversed alternatives, carrying genomes |
-| `count(pattern)` | Total number of entries — paths, not distinct positions |
+| `locate(pattern, callback)` | The same entries, each handed to `callback` as it is found and none stored; returns how many. Memory is what the search carries between chunks, not the answer |
+| `count(pattern)` | Total number of entries — paths, not distinct positions. Builds none of them; same memory bound as the streaming `locate()` |
 | `set_tail_threshold(t)` | Shortest tail still searched rather than verified against the surviving candidates. Default verifies every tail; 0 searches every tail. Same answer either way; see [`locate()` § Cost](locate_spec.md#cost-a-short-tail-is-verified-not-searched) |
 
 **Source-aware (LINEAR) search**
@@ -165,13 +166,13 @@ Parses and stores an EDS. BioFMI imports it with `using edsparser::EDS`. The `ED
 | `test_locate_correctness` | Brute-force oracle vs index for all spec cases |
 | `test_locate_arbitrary` | Arbitrary `\|P\|` against a brute-force oracle at every length |
 | `test_locate_sources` | Source-aware (LINEAR) search: EDZ round-trip, non-transitivity, `.d2g` persistence, sample-set reporting, complement expansion |
-| `test_locate_fuzz` | Randomised differential testing: seeded panels vs a brute-force oracle, both search modes |
+| `test_locate_fuzz` | Randomised differential testing: seeded panels vs a brute-force oracle, both search modes; `count()` and the streaming `locate()` against `locate()` and the oracle from `\|P\|=1` |
 | `test_locate_offset` | Offset arithmetic cross-check: `get_snapshot()` byte positions vs `locate()` results |
 
-Nine tests, all passing, in roughly 17 seconds. All use plain `cassert` (no
+Nine tests, all passing, in roughly 21 seconds. All use plain `cassert` (no
 external framework). Run with `ctest --output-on-failure` from `build/`.
 
-`test_locate_fuzz` accounts for about 15 of those 17 seconds. It generates panels
+`test_locate_fuzz` accounts for about 19 of those 21 seconds. It generates panels
 with a seeded RNG — biased towards the structures that have broken things before:
 empty alternatives, degenerate symbols at the very start and end, alternatives
 shorter and longer than `l`, minimum-width internal segments — and checks every

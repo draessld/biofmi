@@ -201,8 +201,28 @@ int main(int argc, char** argv) {
         size_t pattern_id = 0;
         for (const auto& p : patterns) {
             try {
+                // Nothing here holds the answer. Benchmark mode wants only the
+                // number of entries, which count() produces without building
+                // any; otherwise each entry is printed as it is found. Either
+                // way the memory a query needs is what the search carries
+                // between chunks, not the size of its answer — a one-character
+                // pattern used to materialise every occurrence (three times)
+                // before the first line was written.
+                //
+                // Entries print in the order the search finds them. The spec
+                // leaves the order undefined, and the materialising locate()
+                // returned them in hash-map order, so the lines are the same
+                // set as before but need not be in the same sequence.
+                size_t count = 0;
                 const auto t0 = std::chrono::steady_clock::now();
-                auto result = index.locate(p);
+                if (benchmark) {
+                    count = index.count(p);
+                } else {
+                    *out << "Pattern: " << p << "\n";
+                    count = index.locate(p, [&](const BioFMI::Occurrence& occ) {
+                        index.print_occurrence(occ, *out, list_samples);
+                    });
+                }
                 const double p_us = std::chrono::duration<double, std::micro>(
                                         std::chrono::steady_clock::now() - t0).count();
                 pattern_us.push_back(p_us);
@@ -231,26 +251,20 @@ int main(int argc, char** argv) {
                 }
 
                 if (!benchmark) {
-                    *out << "Pattern: " << p << "\n";
-                    if (result.empty()) {
-                        *out << "No occurrences found\n";
-                    } else {
-                        index.print_result(result, *out, list_samples);
-                    }
+                    if (count == 0) *out << "No occurrences found\n";
                     *out << "\n";
                 } else {
-                    // Benchmark mode: just count occurrences
-                    size_t count = 0;
-                    for (const auto& [seq_id, occs] : result) {
-                        count += occs.size();
-                    }
                     *out << p << "\t" << count << "\n";
                     total_occurrences += count;
                     if (count) patterns_matched++;
                 }
             } catch (const std::exception& e) {
                 if (!benchmark) {
-                    *out << "Pattern: " << p << "\n";
+                    // "Pattern:" is already written: it precedes the stream.
+                    // Every error locate() raises on its own input (an empty
+                    // pattern) is thrown before the first entry, so the output
+                    // is what it always was; one raised mid-stream follows the
+                    // entries already printed.
                     *out << "Error: " << e.what() << "\n\n";
                 }
                 std::cerr << "Error searching pattern '" << p << "': " << e.what() << "\n";

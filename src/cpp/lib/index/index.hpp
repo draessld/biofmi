@@ -6,7 +6,9 @@
 #include <edsparser/formats/sources.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <limits>
+#include <unordered_set>
 #include <unordered_map>
 #include <memory>
 #include <vector>
@@ -166,7 +168,36 @@ public:
     std::vector<int> expand_paths(const PathSet& paths) const;
 
     // Query operations
+    //
+    // locate(pattern) materialises every occurrence and also keeps a copy as
+    // get_last_result(). For a short pattern that is the whole cost: on a
+    // panel of a few MB a one-character pattern has millions of entries.
     ResultMap locate(const String& pattern);
+
+    /**
+     * Streaming locate: call `on_occurrence` once per entry, as it is found,
+     * and return how many there were. The entries are exactly those
+     * locate(pattern) returns — same (position, changes, paths), same count,
+     * in an unspecified order (as locate()'s is) — but none is stored: the
+     * final chunk's survivors go straight to the callback instead of into a
+     * candidate map, so memory is bounded by the candidates the *earlier*
+     * chunks leave, not by the answer. A pattern of at most l+1 characters has
+     * no earlier chunk and runs in memory independent of how often it matches.
+     *
+     * The Occurrence passed is only valid during the call; copy it to keep it.
+     * The callback must not query this index (the candidate maps are in use),
+     * and get_last_result() is not updated. An exception thrown by the callback
+     * propagates and abandons the search.
+     */
+    using OccurrenceCallback = std::function<void(const Occurrence&)>;
+    size_t locate(const String& pattern, const OccurrenceCallback& on_occurrence);
+
+    /**
+     * Number of entries locate(pattern) would return, in either mode, without
+     * building any of them. Same memory bound as the streaming locate(); a
+     * pattern that is one chunk and lies wholly in the reference is counted
+     * from the suffix-array range without locating its hits at all.
+     */
     size_t count(const String& pattern);
 
     // Statistics and information
@@ -233,6 +264,11 @@ public:
      * Off by default: the timer is per chunk, and on a 2-chunk pattern the two
      * clock reads are a measurable fraction of the query. Enable it for cost
      * measurement, not for production search.
+     *
+     * The final chunk's cand_out is its number of distinct keys, as before
+     * the final chunk stopped storing its survivors; keeping that figure means
+     * remembering the keys, so a traced query holds memory in proportion to
+     * them, and count() locates every hit rather than reading the range size.
      */
     void set_trace(bool on) { trace_enabled_ = on; }
     bool trace_enabled() const { return trace_enabled_; }
@@ -251,6 +287,10 @@ public:
      */
     void print_result(const ResultMap& result, std::ostream& os = std::cout,
                       bool list_samples = false) const;
+
+    // One line of print_result(), for printing from the streaming locate().
+    void print_occurrence(const Occurrence& occ, std::ostream& os = std::cout,
+                          bool list_samples = false) const;
 
 private:
     // One in-flight candidate match.
@@ -351,6 +391,50 @@ private:
     bool trace_enabled_ = false;
     std::vector<ChunkStat> trace_;
 
+    /**
+     * Where the final chunk's survivors go.
+     *
+     * Every chunk but the last stores its survivors in new_hash_map_, because
+     * the next chunk looks them up by key. The last chunk's map is never looked
+     * up — locate() used to keep it only to copy it out into a ResultMap — so
+     * while it runs `final_sink_` is set and store() hands each survivor to it
+     * instead. That map was the largest structure a short pattern built: one
+     * hash node, two heap vectors and an OccurrenceInfo per entry, then copied
+     * twice more (the ResultMap and last_result_).
+     *
+     * `count_only_` additionally lets a first-and-final reference chunk be
+     * counted from its suffix-array range without locating the hits, since
+     * each one is exactly one entry. Never taken while tracing, so that
+     * cand_out stays the number of distinct keys as it always was.
+     */
+    using FinalSink = std::function<void(const OccurrenceInfo&)>;
+    const FinalSink* final_sink_ = nullptr;
+    bool   count_only_ = false;
+    size_t emitted_ = 0;
+    std::unordered_set<Position> trace_keys_;   // distinct final keys, tracing only
+
+    // Whether no path carries degenerate string `change_number`, i.e. whether
+    // a first chunk entering it dies at once. count() asks this once per
+    // changes hit; the answer is remembered in seed_empty_ (one byte per
+    // degenerate string, reset by attach_sources()) because Sources reads a
+    // set from its file on a cache miss.
+    bool seed_is_empty(int change_number);
+    std::vector<uint8_t> seed_empty_;
+
+    // Hand a survivor to the next chunk (new_hash_map_) or, in the final
+    // chunk, to final_sink_.
+    void store(Position key, OccurrenceInfo&& occ);
+
+    // The chunked search itself; every survivor of the last chunk goes to
+    // `sink`. Returns how many there were.
+    size_t search(const String& pattern, const FinalSink& sink, bool count_only);
+
+    // Every hit of `chunk` in `index`, in suffix-array order — what
+    // sdsl::locate() returns, without materialising the vector of positions.
+    // Returns the number of hits.
+    template <class F>
+    static size_t for_each_hit(const IndexType& index, const String& chunk, F&& f);
+
     // Internal methods
     void parse_eds();
     void build_reference_index();
@@ -419,7 +503,6 @@ private:
     void validate_change_continuity(int loc, int alt_len, int change_number,
                                     int set_idx, bool starts_inside,
                                     bool ends_inside, int step);
-    ResultMap convert_hash_to_result(const HashType& hash_map);
 
     // Source set of a degenerate string, by the 1-based `change_number` locate()
     // works in. Returns universal ({0}) when no sources are attached, so callers

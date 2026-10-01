@@ -53,7 +53,7 @@ Tests use plain `cassert` (no external framework). **Both `src/cpp/CMakeLists.tx
 | `test_locate_offset` | `test_locate_offset.cpp` | Offset arithmetic cross-check for the locate algorithm |
 | `test_locate_arbitrary` | `test_locate_arbitrary.cpp` | Arbitrary `\|P\|` vs a brute-force oracle at every length |
 | `test_locate_sources` | `test_locate_sources.cpp` | Source-aware (LINEAR) search: EDZ round-trip, non-transitivity, `.d2g` persistence, sample-set reporting, complement expansion |
-| `test_locate_fuzz` | `test_locate_fuzz.cpp` | Randomised differential locate: seeded panels vs a brute-force oracle, CARTESIAN and LINEAR |
+| `test_locate_fuzz` | `test_locate_fuzz.cpp` | Randomised differential locate: seeded panels vs a brute-force oracle, CARTESIAN and LINEAR; `count()` and streaming `locate()` vs `locate()` (as multisets, with sample sets) and the oracle at every `\|P\|` from 1 |
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
@@ -167,6 +167,7 @@ Query processing splits the pattern into chunks of size `l` and tracks matches a
 - **Position** — 0-based: T₀ index if match starts in reference; `base_position_of_set + offset_within_alternative` if match starts inside a degenerate alternative.
 - **Changes** — ordered list of 0-based global alternative indices (numbered across all alternatives of all degenerate sets in EDS order) that the match passes through. **A zero-length alternative counts as traversed** even though it contributes no character: the match exists only on the path that chose it, and `changes` drives the source intersection. Two reference blocks separated by such a symbol are adjacent along that path — a match crossing between them was silently lost until 2026-08-31.
 - `count()` returns total number of entries (paths), not distinct positions.
+- **Nothing holds the answer (2026-10-01).** `locate(pattern, callback)` streams each entry as the final chunk finds it and returns how many; `count()` runs the same search building none; `locate(pattern)` is the stream collected (plus `last_result_`). The final chunk's survivors go to a sink (`final_sink_`, via `store()`) instead of `new_hash_map_`, and hits come straight off the SA range (`for_each_hit()`) rather than an `sdsl::locate()` vector, so memory is the candidates the *earlier* chunks hand on — nothing per occurrence for `|P| <= l+1`. `biofmi-locate` prints through the stream and `--benchmark` uses `count()`. Entry **order changed** (undefined by spec; was final hash-map order): output is identical as a per-pattern line multiset, not byte for byte — sort before diffing.
 - Future work: EDS boundary edge cases.
 
 ### l-EDS validation in `biofmi-build`
@@ -369,6 +370,6 @@ run.
 
 ### Future Work
 
-- **Short patterns are memory-bound.** `|P| < l+1` is correct at every length (31,699 patterns over the 360 fuzz panels, both modes, zero disagreement with the oracle) but every occurrence is materialised before `locate()` returns, so the answer and the RAM to hold it grow by ~`|alphabet|` per character removed: on an 8 MB panel at `l=9`, `|P|=1` takes 154 s and **9.2 GB**. Under the harness's `policy.mem_cap: 8G` that is an OOM that looks like a tool failure. A streaming or counting path would fix it; nothing needs it yet.
+- **Short patterns are time-bound, no longer memory-bound (2026-10-01).** `|P| < l+1` is correct at every length, and since the streaming/counting path neither `count()`, `biofmi-locate` nor `biofmi-locate --benchmark` holds the answer: on a `genrandomeds --ref-size-mb 8 --seed 42` panel at `l=9`, `|P|=1` (4.04 M entries) went from 1.53 GB peak RSS to 44 MB — the loaded index — in CARTESIAN and from 1.54 GB to 57 MB in LINEAR, at the same 32–44 s; `|P|=2` 447 MB → 44 MB; nothing at any `|P|` rises above the index (`/usr/bin/time -v`, best of 2, both binaries interleaved). The panel behind the older 154 s / 9.2 GB figure was not re-run. What is left is time, ~`|alphabet|`x per character removed, because every *changes*-index hit is still located (one SA lookup each) to learn whether it touches its alternative; `count()` skips that only for reference hits of a single-chunk pattern (range size). Counting changes hits without locating them would need a 2-D range count over the changes text — not worth it until something needs `|P|<=3` fast. Calling the materialising `locate(pattern)` on such a pattern still costs what it always did, by definition.
 ### Other notes
-- `count()` delegates to `locate()` and sums entries.
+- `count()` no longer delegates to `locate()`; it shares `search()` with a discarding sink (see Index Structure above).
