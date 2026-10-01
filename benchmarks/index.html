@@ -13,6 +13,10 @@
         <link rel="canonical" href="https://draessld.github.io/biofmi/benchmarks/">
       
       
+        <link rel="prev" href="../search_modes/">
+      
+      
+        <link rel="next" href="../cli/">
       
       
         
@@ -234,10 +238,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../installation/" class="md-tabs__link">
           
   
@@ -283,26 +289,6 @@
   
   
   Internals
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
 
         </a>
       </li>
@@ -392,28 +378,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -431,7 +420,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -530,17 +519,44 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../experiments/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -549,6 +565,137 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#running-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running it
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running it">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-binaries-get-measured" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which binaries get measured
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-large-data-in-this-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No large data in this repository
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenarios
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#querying" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Querying
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csv-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV schema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -803,95 +950,6 @@
     
   
     Index internals
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
   
 
     
@@ -1233,13 +1291,15 @@ fixture directories.</p>
 <p class="admonition-title">Pattern lengths are multiples of <code>l+1</code>, not of <code>l</code></p>
 <p>The chunk size is <code>l+1</code>, so <code>|P|</code> a multiple of <code>l+1</code> is the case the search
 is built for — every chunk is full. Any other length leaves an
-<code>r = |P| mod (l+1)</code> tail, which is a far less selective lookup.</p>
+<code>r = |P| mod (l+1)</code> tail. Since 2026-09-12 that tail is verified against the
+surviving candidates at about the same cost; before, it was searched, a far
+less selective lookup, which is what the paragraph below measured.</p>
 <p>These lists were multiples of <code>l</code> until 2026-09-02, with a comment saying so.
 That was correct when the chunk size <em>was</em> <code>l</code>; the off-by-one fix made it
 <code>l+1</code> and the presets were never updated. Every locate benchmark had been
 measuring the tail path without saying so — "pattern length 10" meant one
 full chunk plus a 4-character tail, and the tail dominated the number. See
-<a href="../locate_spec/#cost-prefer-p-a-multiple-of-l1">the tail cost table</a>.</p>
+<a href="../locate_spec/#cost-a-short-tail-is-verified-not-searched">the tail cost table</a>.</p>
 </div>
 <hr />
 <h2 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h2>

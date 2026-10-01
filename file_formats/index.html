@@ -296,26 +296,6 @@
   
 
       
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
-
-        </a>
-      </li>
-    
-  
-
-      
     </ul>
   </div>
 </nav>
@@ -539,14 +519,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../experiments/" class="md-nav__link">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -984,95 +964,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -1306,20 +1197,21 @@
 </tr>
 <tr>
 <td><code>.d2g</code></td>
-<td>SDSL</td>
-<td><code>deg_to_global[]</code> — degenerate-string number → global string id, for source-aware search</td>
+<td>magic + SDSL</td>
+<td>Degenerate-string number → global string id, for source-aware search: the 8 bytes <code>BFMID2G1</code>, then an <code>sdsl::sd_vector&lt;&gt;</code> (Elias-Fano) with bit <code>g</code> set iff global string <code>g</code> is a degenerate alternative, so <code>change_number</code> maps to <code>select_1(change_number)</code></td>
 </tr>
 <tr>
 <td><code>.meta</code></td>
 <td>plain text</td>
-<td>Four integers: <code>context_length</code>, <code>n</code>, <code>m</code>, <code>N</code> (one per line)</td>
+<td>Four integers: <code>context_length</code>, <code>n</code>, <code>m</code>, <code>N</code> (one per line), then <code>format &lt;n&gt;</code> and <code>sdsl &lt;flavour&gt;</code></td>
 </tr>
 </tbody>
 </table>
-<p>All SDSL binary files are produced and consumed by <code>sdsl::store_to_file</code> / <code>sdsl::load_from_file</code>. The <code>.meta</code> file is plain text and human-readable.</p>
+<p>The SDSL binary files are produced and consumed by <code>sdsl::store_to_file</code> / <code>sdsl::load_from_file</code>, except <code>.d2g</code>, which carries the magic header above. The <code>.meta</code> file is plain text and human-readable.</p>
 <h3 id="why-d2g-exists">Why <code>.d2g</code> exists<a class="headerlink" href="#why-d2g-exists" title="Permanent link">&para;</a></h3>
 <p><code>locate()</code> works in <code>change_number</code>, a 1-based rank over <strong>degenerate strings only</strong> — the index <code>offsets[change_number - 1]</code> is keyed by. A <code>Sources</code> file is indexed by a <strong>global string id</strong> over <em>all</em> strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.</p>
-<p>That count is not recoverable from the other index artifacts, and a loaded index has no EDS to ask, because <code>load()</code> never populates <code>eds_</code>. So the mapping is built during <code>parse_eds()</code> — where the walk is left-to-right and the counter is free — and persisted. It is small: 21 KB against a 4.9 MB index on COVID-294.</p>
+<p>That count is not recoverable from the other index artifacts, and a loaded index has no EDS to ask, because <code>load()</code> never populates <code>eds_</code>. So the mapping is built during <code>parse_eds()</code> — where the walk is left-to-right and the counter is free — and persisted.</p>
+<p>Until 2026-09-12 it was a <code>std::vector&lt;int64_t&gt;</code>: 64 bits an entry for a strictly increasing sequence, 6.3–7.1% of every <code>tb_scaling</code> index and 3.1–11.4% of <code>l_sweep</code>'s (a constant 227 KB). As an Elias-Fano bit vector it is <strong>15 KB where it was 287 KB</strong> on <code>tb_p100_norm</code> (0.4% of the 3.9 MB index); every other index file is byte-identical. <code>load()</code> still reads the old layout — the magic tells them apart, since the old file opens with an entry count — and compacts it in memory; rebuilding rewrites the file. A binary older than the change cannot read the new layout.</p>
 <p>An index built before <code>.d2g</code> existed cannot have sources attached; <code>attach_sources()</code> throws rather than mis-associating path sets. See <a href="../search_modes/#4-where-the-sources-live">Search modes</a>.</p>
 <h3 id="source-files-seds-edz">Source files (<code>.seds</code> / <code>.edz</code>)<a class="headerlink" href="#source-files-seds-edz" title="Permanent link">&para;</a></h3>
 <p>Sources are <strong>not</strong> stored in the index. They are read from a sidecar at query time, written by <code>eds2leds -s</code> alongside the l-EDS.</p>
@@ -1375,7 +1267,21 @@
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>7        ← n  (number of EDS symbols)
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>12       ← m  (total number of strings across all symbols)
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>64       ← N  (total character count across all strings)
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>format 2 ← index format version
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>sdsl v2  ← SDSL line the index was written by: v2 = simongog, v3 = xxsds
 </code></pre></div>
+<p><code>load()</code> reads <code>.meta</code> before any SDSL file and refuses, by name, an index whose
+format version is newer than the binary reads or whose SDSL flavour differs from
+the one the binary was built against. The two SDSL lines serialise <code>csa_wt&lt;&gt;</code> and
+the bit vectors differently, and before this check a v3 binary handed a v2 index
+got as far as <code>sdsl::load_from_file</code> and failed with <code>Width of int_vector&lt;1&gt; was
+specified as 0</code>.</p>
+<p>A <code>.meta</code> of just the four integers is a <strong>legacy index, format 1</strong>, written
+before the fields existed (2026-10-01). Its other files are identical to format
+2's, and it was necessarily written by SDSL v2, so a v2 binary loads it and a v3
+binary refuses it naming SDSL v2 — the same both-layouts reading <code>.d2g</code> gets. The
+fields follow the counts rather than precede them so that a binary from before
+them, which reads four integers and stops, still loads a format-2 v2 index.</p>
 <hr />
 <h2 id="4-reference-string-layout">4. Reference string layout<a class="headerlink" href="#4-reference-string-layout" title="Permanent link">&para;</a></h2>
 <p><code>parse_eds()</code> writes <code>reference.txt</code> during build (deleted after the SDSL index is built in memory). The format is:</p>

@@ -294,26 +294,6 @@
   
 
       
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
-
-        </a>
-      </li>
-    
-  
-
-      
     </ul>
   </div>
 </nav>
@@ -498,17 +478,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#evaluation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Evaluation
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -678,14 +647,14 @@
   
   
     <li class="md-nav__item">
-      <a href="experiments/" class="md-nav__link">
+      <a href="benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -968,95 +937,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -1144,17 +1024,6 @@
     <span class="md-ellipsis">
       
         Reference
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#evaluation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Evaluation
       
     </span>
   </a>
@@ -1255,10 +1124,12 @@ degenerate symbol on both sides — must be at least <code>l</code> characters. 
 segments at the start or end may be shorter. <code>biofmi-build</code> verifies this and
 refuses input that fails it, because the chunked search depends on a chunk of
 <code>l+1</code> characters never spanning two degenerate symbols.</p>
-<p><strong>Pattern length.</strong> A pattern must be at least <code>l+1</code> characters. It need <em>not</em>
-be a multiple of <code>l+1</code> — the remainder is searched as a short final chunk — but
-a short tail is much less selective than a full one, and cost rises steeply as
-it shrinks. <strong>Prefer <code>|P|</code> a multiple of <code>l+1</code></strong>; see
+<p><strong>Pattern length.</strong> Only the empty pattern is refused. <code>|P|</code> need <em>not</em> be a
+multiple of <code>l+1</code> — the remainder is verified against the candidates the full
+chunks left, at about the cost of an exact multiple — and need not reach <code>l+1</code>
+either, in which case the whole pattern is one short chunk searched on its own.
+That second case is the one with a cost: a short <em>pattern</em> is a query with a very
+large answer, which has to be held in memory. See
 <a href="cli/#pattern-validity">the cost table</a>.</p>
 <hr />
 <h2 id="documentation-map">Documentation map<a class="headerlink" href="#documentation-map" title="Permanent link">&para;</a></h2>
@@ -1284,8 +1155,8 @@ it shrinks. <strong>Prefer <code>|P|</code> a multiple of <code>l+1</code></stro
 <td>LINEAR vs CARTESIAN, path sets, sample sets</td>
 </tr>
 <tr>
-<td><a href="experiments/">Running experiments</a></td>
-<td>The measurement harness and how to reproduce results</td>
+<td><a href="benchmarks/">Benchmarks</a></td>
+<td>The in-repo benchmark suite: build and query cost in time and memory</td>
 </tr>
 </tbody>
 </table>
@@ -1317,21 +1188,6 @@ it shrinks. <strong>Prefer <code>|P|</code> a multiple of <code>l+1</code></stro
 <tr>
 <td><a href="index_internals/">Index internals</a></td>
 <td>Build pipeline, data structures, the locate algorithm</td>
-</tr>
-</tbody>
-</table>
-<h3 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Page</th>
-<th>Contents</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="experiment_design/">Experiment design</a></td>
-<td>The questions, the datasets, the protocol, what has been measured</td>
 </tr>
 </tbody>
 </table>

@@ -296,26 +296,6 @@
   
 
       
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
-
-        </a>
-      </li>
-    
-  
-
-      
     </ul>
   </div>
 </nav>
@@ -539,14 +519,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../experiments/" class="md-nav__link">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -1001,95 +981,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -1340,8 +1231,8 @@
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  split into chunks of size l+1
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>      │
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  for each chunk:
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>      ├──► sdsl::locate(reference_index, chunk)  ──► T₀ positions
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>      └──► sdsl::locate(changes_index, chunk)    ──► file positions
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>      ├──► SA range of chunk in reference_index  ──► T₀ positions
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>      └──► SA range of chunk in changes_index    ──► file positions
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>                │
 <a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>                │  convert to T₀ coordinates + identify change number
 <a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>                ▼
@@ -1402,12 +1293,16 @@ the full layout.</p>
 <td>All occurrences: position, traversed alternatives, carrying genomes</td>
 </tr>
 <tr>
+<td><code>locate(pattern, callback)</code></td>
+<td>The same entries, each handed to <code>callback</code> as it is found and none stored; returns how many. Memory is what the search carries between chunks, not the answer</td>
+</tr>
+<tr>
 <td><code>count(pattern)</code></td>
-<td>Total number of entries — paths, not distinct positions</td>
+<td>Total number of entries — paths, not distinct positions. Builds none of them; same memory bound as the streaming <code>locate()</code></td>
 </tr>
 <tr>
 <td><code>set_tail_threshold(t)</code></td>
-<td>Shortest tail still worth searching. Accepts only 0; see <a href="../index_internals/">index internals § limitations</a></td>
+<td>Shortest tail still searched rather than verified against the surviving candidates. Default verifies every tail; 0 searches every tail. Same answer either way; see <a href="../locate_spec/#cost-a-short-tail-is-verified-not-searched"><code>locate()</code> § Cost</a></td>
 </tr>
 </tbody>
 </table>
@@ -1503,7 +1398,7 @@ the full layout.</p>
 </tr>
 <tr>
 <td><code>test_locate_fuzz</code></td>
-<td>Randomised differential testing: seeded panels vs a brute-force oracle, both search modes</td>
+<td>Randomised differential testing: seeded panels vs a brute-force oracle, both search modes; <code>count()</code> and the streaming <code>locate()</code> against <code>locate()</code> and the oracle from <code>\|P\|=1</code></td>
 </tr>
 <tr>
 <td><code>test_locate_offset</code></td>
@@ -1511,9 +1406,9 @@ the full layout.</p>
 </tr>
 </tbody>
 </table>
-<p>Nine tests, all passing, in roughly 17 seconds. All use plain <code>cassert</code> (no
+<p>Nine tests, all passing, in roughly 21 seconds. All use plain <code>cassert</code> (no
 external framework). Run with <code>ctest --output-on-failure</code> from <code>build/</code>.</p>
-<p><code>test_locate_fuzz</code> accounts for about 15 of those 17 seconds. It generates panels
+<p><code>test_locate_fuzz</code> accounts for about 19 of those 21 seconds. It generates panels
 with a seeded RNG — biased towards the structures that have broken things before:
 empty alternatives, degenerate symbols at the very start and end, alternatives
 shorter and longer than <code>l</code>, minimum-width internal segments — and checks every
@@ -1554,11 +1449,11 @@ printed <code>PASSED</code>, and verified nothing.</p>
 <td>Parallel processing</td>
 </tr>
 <tr>
-<td>CMake 3.10+</td>
+<td>CMake 3.12+</td>
 <td>Build system</td>
 </tr>
 <tr>
-<td>C++17</td>
+<td>C++20</td>
 <td>Language standard</td>
 </tr>
 </tbody>

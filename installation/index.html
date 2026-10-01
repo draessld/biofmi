@@ -296,26 +296,6 @@
   
 
       
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
-
-        </a>
-      </li>
-    
-  
-
-      
     </ul>
   </div>
 </nav>
@@ -666,14 +646,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../experiments/" class="md-nav__link">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -956,95 +936,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -1174,7 +1065,7 @@
 
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<p>BioFMI is a C++17 project built with CMake. It depends on
+<p>BioFMI is a C++20 project built with CMake. It depends on
 <a href="https://github.com/simongog/sdsl-lite">SDSL-lite</a> for the FM-index and on Boost
 <code>program_options</code> for its command-line parsing. Everything else is vendored or
 part of the toolchain.</p>
@@ -1191,18 +1082,18 @@ part of the toolchain.</p>
 <tbody>
 <tr>
 <td>C++ compiler</td>
-<td>C++17</td>
-<td>GCC 9+ or Clang 10+; tested on GCC 13</td>
+<td>C++20</td>
+<td>GCC 10+ or Clang 10+; tested on GCC 13 and Clang 18</td>
 </tr>
 <tr>
 <td>CMake</td>
-<td>3.10</td>
-<td></td>
+<td>3.12</td>
+<td>First release that accepts <code>CMAKE_CXX_STANDARD 20</code></td>
 </tr>
 <tr>
 <td>SDSL-lite</td>
-<td>2.1.1</td>
-<td>Provides <code>csa_wt&lt;&gt;</code>, bit vectors, rank/select</td>
+<td>commit <code>c32874c</code></td>
+<td>simongog v2 series, pinned by commit — see §4. Provides <code>csa_wt&lt;&gt;</code>, bit vectors, rank/select</td>
 </tr>
 <tr>
 <td>divsufsort / divsufsort64</td>
@@ -1278,11 +1169,27 @@ without it:</p>
 <hr />
 <h2 id="4-installing-sdsl-lite">4. Installing SDSL-lite<a class="headerlink" href="#4-installing-sdsl-lite" title="Permanent link">&para;</a></h2>
 <p>SDSL is not on most distributions. Build it from source; its installer takes a
-prefix and puts headers in <code>&lt;prefix&gt;/include</code> and libraries in <code>&lt;prefix&gt;/lib</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>clone<span class="w"> </span>--depth<span class="w"> </span><span class="m">1</span><span class="w"> </span>--branch<span class="w"> </span>v2.1.1<span class="w"> </span>https://github.com/simongog/sdsl-lite.git
+prefix and puts headers in <code>&lt;prefix&gt;/include</code> and libraries in <code>&lt;prefix&gt;/lib</code>.
+<strong>Pin the commit, not a release tag:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/simongog/sdsl-lite.git
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">cd</span><span class="w"> </span>sdsl-lite
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>./install.sh<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">"</span><span class="w">          </span><span class="c1"># -&gt; ~/include/sdsl, ~/lib/libsdsl.a</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>c32874cb2d8524119f25f3b501526fe692df29f4
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>./install.sh<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">"</span><span class="w">          </span><span class="c1"># -&gt; ~/include/sdsl, ~/lib/libsdsl.a</span>
 </code></pre></div>
+<p><code>c32874c</code> is the tip of simongog/sdsl-lite <code>master</code> (2019-12-10); the repository is
+archived, so it will not move. It is what CI builds and what the development install
+was built from. The last release tag, <code>v2.1.1</code> (2016), is an older snapshot that differs
+from it in 25 headers, bug fixes in <code>bits.hpp</code>, <code>uint128_t.hpp</code> and
+<code>memory_management.hpp</code> among them. BioFMI builds and passes its unit tests against both,
+and on covid294 at <code>l=11</code> all four combinations tried — <code>c32874c</code> and <code>v2.1.1</code>, GCC 13
+and Clang 18, C++17 and C++20 — write the same index, file for file. Pin the commit
+anyway: identity on one panel is evidence, not a guarantee.</p>
+<p>The SDSL-lite that <code>xxsds/sdsl-lite</code> maintains (v3, header-only) is a different
+library and not the supported dependency. BioFMI compiles and passes its tests against
+it with one cast (in <code>load_deg_to_global()</code>), but its on-disk format is not v2's, so
+moving to it means rebuilding every index. <code>.meta</code> records the line that wrote an index
+(<code>sdsl v2</code> / <code>sdsl v3</code>), and a build of the other line refuses it by name; before that
+field, a v3 build died inside SDSL with <code>Width of int_vector&lt;1&gt; was specified as 0</code>.</p>
 <p><code>$HOME</code> is a deliberate choice: BioFMI's CMake searches <code>$ENV{HOME}/include</code> and
 <code>$ENV{HOME}/lib</code> explicitly, alongside <code>/usr/local</code> and <code>/usr</code>, so an
 install there is found with no extra flags and needs no root.</p>
@@ -1311,8 +1218,8 @@ catches that.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">cd</span><span class="w"> </span>build
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>ctest<span class="w"> </span>--output-on-failure
 </code></pre></div>
-<p>Expect <strong>9 tests, all passing</strong>, in roughly 17 seconds. <code>test_locate_fuzz</code>
-accounts for about 15 of those; skip it during a tight edit loop with
+<p>Expect <strong>9 tests, all passing</strong>, in roughly 21 seconds. <code>test_locate_fuzz</code>
+accounts for about 19 of those; skip it during a tight edit loop with
 <code>ctest -E fuzz</code>.</p>
 <p>EDSParser has its own suite, registered in a subdirectory:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>external/edsparser/build/src/cpp<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ctest<span class="w"> </span>--output-on-failure<span class="w">   </span><span class="c1"># 7 tests</span>

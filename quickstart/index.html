@@ -296,26 +296,6 @@
   
 
       
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
-
-        </a>
-      </li>
-    
-  
-
-      
     </ul>
   </div>
 </nav>
@@ -705,14 +685,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../experiments/" class="md-nav__link">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -995,95 +975,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -1297,8 +1188,16 @@ permits that combination; biology does not.</p>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">printf</span><span class="w"> </span><span class="s1">'{0}\n{1}\n{2,3}\n{0}\n{1,2}\n{3}\n{0}\n'</span><span class="w">      </span>&gt;<span class="w"> </span>demo.seds
 </code></pre></div>
 <p>The <code>.seds</code> file has one entry per string in EDS order — common block, then each
-alternative, and so on. <code>{0}</code> is the complement encoding for <em>all paths</em>; <code>{2,3}</code>
+alternative, and so on. <code>{0}</code> is the universal marker for <em>all paths</em>; <code>{2,3}</code>
 means genomes 2 and 3. See <a href="../file_formats/">File formats</a>.</p>
+<p>The <code>{0}</code> on every common block does look like it is spelling out the obvious,
+and the format does have a way to drop it: <strong>sparse mode</strong>, which omits universal
+entries from the text body and records which string indices they were in a
+trailing bitvector. <code>vcf2eds</code> writes sparse by default. It is not something you
+can do by hand, though — the trailer is the only thing that says which indices
+were omitted, so a hand-written file with the <code>{0}</code>s deleted is not sparse, just
+short, and loading it fails with <code>Sources cardinality (4) does not match EDS
+cardinality (7)</code>. Written by hand, dense is the format.</p>
 <hr />
 <h2 id="step-1-transform-to-an-l-eds">Step 1 — Transform to an l-EDS<a class="headerlink" href="#step-1-transform-to-an-l-eds" title="Permanent link">&para;</a></h2>
 <p>The index cannot be built from an arbitrary EDS. It needs the <strong>l-EDS</strong>
@@ -1330,7 +1229,7 @@ tractable file and an out-of-memory kill — see
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>index.loc index.iloc index.tloc       bit vectors for position mapping
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>index.abp index.ss   index.aof        metadata arrays
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>index.d2g                             degenerate-string → global string id
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>index.meta                            context_length, n, m, N
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>index.meta                            context_length, n, m, N, format version, SDSL flavour
 </code></pre></div>
 <p><code>.ri</code> indexes the reference; <code>.ci</code> indexes the alternatives, each stored with
 <code>l</code> characters of context on either side. That layout is what lets one chunk
@@ -1338,7 +1237,8 @@ query straddle a reference-to-alternative boundary. <a href="../index_internals/
 internals</a> covers the rest.</p>
 <hr />
 <h2 id="step-3-query">Step 3 — Query<a class="headerlink" href="#step-3-query" title="Permanent link">&para;</a></h2>
-<p><code>l</code> must match the build, and a pattern must be at least <code>l+1</code> = 6 characters.</p>
+<p><code>l</code> must match the build. Any non-empty pattern is searchable; <code>l+1</code> = 6 characters
+or a multiple of it is the cheap case.</p>
 <h3 id="a-match-inside-the-reference-crossing-one-variable-site">A match inside the reference, crossing one variable site<a class="headerlink" href="#a-match-inside-the-reference-crossing-one-variable-site" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>demo.index<span class="w"> </span>-l<span class="w"> </span><span class="m">5</span><span class="w"> </span>-p<span class="w"> </span>CGTAAGTTTT
 </code></pre></div>
@@ -1407,8 +1307,8 @@ number of chunks a pattern survived:</p>
 <td><a href="../index_internals/">Index internals</a></td>
 </tr>
 <tr>
-<td>Reproduce the published measurements</td>
-<td><a href="../experiments/">Running experiments</a></td>
+<td>See build and query cost, in time and memory</td>
+<td><a href="../benchmarks/">Benchmarks</a></td>
 </tr>
 </tbody>
 </table>

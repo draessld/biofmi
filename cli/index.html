@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://draessld.github.io/biofmi/cli/">
       
       
-        <link rel="prev" href="../experiments/">
+        <link rel="prev" href="../benchmarks/">
       
       
         <link rel="next" href="../locate_spec/">
@@ -296,26 +296,6 @@
   
 
       
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
-
-        </a>
-      </li>
-    
-  
-
-      
     </ul>
   </div>
 </nav>
@@ -539,14 +519,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../experiments/" class="md-nav__link">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -765,6 +745,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#biofmi-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        biofmi-extract
+      
+    </span>
+  </a>
   
 </li>
       
@@ -990,95 +981,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -1180,6 +1082,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#biofmi-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        biofmi-extract
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1342,6 +1255,11 @@ than an error.</p>
 <td>path</td>
 <td>Write results here instead of stdout. <code>-o /dev/null</code> discards them, which matters when a pattern set is megabytes.</td>
 </tr>
+<tr>
+<td><code>--tail-threshold</code></td>
+<td>integer</td>
+<td>Shortest <code>|P| mod (l+1)</code> tail still searched in the index rather than verified against the surviving candidates. Default: verify every tail, which measured never slower. <code>0</code> searches every tail. Same answer either way — see <a href="#pattern-validity">Pattern validity</a>.</td>
+</tr>
 </tbody>
 </table>
 <h3 id="source-aware-search">Source-aware search<a class="headerlink" href="#source-aware-search" title="Permanent link">&para;</a></h3>
@@ -1368,6 +1286,16 @@ than an error.</p>
 <td><code>--samples</code></td>
 <td>—</td>
 <td>List the genome ids carrying each occurrence rather than just their count. Requires <code>-s</code> or <code>-z</code>.</td>
+</tr>
+<tr>
+<td><code>--genome-coords</code></td>
+<td>—</td>
+<td>List each carrying genome as <code>id:position</code>, the occurrence's start in that genome's own coordinates. Implies <code>--samples</code>; requires <code>-s</code> or <code>-z</code> and sources that partition the genomes. See <a href="../locate_spec/#genome-coordinates">Genome coordinates</a>.</td>
+</tr>
+<tr>
+<td><code>--sample-rate</code></td>
+<td>integer</td>
+<td>Sample the per-genome prefix sums <code>--genome-coords</code> uses every <code>b</code> degenerate symbols (default 32). <code>1</code> stores them all; larger trades memory for a walk of up to <code>b</code> symbols per lookup.</td>
 </tr>
 </tbody>
 </table>
@@ -1447,13 +1375,86 @@ executed</strong> rather than chunks planned:</p>
 <p>The per-chunk timer costs two clock reads per chunk (~3% at typical sizes),
 which is why it is opt-in rather than part of the plain <code>--benchmark</code> path.</p>
 <hr />
+<h2 id="biofmi-extract"><code>biofmi-extract</code><a class="headerlink" href="#biofmi-extract" title="Permanent link">&para;</a></h2>
+<p>Spells stretches of individual genomes back out of an index plus its sources
+(a genome is a path through the panel). Coordinates are 0-based and half-open;
+genomes are the 1-based path ids <code>--samples</code> reports. Output is FASTA, one
+record per region, headed <code>&gt;g:i-j</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>-r<span class="w"> </span><span class="m">3</span>:1000-1100<span class="w">   </span><span class="c1"># genome 3, [1000,1100)</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>-r<span class="w"> </span><span class="m">3</span><span class="w"> </span>-r<span class="w"> </span><span class="m">5</span><span class="w"> </span>-o<span class="w"> </span>g.fa<span class="w">  </span><span class="c1"># genomes 3 and 5, whole</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>--lengths<span class="w">          </span><span class="c1"># every genome's length</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i</code>, <code>--index</code></td>
+<td>path</td>
+<td>Index directory produced by <code>biofmi-build</code>.</td>
+</tr>
+<tr>
+<td><code>-l</code>, <code>--context-length</code></td>
+<td>integer</td>
+<td>Optional; checked against the index when given.</td>
+</tr>
+<tr>
+<td><code>-s</code>, <code>--seds</code> / <code>-z</code>, <code>--edz</code></td>
+<td>path</td>
+<td>Source file of the indexed l-EDS, as for <code>biofmi-locate</code>. Required.</td>
+</tr>
+<tr>
+<td><code>-r</code>, <code>--region</code></td>
+<td><code>g:i-j</code> or <code>g</code></td>
+<td>Region to extract (repeatable); <code>g</code> alone is the whole genome.</td>
+</tr>
+<tr>
+<td><code>-R</code>, <code>--region-file</code></td>
+<td>path</td>
+<td>Regions, one per line, as <code>g:i-j</code> or <code>g i j</code>.</td>
+</tr>
+<tr>
+<td><code>--lengths</code></td>
+<td>—</td>
+<td>Print every genome's length.</td>
+</tr>
+<tr>
+<td><code>-b</code>, <code>--sample-rate</code></td>
+<td>integer</td>
+<td>As <code>biofmi-locate --sample-rate</code> (default 32).</td>
+</tr>
+<tr>
+<td><code>-o</code>, <code>--output</code></td>
+<td>path</td>
+<td>Write the FASTA here instead of stdout.</td>
+</tr>
+<tr>
+<td><code>--benchmark</code></td>
+<td>N</td>
+<td>Time N random extracts and N random coordinate lookups; one TSV row on stdout.</td>
+</tr>
+</tbody>
+</table>
+<p>Refuses, naming the symbol and genome, when the sources do not partition the
+genomes — some genome on no alternative of a symbol, or on two — because
+"genome g" is then not one string. See
+<a href="../locate_spec/#genome-coordinates">Genome coordinates</a>.</p>
+<hr />
 <h2 id="output-format">Output format<a class="headerlink" href="#output-format" title="Permanent link">&para;</a></h2>
-<p>Human-readable output groups occurrences under each pattern:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Pattern: ACCCGCAATTCTGCTAACAATG...
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>10716[ 2345 2348 2350 2352 2356 ] samples=8
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>Pattern: TTGTTAAATTTATCTCAACCTG...
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>No occurrences found
+<p>Human-readable output groups occurrences under each pattern. Each line is written
+as the search finds it — nothing is collected first — so the order of lines under
+a pattern is unspecified (as <code>locate()</code>'s is) and may differ between versions;
+sort them before comparing runs.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Pattern: ACCCGCAATTCTGCTAACAATG...
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>10716[ 2345 2348 2350 2352 2356 ] samples=8
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>Pattern: TTGTTAAATTTATCTCAACCTG...
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>No occurrences found
 </code></pre></div>
 <p>Each result line is <code>position[ changes ]</code>, optionally followed by <code>samples=N</code>:</p>
 <ul>
@@ -1463,7 +1464,8 @@ which is why it is opt-in rather than part of the plain <code>--benchmark</code>
 <li><strong>changes</strong> — the 0-based global alternative indices the match passes
   through, in order. Empty for a match lying entirely in the reference.</li>
 <li><strong>samples</strong> — how many genomes carry this occurrence. Shown only in LINEAR
-  mode; <code>--samples</code> replaces the count with the ids themselves.</li>
+  mode; <code>--samples</code> replaces the count with the ids themselves, and
+  <code>--genome-coords</code> with <code>id:position</code> pairs, e.g. <code>samples=2{ 3:10811 7:10790 }</code>.</li>
 </ul>
 <p>Under <code>--benchmark</code>, output is instead <code>&lt;pattern&gt;\t&lt;count&gt;</code> per line, with
 summary counts on stderr (<code>Total patterns</code>, <code>Patterns matched</code>,
@@ -1476,54 +1478,122 @@ real data they diverge by orders of magnitude at large <code>l</code>.</p>
 </div>
 <hr />
 <h2 id="pattern-validity">Pattern validity<a class="headerlink" href="#pattern-validity" title="Permanent link">&para;</a></h2>
-<p>A pattern must be at least <code>l+1</code> characters. Shorter throws.</p>
-<p>It need <strong>not</strong> be a multiple of <code>l+1</code> — the remainder is searched as a short
-final chunk — but a short tail is far less selective than a full chunk, so cost
-rises steeply as the remainder shrinks. Measured on an 8 MB panel at <code>l=9</code>,
-varying only <code>|P|</code>:</p>
+<p>Only the empty pattern throws. Every other length is searched.</p>
+<p>It need <strong>not</strong> be a multiple of <code>l+1</code>. The remainder <code>r = |P| mod (l+1)</code> is
+verified against the candidates the full chunks left, walking forward from each,
+which costs about the same at every <code>r</code>. Measured on <code>tb_p100_norm</code> at <code>l=9</code>,
+LINEAR, median per pattern (run <code>tail_cost/2026-09-12_21-57-45</code>):</p>
 <table>
 <thead>
 <tr>
 <th style="text-align: right;"><code>r = |P| mod (l+1)</code></th>
-<th style="text-align: right;">per pattern</th>
-<th style="text-align: right;">vs <code>r = 0</code></th>
+<th style="text-align: right;">verified (default)</th>
+<th style="text-align: right;">searched (<code>--tail-threshold 0</code>)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">0.9 ms</td>
-<td style="text-align: right;">1×</td>
+<td style="text-align: right;">0.067 ms</td>
+<td style="text-align: right;">0.067 ms</td>
 </tr>
 <tr>
 <td style="text-align: right;">1</td>
-<td style="text-align: right;">&gt; 3000 ms</td>
-<td style="text-align: right;"><strong>&gt; 3000×</strong></td>
+<td style="text-align: right;">0.101 ms</td>
+<td style="text-align: right;">2149 ms</td>
 </tr>
 <tr>
 <td style="text-align: right;">3</td>
-<td style="text-align: right;">191 ms</td>
-<td style="text-align: right;">212×</td>
+<td style="text-align: right;">0.093 ms</td>
+<td style="text-align: right;">131 ms</td>
 </tr>
 <tr>
 <td style="text-align: right;">5</td>
-<td style="text-align: right;">13.7 ms</td>
-<td style="text-align: right;">15×</td>
+<td style="text-align: right;">0.069 ms</td>
+<td style="text-align: right;">10.7 ms</td>
 </tr>
 <tr>
 <td style="text-align: right;">7</td>
-<td style="text-align: right;">1.8 ms</td>
-<td style="text-align: right;">1.9×</td>
+<td style="text-align: right;">0.070 ms</td>
+<td style="text-align: right;">0.86 ms</td>
 </tr>
 <tr>
 <td style="text-align: right;">9</td>
-<td style="text-align: right;">1.0 ms</td>
-<td style="text-align: right;">1.1×</td>
+<td style="text-align: right;">0.065 ms</td>
+<td style="text-align: right;">0.16 ms</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Prefer <code>|P|</code> a multiple of <code>l+1</code>.</strong> <code>r ≥ 7</code> is affordable; <code>r ≤ 5</code> is not.
-See <a href="../locate_spec/"><code>locate()</code> specification</a> for the full rule.</p>
+<p><code>--tail-threshold t</code> searches tails of <code>r ≥ t</code> as a short final chunk instead; the
+answer is identical either way. See
+<a href="../locate_spec/#cost-a-short-tail-is-verified-not-searched"><code>locate()</code> § Cost</a>.</p>
+<p><code>|P| &lt; l+1</code> is allowed too — the whole pattern becomes one short chunk, searched,
+since there are no candidates to verify it against — and it is the length that
+still costs. The cost tracks the size of the answer: roughly <code>|alphabet|</code> more of
+both per character removed. On an 8 MB synthetic panel at <code>l=9</code>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;"><code>\|P\|</code></th>
+<th style="text-align: right;">wall</th>
+<th style="text-align: right;">peak RSS</th>
+<th style="text-align: right;">occurrences</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0.41 s</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">72</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">0.37 s</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">7,654</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0.87 s</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">116,315</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">2.53 s</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">432,257</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">9.5 s</td>
+<td style="text-align: right;">0.9 GB</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">37 s</td>
+<td style="text-align: right;">2.6 GB</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">154 s</td>
+<td style="text-align: right;">9.2 GB</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+<p>Until 2026-10-01 every occurrence was materialised before the first line was
+written, so <strong>memory was the binding constraint</strong>: a one-character pattern on an
+8 MB panel wanted 9.2 GB, and under a memory cap that surfaced as an OOM rather
+than as a very common pattern. <code>biofmi-locate</code> now prints each entry as it is
+found and <code>--benchmark</code> counts without building any, so a pattern of at most
+<code>l+1</code> characters runs in the memory of the index alone, however often it occurs.
+Time still tracks the answer — each hit is located — so the table's wall column
+stands. See <a href="../locate_spec/#cost-a-short-pattern-is-not-a-short-tail"><code>locate()</code> § Cost</a>.</p>
+<p>See <a href="../locate_spec/"><code>locate()</code> specification</a> for the full rule.</p>
 <hr />
 <h2 id="exit-codes">Exit codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
 <table>

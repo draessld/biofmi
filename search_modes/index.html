@@ -16,7 +16,7 @@
         <link rel="prev" href="../quickstart/">
       
       
-        <link rel="next" href="../experiments/">
+        <link rel="next" href="../benchmarks/">
       
       
         
@@ -289,26 +289,6 @@
   
   
   Internals
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../experiment_design/" class="md-tabs__link">
-          
-  
-  
-  Evaluation
 
         </a>
       </li>
@@ -694,14 +674,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../experiments/" class="md-nav__link">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Running experiments
+    Benchmarks
   
 
     
@@ -964,95 +944,6 @@
     
   
     Index internals
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Evaluation
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../experiment_design/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Experiment design
   
 
     
@@ -1352,7 +1243,8 @@ id over <em>all</em> symbols, common ones included. The two differ by the number
 non-degenerate symbols passed so far, which is not recoverable from the index
 artifacts — a loaded index has no EDS to ask. So it is computed during
 <code>parse_eds()</code>, where the walk is left-to-right and the counter is free, and
-persisted. On a 4.9 MB index it costs 21 KB.</p>
+persisted as an Elias-Fano bit vector: 15 KB on the 3.9 MB <code>tb_p100_norm</code> index at
+<code>l=9</code>, where the 64-bit array it replaced on 2026-09-12 took 287 KB.</p>
 <p>Attaching sources to an index built before <code>.d2g</code> existed, or to a sources file
 whose cardinality does not match the indexed l-EDS, <strong>throws</strong> rather than
 silently mis-associating path sets.</p>
@@ -1476,6 +1368,16 @@ in both the reference and the alt string at a site, so a surviving path set mean
 "this sample could carry this combination", not "this haplotype does". Haploid
 panels — <em>M. tuberculosis</em>, for instance — are unaffected, and so are
 MSA-derived panels where one row is one genome.</p>
+<p>Haploid VCF panels had a second, independent problem with any <code>vcf2eds</code> older
+than edsparser <code>d2cef03</code> (the submodule was at <code>1cba45e</code> until 2026-10-01).
+Records that share a position or overlap are merged into one symbol, and a
+sample carrying an alternative at one of them was left under the reference
+option as well, so the source sets no longer partitioned the genomes and LINEAR
+admitted genomes that do not carry the match — 1,307 false-positive genome calls
+on 122 targeted patterns over <code>tb_p100_snv50</code>. The submodule now carries the fix,
+but every panel written before it still has the defect baked in: audit the
+partition before trusting a VCF-derived result (<code>TODO.md</code> §4b). The xbench specs
+that consume one do so as their <code>prepare</code> stage.</p>
 
 
 
