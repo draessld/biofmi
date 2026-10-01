@@ -186,6 +186,12 @@ add_executable(test_locate_offset ${TEST_DIR}/test_locate_offset.cpp)
 target_link_libraries(test_locate_offset biofmi_lib)
 add_test(NAME test_locate_offset COMMAND test_locate_offset)
 
+# Test: extract(g, i, j) and genome coordinates (TODO §9) vs each genome's path
+# spelled out, on hand-written and seeded random panels, at several sample rates
+add_executable(test_extract ${TEST_DIR}/test_extract.cpp)
+target_link_libraries(test_extract biofmi_lib)
+add_test(NAME test_extract COMMAND test_extract)
+
 # Print configuration summary
 message(STATUS "")
 message(STATUS "Configuration Summary:")

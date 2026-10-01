@@ -302,14 +302,25 @@ campaigns. §1 and §2 closed on 2026-09-12; see `CLAUDE.md`.
 
 ## 9. Extract a stretch of a given genome, and report genome coordinates
 
-The paper now states this as possible in principle and unimplemented (methodology `ss:tradeoffs`,
-conclusion). Under the partition requirement (§4) a genome is a path: `extract(g, i, j)` walks the
-symbols, taking at each the option whose source set contains g, reading T0 from I_0
-(`sdsl::extract`) and options from I_D. The same walk maps a reported T0-coordinate to a coordinate
-of genome g. That answers the methodology's third question (positions per sequence), which the
-original BIO-FMI paper proposed but never implemented.
+**Implemented 2026-10-01** — `extract(g, i, j)`, `genome_length`, `genome_position(s)`, the
+sampled per-genome prefix sums (`build_genome_map(b)`, default `b = 32`), `biofmi-extract` and
+`biofmi-locate --genome-coords`. Semantics, validation and the memory/walk table for
+`tb_p100_norm` at `l=9` are in `CLAUDE.md` (Known Issues, "Genomes come back out") and
+`docs/locate_spec.md` § Genome coordinates. Sources stay out of the index, per §2. Still open:
 
-- Genome coordinate → symbol needs per-genome prefix sums of option lengths. Full sums cost k·n
-  words; sampling every b symbols costs k·n/b words and a walk of at most b. Measure both on TB.
-- It needs sources at query time, as LINEAR does, so it follows §2's decision on where path sets
-  live.
+- **The paper** still states this as possible in principle and unimplemented (methodology
+  `ss:tradeoffs`, conclusion). It now answers the methodology's third question (positions per
+  sequence); the table is ready to quote, and `make_paper_figures.py` should check it.
+- **A walk step is the sources, not the arithmetic**: ~0.8 µs, flat across SEDS and EDZ, which
+  is `Sources::read_source_ref()`'s mutex, hash lookup and LRU splice per alternative tried.
+  Resolving a set's choice for a genome without the cache (a decoded bitset per set, or the
+  EDZ bytes read directly) would cut the cost at every `b > 1`. Worth it only if a panel needs
+  `b` well above 32 to fit.
+- **Not measured at scale.** The map is `k·⌈n/b⌉` entries of `⌈log2(max delta)⌉` bits, so it
+  grows linearly in genomes: at 1141 TB genomes (DGX tier, §7c) expect ~11x the 107 KB here at
+  `b = 32`, against an index that grows far slower. Measure there before fixing the default.
+- **Refuses rather than guesses on a broken partition.** `build_genome_map()` throws, naming
+  the symbol and genome, when a genome carries no alternative of a symbol or several — every
+  §4b-affected panel (`tb_p100_snv50`, any VCF panel from the vendored `vcf2eds`) and every
+  diploid one (§4a). Advancing `external/edsparser` (§4b) is what makes it usable on fresh VCF
+  panels.

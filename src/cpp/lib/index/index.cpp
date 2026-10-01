@@ -58,6 +58,12 @@ struct BioFMI::IndexData {
     sdsl::select_support_sd<1> d2g_select;
     size_t d2g_count = 0;       // degenerate strings mapped
     bool d2g_present = false;   // false for an index built before .d2g existed
+
+    // Genome map (BioFMI::build_genome_map): delta_g at every b-th degenerate
+    // set, genome-major — entry (g-1) * samples_per_path + t is delta_g(t*b) —
+    // and each genome's length. Built from sources at query time, never saved.
+    sdsl::int_vector<> genome_samples;
+    std::vector<int64_t> genome_len;
 };
 
 // .d2g opens with these eight bytes, followed by an sdsl::sd_vector. Until
@@ -424,6 +430,12 @@ void BioFMI::attach_sources_impl(std::shared_ptr<Sources> src,
 
     sources_ = std::move(src);
     num_paths_ = sources_->num_paths();
+
+    // A genome map describes the sources it was built from.
+    genome_rate_ = 0;
+    genome_samples_per_path_ = 0;
+    data_->genome_samples = sdsl::int_vector<>();
+    data_->genome_len.clear();
 }
 
 bool BioFMI::pathset_empty(const PathSet& s, size_t num_paths) {
@@ -736,7 +748,7 @@ void BioFMI::print_statistics(std::ostream& os) const {
 }
 
 void BioFMI::print_result(const ResultMap& result, std::ostream& os,
-                          bool list_samples) const {
+                          bool list_samples, bool genome_coords) const {
     // Sample sets are appended only in LINEAR mode. In CARTESIAN mode every set
     // is {0} for want of any constraint, and printing "all 294 genomes" next to
     // every hit would read as a finding rather than as an absence of one.
@@ -749,7 +761,13 @@ void BioFMI::print_result(const ResultMap& result, std::ostream& os,
                 os << change_num << " ";
             }
             os << "]";
-            if (show_samples) {
+            if (show_samples && genome_coords) {
+                // id:position, the occurrence's start in each genome carrying it.
+                const auto at = genome_positions(occ);
+                os << " samples=" << at.size() << "{ ";
+                for (const auto& [id, pos] : at) os << id << ":" << pos << " ";
+                os << "}";
+            } else if (show_samples) {
                 const std::vector<int> ids = expand_paths(occ.paths);
                 os << " samples=" << ids.size();
                 if (list_samples) {
@@ -1474,6 +1492,301 @@ BioFMI::IndexSnapshot BioFMI::get_snapshot() const {
         if (data_->iloc[i]) s.iloc_ones.push_back(i);
 
     return s;
+}
+
+// ------------------------------------------------- genome coordinates (TODO §9)
+//
+// A genome is a path: T0 with its own alternative spliced in at every degenerate
+// set. Writing delta_g(s) for the summed length of g's alternatives at sets
+// [0, s), set s begins in genome g at base_positions[s] + delta_g(s), and a T0
+// character p lying after sets [0, s) sits at p + delta_g(s). Everything below is
+// that identity plus a way to get delta_g(s) without storing it for every s.
+
+bool BioFMI::pathset_contains(const PathSet& s, int g) {
+    if (s.empty()) return false;
+    if (s.front() == 0)   // complement: every path except those listed after the 0
+        return !std::binary_search(s.begin() + 1, s.end(), g);
+    return std::binary_search(s.begin(), s.end(), g);
+}
+
+int BioFMI::set_of_change(int change_number) const {
+    const auto& ss = data_->set_sizes;   // cumulative alternative counts
+    return (int)(std::lower_bound(ss.begin(), ss.end(), change_number) - ss.begin());
+}
+
+int BioFMI::choice_of(int g, int s) const {
+    const int first = (s == 0) ? 1 : data_->set_sizes[s - 1] + 1;
+    const int last  = data_->set_sizes[s];
+    for (int cn = first; cn <= last; cn++) {
+        // By reference: valid until the next cache mutation, and used at once.
+        const PathSet& ps = sources_->read_source_ref(data_->d2g_select((size_t)cn));
+        if (pathset_contains(ps, g)) return cn;
+    }
+    // build_genome_map() checked the partition and attach_sources() resets the
+    // map, so reaching this means the sources changed underneath it.
+    throw std::runtime_error("genome " + std::to_string(g) + " carries no alternative of "
+                             "degenerate set " + std::to_string(s) + " (TODO §4)");
+}
+
+void BioFMI::require_genome_map(int g) const {
+    if (!sources_) {
+        throw std::runtime_error("Genome coordinates need sources: attach_sources() first");
+    }
+    if (!has_genome_map()) {
+        throw std::runtime_error("Genome coordinates need build_genome_map() first");
+    }
+    if (g < 1 || (size_t)g > num_paths_) {
+        throw std::out_of_range("genome " + std::to_string(g) + " is not a path id in 1.." +
+                                std::to_string(num_paths_));
+    }
+}
+
+// The set a reported occurrence starts after, in the sense of delta_g: the
+// occurrence starts in genome g at position + delta_g(that set).
+//
+// It starts inside an alternative exactly when its first change is non-empty and
+// that change's set begins at or before the position — a match starting in the
+// reference lies strictly before every set it crosses, and never lists an empty
+// alternative before its first character. Otherwise it starts at T0 `position`,
+// after every set placed at or before it.
+static int start_set(const std::vector<int>& bp, const std::vector<int>& offsets,
+                     int num_sets, int64_t p, const std::vector<int>& changes,
+                     int first_change_set) {
+    if (!changes.empty() && offsets[changes[0]] > 0 && bp[first_change_set] <= p)
+        return first_change_set;
+    return (int)(std::upper_bound(bp.begin(), bp.begin() + num_sets, p) - bp.begin());
+}
+
+void BioFMI::build_genome_map(size_t sample_rate) {
+    if (!sources_) {
+        throw std::runtime_error("build_genome_map() needs sources: attach_sources() first");
+    }
+    if (sample_rate == 0) throw std::invalid_argument("genome map sample rate must be >= 1");
+
+    const int    num_sets = (int)data_->set_sizes.size();
+    const size_t k        = num_paths_;
+    const size_t per_path = ((size_t)num_sets + sample_rate - 1) / sample_rate;
+    const int64_t t0_len  = data_->base_positions.empty() ? 0 : data_->base_positions.back();
+
+    // One pass over the sets, carrying every genome's running delta. Samples are
+    // gathered set-major (the order the pass produces them) and transposed into
+    // the genome-major table once the width is known.
+    std::vector<int64_t> cur(k + 1, 0);
+    std::vector<int> carried(k + 1, 0);
+    std::vector<uint64_t> by_set;
+    by_set.reserve(per_path * k);
+    uint64_t widest = 0;
+
+    for (int s = 0; s < num_sets; s++) {
+        if ((size_t)s % sample_rate == 0) {
+            for (size_t g = 1; g <= k; g++) {
+                by_set.push_back((uint64_t)cur[g]);
+                widest = std::max(widest, (uint64_t)cur[g]);
+            }
+        }
+
+        std::fill(carried.begin(), carried.end(), 0);
+        const int first = (s == 0) ? 1 : data_->set_sizes[s - 1] + 1;
+        for (int cn = first; cn <= data_->set_sizes[s]; cn++) {
+            const PathSet ps = sources_->read_source(data_->d2g_select((size_t)cn));
+            const int64_t len = data_->offsets[cn - 1];
+            if (!ps.empty() && ps.front() == 0) {
+                size_t ex = 1;
+                for (int g = 1; g <= (int)k; g++) {
+                    while (ex < ps.size() && ps[ex] < g) ex++;
+                    if (ex < ps.size() && ps[ex] == g) continue;
+                    carried[g]++; cur[g] += len;
+                }
+            } else {
+                for (int g : ps) {
+                    if (g < 1 || (size_t)g > k) continue;
+                    carried[g]++; cur[g] += len;
+                }
+            }
+        }
+
+        // The partition (TODO §4): exactly one alternative per genome per set.
+        for (size_t g = 1; g <= k; g++) {
+            if (carried[g] != 1) {
+                throw std::runtime_error(
+                    "Sources do not partition the genomes: genome " + std::to_string(g) +
+                    " carries " + std::to_string(carried[g]) + " alternatives of degenerate "
+                    "set " + std::to_string(s) + " (0-based), where it must carry exactly one "
+                    "(TODO §4). Genome coordinates are undefined on such a panel.");
+            }
+        }
+    }
+
+    const uint8_t width = (uint8_t)(widest ? sdsl::bits::hi(widest) + 1 : 1);
+    sdsl::int_vector<> table(per_path * k, 0, width);
+    for (size_t t = 0; t < per_path; t++)
+        for (size_t g = 0; g < k; g++)
+            table[g * per_path + t] = by_set[t * k + g];
+
+    data_->genome_samples = std::move(table);
+    data_->genome_len.assign(k + 1, 0);
+    for (size_t g = 1; g <= k; g++) data_->genome_len[g] = t0_len + cur[g];
+    genome_samples_per_path_ = per_path;
+    genome_rate_ = sample_rate;
+}
+
+size_t BioFMI::genome_map_bytes() const {
+    return sdsl::size_in_bytes(data_->genome_samples) +
+           data_->genome_len.size() * sizeof(int64_t);
+}
+
+size_t BioFMI::genome_length(int g) const {
+    require_genome_map(g);
+    return (size_t)data_->genome_len[g];
+}
+
+int64_t BioFMI::genome_delta(int g, int s) const {
+    const int num_sets = (int)data_->set_sizes.size();
+    if (s <= 0) return 0;
+    if (s >= num_sets) {
+        // Past the last set: the genome's length says it without a walk.
+        const int64_t t0_len = data_->base_positions.empty() ? 0 : data_->base_positions.back();
+        return data_->genome_len[g] - t0_len;
+    }
+    const size_t t = (size_t)s / genome_rate_;
+    int64_t d = data_->genome_samples[(size_t)(g - 1) * genome_samples_per_path_ + t];
+    for (int x = (int)(t * genome_rate_); x < s; x++)
+        d += data_->offsets[choice_of(g, x) - 1];
+    return d;
+}
+
+String BioFMI::extract(int g, size_t i, size_t j) const {
+    require_genome_map(g);
+    const size_t glen = (size_t)data_->genome_len[g];
+    if (i > j || j > glen) {
+        throw std::out_of_range("extract(" + std::to_string(g) + ", " + std::to_string(i) +
+                                ", " + std::to_string(j) + "): genome " + std::to_string(g) +
+                                " has length " + std::to_string(glen));
+    }
+    String out;
+    if (i == j) return out;
+    out.reserve(j - i);
+
+    const auto& bp = data_->base_positions;
+    const int num_sets = (int)data_->set_sizes.size();
+    const int64_t t0_len = bp.empty() ? 0 : bp.back();
+    const int64_t want = (int64_t)i;
+
+    // Cursor: inside alternative `cn` (of set `s`) at `off`, or — cn == 0 — in
+    // the reference at `t0`, with `s` the first set not yet passed.
+    int cn = 0, s = 0;
+    int64_t off = 0, t0 = want;
+
+    // Locate i: the last sample whose set begins at or before i, then a walk of
+    // at most b sets. With none, i precedes set 0 and the cursor already holds.
+    if (num_sets > 0) {
+        const size_t base = (size_t)(g - 1) * genome_samples_per_path_;
+        auto start_of = [&](size_t t) -> int64_t {
+            return bp[t * genome_rate_] + (int64_t)data_->genome_samples[base + t];
+        };
+        size_t lo = 0, hi = genome_samples_per_path_;   // first t starting after i
+        while (lo < hi) {
+            const size_t mid = (lo + hi) / 2;
+            if (start_of(mid) <= want) lo = mid + 1; else hi = mid;
+        }
+        if (lo > 0) {
+            s = (int)((lo - 1) * genome_rate_);
+            int64_t c = start_of(lo - 1);   // where set s begins in genome g
+            while (true) {
+                const int ch = choice_of(g, s);
+                const int64_t len = data_->offsets[ch - 1];
+                if (want < c + len) { cn = ch; off = want - c; break; }
+                c += len;
+                const int64_t seg_end = (s + 1 < num_sets) ? bp[s + 1] : t0_len;
+                if (want < c + (seg_end - bp[s])) { t0 = bp[s] + (want - c); s++; break; }
+                c += seg_end - bp[s];
+                if (++s >= num_sets) throw std::logic_error("extract: walked past the last set");
+            }
+        }
+    }
+
+    // Spell forward: the reference from I_0, the genome's alternatives from I_D.
+    while (out.size() < j - i) {
+        const size_t rem = (j - i) - out.size();
+        if (cn != 0) {
+            const int64_t len = data_->offsets[cn - 1];
+            const size_t take = std::min(rem, (size_t)(len - off));
+            const size_t pos = data_->sloc((size_t)cn) + context_length_ + 1 + (size_t)off;
+            out += sdsl::extract(data_->changes_index, pos, pos + take - 1);
+            off += (int64_t)take;
+            if (off == len) { t0 = bp[s]; s++; cn = 0; off = 0; }
+            continue;
+        }
+        const int64_t seg_end = (s < num_sets) ? bp[s] : t0_len;
+        if (t0 < seg_end) {
+            const size_t take = std::min(rem, (size_t)(seg_end - t0));
+            const size_t rpos = (size_t)t0_to_ref_pos((int)t0);
+            out += sdsl::extract(data_->reference_index, rpos, rpos + take - 1);
+            t0 += (int64_t)take;
+            continue;
+        }
+        if (s >= num_sets) throw std::logic_error("extract: spelled past the end of the genome");
+        const int ch = choice_of(g, s);
+        if (data_->offsets[ch - 1] == 0) { s++; continue; }   // empty: nothing to spell
+        cn = ch; off = 0;
+    }
+    return out;
+}
+
+int64_t BioFMI::genome_position(int g, Position position, const std::vector<int>& changes) const {
+    require_genome_map(g);
+    for (int c : changes)
+        if (!pathset_contains(sources_->read_source_ref(data_->d2g_select((size_t)c + 1)), g))
+            return -1;
+
+    const int num_sets = (int)data_->set_sizes.size();
+    const int first_set = changes.empty() ? 0 : set_of_change(changes[0] + 1);
+    const int s = start_set(data_->base_positions, data_->offsets, num_sets,
+                            (int64_t)position, changes, first_set);
+    return (int64_t)position + genome_delta(g, s);
+}
+
+std::vector<std::pair<int, int64_t>> BioFMI::genome_positions(const Occurrence& occ) const {
+    std::vector<std::pair<int, int64_t>> out;
+    if (!sources_) return out;
+    if (!has_genome_map()) {
+        throw std::runtime_error("Genome coordinates need build_genome_map() first");
+    }
+    const std::vector<int> ids = expand_paths(occ.paths);
+    if (ids.empty()) return out;
+    out.reserve(ids.size());
+
+    const auto& bp = data_->base_positions;
+    const int num_sets = (int)data_->set_sizes.size();
+    const int64_t p = (int64_t)occ.position;
+    const int first_set = occ.changes.empty() ? 0 : set_of_change(occ.changes[0] + 1);
+    const int s = start_set(bp, data_->offsets, num_sets, p, occ.changes, first_set);
+
+    if (s >= num_sets) {
+        const int64_t t0_len = bp.empty() ? 0 : bp.back();
+        for (int g : ids) out.emplace_back(g, p + data_->genome_len[g] - t0_len);
+        return out;
+    }
+
+    // From the sample, every carrier at once: each set on the way has its
+    // alternatives read once and their lengths credited to the carriers, rather
+    // than resolving each genome's choice in a walk of its own.
+    const size_t t = (size_t)s / genome_rate_;
+    std::vector<int64_t> d(num_paths_ + 1, 0);
+    for (int g : ids)
+        d[g] = data_->genome_samples[(size_t)(g - 1) * genome_samples_per_path_ + t];
+    for (int x = (int)(t * genome_rate_); x < s; x++) {
+        const int first = (x == 0) ? 1 : data_->set_sizes[x - 1] + 1;
+        for (int cn = first; cn <= data_->set_sizes[x]; cn++) {
+            const int64_t len = data_->offsets[cn - 1];
+            if (len == 0) continue;
+            const PathSet& ps = sources_->read_source_ref(data_->d2g_select((size_t)cn));
+            for (int g : ids)
+                if (pathset_contains(ps, g)) d[g] += len;
+        }
+    }
+    for (int g : ids) out.emplace_back(g, p + d[g]);
+    return out;
 }
 
 } // namespace biofmi
