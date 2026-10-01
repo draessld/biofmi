@@ -25,11 +25,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <random>
 #include <set>
 #include <sstream>
 #include <string>
+#include <tuple>
+#include <unistd.h>
 #include <vector>
 
 using namespace biofmi;
@@ -302,7 +305,7 @@ void test_fuzz_sample_sets() {
 // 5. Split regular symbols: one segment, whatever the symbol count
 // ---------------------------------------------------------------------------
 void test_fuzz_split_regular() {
-    std::cout << "Test 5: split regular symbols, both modes, vs brute force... " << std::flush;
+    std::cout << "Test 5: split regular symbols, both modes, vs brute force and count()... " << std::flush;
     int before = failures, panels = 0, patterns = 0, split_runs = 0;
 
     for (unsigned seed = 401; seed <= 420; seed++) {
@@ -326,12 +329,27 @@ void test_fuzz_split_regular() {
 
             for (const auto& pat : path_substrings(p, 1, (size_t)(2 * l + 3))) {
                 patterns++;
-                auto got_c = collect(cart.locate(pat));
+                const auto rm_c = cart.locate(pat);
+                auto got_c = collect(rm_c);
                 auto want_c = oracle_cartesian(p, pat);
                 if (got_c != want_c) report(seed, l, p, pat, "split/cartesian", got_c, want_c);
-                auto got_l = collect(lin.locate(pat));
+                const auto rm_l = lin.locate(pat);
+                auto got_l = collect(rm_l);
                 auto want_l = oracle_linear(p, pat);
                 if (got_l != want_l) report(seed, l, p, pat, "split/linear", got_l, want_l);
+
+                // count() runs the same search with a discarding sink, and on a
+                // single chunk reads reference hits off the SA range: it must
+                // agree with locate() on the run-merged T0 too.
+                for (auto* run : {&rm_c, &rm_l}) {
+                    size_t entries = 0;
+                    for (const auto& [seq, occs] : *run) entries += occs.size();
+                    BioFMI& idx = (run == &rm_c) ? cart : lin;
+                    if (idx.count(pat) != entries && ++failures <= 6)
+                        std::cerr << "\n  MISMATCH seed=" << seed << " l=" << l
+                                  << " split count(\"" << pat << "\") = " << idx.count(pat)
+                                  << ", locate() has " << entries << " entries\n";
+                }
             }
         }
     }
@@ -339,6 +357,150 @@ void test_fuzz_split_regular() {
               << patterns << " patterns... ";
     assert(split_runs > 0 && "the generator produced no split run");
     assert(failures == before && "locate on split regular symbols disagrees with brute force");
+    std::cout << "PASSED\n";
+}
+
+// ---------------------------------------------------------------------------
+// 6. count() and the streaming locate() against locate() and brute force
+// ---------------------------------------------------------------------------
+//
+// Neither builds the result locate() returns: count() never constructs an
+// entry, and the streaming locate() hands each one over as the final chunk
+// finds it. Both must still produce exactly the entries locate() does —
+// compared as a *multiset* with sample sets, not as a set, because count()'s
+// contract is the number of entries, duplicates included — and those must be
+// the brute-force oracle's. Short patterns (|P| <= l) are where the two
+// differ most from the old path (a single chunk, nothing stored at all, and
+// count() reading reference hits off the suffix-array range), so every
+// length from 1 is covered, with both tail modes for the longer ones.
+namespace {
+
+using Entry = std::tuple<int, std::vector<int>, std::vector<int>>;   // pos, changes, genomes
+
+std::multiset<Entry> entries_of(const BioFMI& idx, const BioFMI::ResultMap& rm) {
+    std::multiset<Entry> out;
+    for (const auto& [seq, occs] : rm)
+        for (const auto& o : occs)
+            out.insert({(int)o.position, o.changes, idx.expand_paths(o.paths)});
+    return out;
+}
+
+void check_count_and_stream(BioFMI& idx, const Panel& p, unsigned seed, int l,
+                            const std::string& pat, bool linear, int& checked) {
+    const auto rm = idx.locate(pat);
+    const auto materialised = entries_of(idx, rm);
+
+    std::multiset<Entry> streamed;
+    const size_t n_stream = idx.locate(pat, [&](const BioFMI::Occurrence& o) {
+        streamed.insert({(int)o.position, o.changes, idx.expand_paths(o.paths)});
+    });
+    const size_t n_count = idx.count(pat);
+    checked++;
+
+    std::set<OccInfo> streamed_set;
+    for (const auto& [pos, ch, ids] : streamed) streamed_set.insert({pos, ch});
+    const auto want = linear ? oracle_linear(p, pat) : oracle_cartesian(p, pat);
+    const char* mode = linear ? "linear/stream" : "cartesian/stream";
+
+    if (streamed_set != want) {
+        report(seed, l, p, pat, mode, streamed_set, want);
+    } else if (streamed != materialised || n_stream != materialised.size() ||
+               n_count != materialised.size()) {
+        if (++failures <= 6)
+            std::cerr << "\n  MISMATCH seed=" << seed << " l=" << l << " mode=" << mode
+                      << "\n    eds     : " << p.eds_text()
+                      << "\n    pattern : \"" << pat << "\""
+                      << "\n    locate() " << materialised.size() << " entries, streamed "
+                      << streamed.size() << " (returned " << n_stream << "), count() "
+                      << n_count << ", multisets " << (streamed == materialised ? "equal" : "differ")
+                      << "\n";
+    }
+}
+
+}  // namespace
+
+void test_fuzz_count_and_stream() {
+    std::cout << "Test 6: count() and streaming locate() vs locate() and brute force... "
+              << std::flush;
+    int before = failures, panels = 0, checked = 0;
+
+    // 20 seeds: each is an index per mode and runs every pattern four ways, and
+    // this is already the slowest test in the suite.
+    for (unsigned seed = 401; seed <= 420; seed++) {
+        std::mt19937 rng(seed);
+        for (int l : {3, 4, 5}) {
+            Panel p = random_panel(rng, l);
+            for (bool linear : {false, true}) {
+                std::istringstream ss(p.eds_text());
+                EDS eds(ss);
+                BioFMI idx(std::move(eds), l);
+                idx.build();
+                if (linear) idx.attach_sources(write_edz(p), Sources::Format::EDZ);
+                panels++;
+
+                for (const auto& pat : path_substrings(p, 1, (size_t)(2 * l + 3))) {
+                    // Default: every tail verified.
+                    check_count_and_stream(idx, p, seed, l, pat, linear, checked);
+                    // And searched, for the patterns that have a tail at all.
+                    if (pat.size() > (size_t)(l + 1) && pat.size() % (size_t)(l + 1) != 0) {
+                        idx.set_tail_threshold(0);
+                        check_count_and_stream(idx, p, seed, l, pat, linear, checked);
+                        idx.set_tail_threshold(std::numeric_limits<size_t>::max());
+                    }
+                }
+                // Patterns that occur nowhere: count 0, no callback.
+                for (const std::string& miss :
+                     std::vector<std::string>{"N", "ACGN", std::string(3 * l, 'N')}) {
+                    size_t calls = 0;
+                    const size_t n = idx.locate(miss, [&](const BioFMI::Occurrence&) { calls++; });
+                    if (n != 0 || calls != 0 || idx.count(miss) != 0) {
+                        if (++failures <= 6)
+                            std::cerr << "\n  seed=" << seed << " absent pattern \"" << miss
+                                      << "\" reported " << n << "/" << calls << "\n";
+                    }
+                }
+            }
+        }
+    }
+    std::cout << panels << " indexes, " << checked << " checks... ";
+    assert(failures == before && "count() or streaming locate() disagrees with locate()");
+    std::cout << "PASSED\n";
+}
+
+// ---------------------------------------------------------------------------
+// 7. The streaming path is reusable after a callback throws
+// ---------------------------------------------------------------------------
+void test_stream_exception() {
+    std::cout << "Test 7: a throwing callback leaves the index usable... " << std::flush;
+    const int l = 4;
+    Panel p;
+    for (unsigned seed = 7;; seed++) {   // the first panel with a path long enough
+        std::mt19937 rng(seed);
+        p = random_panel(rng, l);
+        if (spell(p, p.path_choice[0]).str.size() >= (size_t)(2 * l + 2)) break;
+    }
+    std::istringstream ss(p.eds_text());
+    EDS eds(ss);
+    BioFMI idx(std::move(eds), l);
+    idx.build();
+
+    // Two characters: one chunk, so the abandoned search stored nothing, and
+    // a two-chunk pattern, so it abandoned candidate maps as well.
+    for (const auto& pat : {std::string("A"), spell(p, p.path_choice[0]).str.substr(0, 2 * l + 2)}) {
+        const size_t before = idx.count(pat);
+        assert(before > 0);
+        bool threw = false;
+        try {
+            idx.locate(pat, [](const BioFMI::Occurrence&) { throw std::runtime_error("stop"); });
+        } catch (const std::runtime_error&) {
+            threw = true;
+        }
+        assert(threw && "the callback's exception must propagate");
+        assert(idx.count(pat) == before && "a later count() saw state left by the abandoned search");
+        size_t n = 0;
+        idx.locate(pat, [&](const BioFMI::Occurrence&) { n++; });
+        assert(n == before);
+    }
     std::cout << "PASSED\n";
 }
 
@@ -352,6 +514,10 @@ int main() {
         test_fuzz_linear_subset();
         test_fuzz_sample_sets();
         test_fuzz_split_regular();
+        test_fuzz_count_and_stream();
+        test_stream_exception();
+        std::error_code ec;   // the per-process sources file, now unused
+        std::filesystem::remove(edz_path("biofmi_fuzz_sources"), ec);
         std::cout << "\n========================================\n";
         std::cout << "ALL FUZZ TESTS PASSED\n";
         std::cout << "========================================\n";

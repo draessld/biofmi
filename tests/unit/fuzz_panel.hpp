@@ -16,6 +16,7 @@
 #include <fstream>
 #include <random>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 namespace fuzz {
@@ -231,10 +232,17 @@ inline std::vector<std::vector<int>> all_choices(const Panel& p) {
     return out;
 }
 
-// `name` keeps concurrent test binaries (ctest -j) off each other's file.
+// Where write_edz(p, stem) writes: per test binary (`stem`) and per process,
+// so neither parallel ctest nor two copies of one suite running at once on a
+// shared machine rewrite each other's sources mid-test.
+inline std::filesystem::path edz_path(const std::string& stem) {
+    return std::filesystem::temp_directory_path() /
+           (stem + "." + std::to_string(getpid()) + ".edz");
+}
+
 inline std::filesystem::path write_edz(const Panel& p,
-                                       const std::string& name = "biofmi_fuzz_sources.edz") {
-    auto path = std::filesystem::temp_directory_path() / name;
+                                       const std::string& stem = "biofmi_fuzz_sources") {
+    auto path = edz_path(stem);
     std::ofstream os(path, std::ios::binary);
     Sources::write_edz_header(os, (size_t)p.num_paths);
     size_t cardinality = 0;

@@ -88,7 +88,7 @@ std::pair<int, std::vector<int>> occurrence_at(const Spelled& s, int i, int len)
 }
 
 std::unique_ptr<BioFMI> build(const Panel& p) {
-    auto edz = write_edz(p, "biofmi_extract_sources.edz");
+    auto edz = write_edz(p, "biofmi_extract_sources");
     std::istringstream ss(p.eds_text());
     EDS eds(ss);
     auto idx = std::make_unique<BioFMI>(std::move(eds), p.l);
@@ -279,7 +279,7 @@ void test_refusals() {
     assert(idx->extract(1, 11, 11).empty());
 
     // Re-attaching sources drops the map built from the old ones.
-    idx->attach_sources(write_edz(ok, "biofmi_extract_sources.edz"), Sources::Format::EDZ);
+    idx->attach_sources(write_edz(ok, "biofmi_extract_sources"), Sources::Format::EDZ);
     assert(!idx->has_genome_map());
 
     // CARTESIAN: no sources, no genomes to speak of.
@@ -331,6 +331,8 @@ int main() {
         test_random_panels();
         test_refusals();
         test_split_regular_runs();
+        std::error_code ec;   // the per-process sources file, now unused
+        std::filesystem::remove(edz_path("biofmi_extract_sources"), ec);
         std::cout << "\n========================================\n";
         std::cout << "ALL EXTRACT TESTS PASSED\n";
         std::cout << "========================================\n";

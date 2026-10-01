@@ -436,6 +436,7 @@ void BioFMI::attach_sources_impl(std::shared_ptr<Sources> src,
     genome_samples_per_path_ = 0;
     data_->genome_samples = sdsl::int_vector<>();
     data_->genome_len.clear();
+    seed_empty_.clear();   // remembered against the previous sources
 }
 
 bool BioFMI::pathset_empty(const PathSet& s, size_t num_paths) {
@@ -513,6 +514,20 @@ void BioFMI::bridge_empty_sets(const OccurrenceInfo& occ, int target, int t0,
     }
 }
 
+bool BioFMI::seed_is_empty(int change_number) {
+    if (!sources_) return false;   // CARTESIAN: every seed is universal
+    // One byte per degenerate string, filled on first use: memory the size of
+    // the index, never of an answer. 0 = not yet read, 1 = carried, 2 = empty.
+    if (seed_empty_.empty()) seed_empty_.assign(data_->d2g_count + 1, 0);
+    if (change_number < 1 || (size_t)change_number >= seed_empty_.size()) {
+        return pathset_empty(source_of_change(change_number), num_paths_);   // throws
+    }
+    uint8_t& known = seed_empty_[change_number];
+    if (known == 0)
+        known = pathset_empty(source_of_change(change_number), num_paths_) ? 2 : 1;
+    return known == 2;
+}
+
 int BioFMI::change_offset_of(int change_number) const {
     return data_->offsets[change_number - 1];
 }
@@ -532,7 +547,62 @@ PathSet BioFMI::source_of_change(int change_number) const {
     return sources_->read_source(data_->d2g_select(static_cast<size_t>(change_number)));
 }
 
+template <class F>
+size_t BioFMI::for_each_hit(const IndexType& index, const String& chunk, F&& f) {
+    // sdsl::locate() is exactly this loop writing into an int_vector. For a
+    // short chunk that vector is 8 bytes a hit over millions of hits, and each
+    // hit is consumed once, in order, so it never needs to exist.
+    IndexType::size_type sp = 0, ep = 0;
+    const IndexType::size_type n =
+        sdsl::backward_search(index, 0, index.size() - 1, chunk.begin(), chunk.end(), sp, ep);
+    for (IndexType::size_type i = 0; i < n; i++) f(index[sp + i]);
+    return n;
+}
+
+void BioFMI::store(Position key, OccurrenceInfo&& occ) {
+    if (final_sink_ == nullptr) {
+        new_hash_map_[key].push_back(std::move(occ));
+        return;
+    }
+    emitted_++;
+    if (trace_enabled_) trace_keys_.insert(key);
+    (*final_sink_)(occ);
+}
+
 BioFMI::ResultMap BioFMI::locate(const String& pattern) {
+    // Materialising locate: the streaming search, collected. The result is
+    // the same entries the hash-map version returned; their order, which the
+    // spec leaves undefined, is now the order they were found in.
+    ResultMap result;
+    locate(pattern, [&result](const Occurrence& occ) { result[0].push_back(occ); });
+    last_result_ = result;
+    return result;
+}
+
+size_t BioFMI::locate(const String& pattern, const OccurrenceCallback& on_occurrence) {
+    // One Occurrence reused for every entry, so a streaming caller pays no
+    // allocation per entry once the vectors have grown to the longest match.
+    Occurrence out;
+    const FinalSink sink = [&](const OccurrenceInfo& occ) {
+        out.position = occ.origin;
+        // Internal change numbers are 1-based (SDSL rank/select); the public
+        // result exposes 0-based global alternative indices.
+        out.changes.resize(occ.changes.size());
+        for (size_t i = 0; i < occ.changes.size(); i++) out.changes[i] = occ.changes[i] - 1;
+        // The accumulated source intersection: the genomes carrying this
+        // occurrence, already computed and tested for emptiness on the way.
+        out.paths = occ.paths;
+        on_occurrence(out);
+    };
+    return search(pattern, sink, false);
+}
+
+size_t BioFMI::count(const String& pattern) {
+    static const FinalSink discard = [](const OccurrenceInfo&) {};
+    return search(pattern, discard, true);
+}
+
+size_t BioFMI::search(const String& pattern, const FinalSink& sink, bool count_only) {
     // Chunk-based dual-index search.
     //
     // The pattern is split into (l+1)-char chunks.  Candidate occurrences are
@@ -545,7 +615,7 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
     // if chunk k-1 set key K_{k-1} = K_k the chain is valid.
     //
     // The origin (actual T0 start of the first chunk) is stored inside each
-    // OccurrenceInfo and recovered only in convert_hash_to_result().
+    // OccurrenceInfo and reported when the final chunk hands it to `sink`.
     //
     // Worked example — EDS "AAATTT{G,C}AAATTT", l=3, pattern "TTTGAAAT" (2 chunks):
     //
@@ -562,10 +632,16 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
     //
     //   chunk 1 "AAAT": found in reference_text at T0 pos 6.
     //     look up find(6 - 4) = find(2) → hit.  Case change→ref: back()=1 ≤ set_sizes[0]=2 → keep.
-    //     → new_hash_map_ = { 6: [(3,{1})] }
+    //     → survives under key 6: (3,{1})
     //
-    //   convert_hash_to_result: origin=3, changes {1} → 0-based {0}.
+    //   chunk 1 is the last, so instead of being stored under key 6 the
+    //   survivor goes to `sink`: origin=3, changes {1} → 0-based {0}.
     //   Result: { position=3, changes=[0] }
+    //
+    // Only the last chunk's survivors are the answer, and nothing looks them
+    // up again, so they are never stored: see final_sink_. What stays in
+    // memory is the candidates the earlier chunks hand on — none at all for a
+    // pattern of a single chunk, however many times it occurs.
 
     // Clear hash maps
     new_hash_map_.clear();
@@ -578,9 +654,30 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
         trace_.reserve(plan.size());
     }
 
+    // Reset however the search ends, an exception from the sink included, so
+    // a later search never finds a stale sink installed.
+    struct SinkGuard {
+        BioFMI& self;
+        ~SinkGuard() {
+            self.final_sink_ = nullptr;
+            self.count_only_ = false;
+            self.trace_keys_.clear();
+            self.old_hash_map_.clear();
+            self.new_hash_map_.clear();
+        }
+    } guard{*this};
+    emitted_ = 0;
+    trace_keys_.clear();
+
     for (size_t chunk_idx = 0; chunk_idx < plan.size(); chunk_idx++) {
         const ChunkPlan& cp = plan[chunk_idx];
         String chunk = pattern.substr(cp.start, cp.len);
+
+        const bool last = (chunk_idx + 1 == plan.size());
+        if (last) {
+            final_sink_ = &sink;
+            count_only_ = count_only;
+        }
 
         const size_t cand_in = trace_enabled_ ? old_hash_map_.size() : 0;
         size_t ref_hits = 0, chg_hits = 0;
@@ -600,24 +697,24 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
         if (trace_enabled_) {
             const double us = std::chrono::duration<double, std::micro>(
                                   std::chrono::steady_clock::now() - t0).count();
+            // cand_out is the number of distinct keys surviving, as it was
+            // when the last chunk's survivors were stored too.
             trace_.push_back(ChunkStat{chunk_idx, cp.len, cp.verify, us,
                                        ref_hits, chg_hits, cand_in,
-                                       new_hash_map_.size()});
+                                       last ? trace_keys_.size() : new_hash_map_.size()});
         }
 
+        if (last) break;
+
         // Early termination if no matches found
-        if (new_hash_map_.empty()) {
-            old_hash_map_.clear();
-            return ResultMap{};
-        }
+        if (new_hash_map_.empty()) return 0;
 
         // Swap for next iteration
         std::swap(old_hash_map_, new_hash_map_);
         new_hash_map_.clear();
     }
 
-    // Convert final hash map to ResultMap
-    return convert_hash_to_result(old_hash_map_);
+    return emitted_;
 }
 
 void BioFMI::set_tail_threshold(size_t t) {
@@ -682,14 +779,6 @@ std::vector<BioFMI::ChunkPlan> BioFMI::plan_chunks(size_t pattern_len) const {
     return plan;
 }
 
-size_t BioFMI::count(const String& pattern) {
-    auto result = locate(pattern);
-    size_t total = 0;
-    for (const auto& [seq_id, occs] : result)
-        total += occs.size();
-    return total;
-}
-
 BioFMI::IndexStats BioFMI::get_statistics() const {
     IndexStats stats;
     stats.context_length = context_length_;
@@ -752,33 +841,37 @@ void BioFMI::print_result(const ResultMap& result, std::ostream& os,
     // Sample sets are appended only in LINEAR mode. In CARTESIAN mode every set
     // is {0} for want of any constraint, and printing "all 294 genomes" next to
     // every hit would read as a finding rather than as an absence of one.
-    const bool show_samples = has_sources();
+    for (const auto& [seq_id, occurrences] : result)
+        for (const auto& occ : occurrences)
+            print_occurrence(occ, os, list_samples, genome_coords);
+}
 
-    for (const auto& [seq_id, occurrences] : result) {
-        for (const auto& occ : occurrences) {
-            os << occ.position << "[ ";
-            for (int change_num : occ.changes) {
-                os << change_num << " ";
-            }
-            os << "]";
-            if (show_samples && genome_coords) {
-                // id:position, the occurrence's start in each genome carrying it.
-                const auto at = genome_positions(occ);
-                os << " samples=" << at.size() << "{ ";
-                for (const auto& [id, pos] : at) os << id << ":" << pos << " ";
-                os << "}";
-            } else if (show_samples) {
-                const std::vector<int> ids = expand_paths(occ.paths);
-                os << " samples=" << ids.size();
-                if (list_samples) {
-                    os << "{ ";
-                    for (int id : ids) os << id << " ";
-                    os << "}";
-                }
-            }
-            os << "\n";
+void BioFMI::print_occurrence(const Occurrence& occ, std::ostream& os,
+                              bool list_samples, bool genome_coords) const {
+    os << occ.position << "[ ";
+    for (int change_num : occ.changes) {
+        os << change_num << " ";
+    }
+    os << "]";
+    if (has_sources() && genome_coords) {
+        // id:position, the occurrence's start in each genome carrying it.
+        // Safe from inside the streaming locate()'s callback: it reads the
+        // genome map and the sources, never the candidate maps, and the search
+        // holds no reference into the sources' cache across a callback.
+        const auto at = genome_positions(occ);
+        os << " samples=" << at.size() << "{ ";
+        for (const auto& [id, pos] : at) os << id << ":" << pos << " ";
+        os << "}";
+    } else if (has_sources()) {
+        const std::vector<int> ids = expand_paths(occ.paths);
+        os << " samples=" << ids.size();
+        if (list_samples) {
+            os << "{ ";
+            for (int id : ids) os << id << " ";
+            os << "}";
         }
     }
+    os << "\n";
 }
 
 void BioFMI::parse_eds() {
@@ -1011,7 +1104,11 @@ void BioFMI::extend_candidates(const String& tail, int step) {
     // Candidates under one key that agree on the pair stand at the same place,
     // so the text is read once for all of them and only path sets are folded
     // per candidate.
-    if (tail.empty()) { new_hash_map_ = old_hash_map_; return; }
+    if (tail.empty()) {
+        for (const auto& [key, occs] : old_hash_map_)
+            for (auto occ : occs) store(key, std::move(occ));
+        return;
+    }
 
     std::map<std::pair<int, int>, std::vector<OccurrenceInfo>> at_same_place;
     for (const auto& [key, occs] : old_hash_map_) {
@@ -1113,7 +1210,7 @@ void BioFMI::walk_tail(const String& tail, size_t done, TailCursor at, Position 
     for (auto& occ : group) {
         occ.in_change = at.in_change;
         occ.next_set  = at.next_set;
-        new_hash_map_[key].push_back(std::move(occ));
+        store(key, std::move(occ));
     }
 }
 
@@ -1132,10 +1229,21 @@ int BioFMI::t0_to_ref_pos(int t0) const {
 }
 
 size_t BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx, int step) {
-    auto ref_locations = sdsl::locate(data_->reference_index, chunk);
-    const size_t hits = ref_locations.size();
+    // A first chunk that is also the last makes one entry per hit, whatever
+    // the mode — a reference chunk traverses no alternative, so nothing can
+    // prune it and no two hits share a position. Counting it needs the size of
+    // the suffix-array range and nothing else; locating each hit is the
+    // dominant cost of a short pattern and only matters if it is reported.
+    if (count_only_ && chunk_idx == 0 && !trace_enabled_) {
+        IndexType::size_type sp = 0, ep = 0;
+        const size_t hits = sdsl::backward_search(data_->reference_index, 0,
+                                                  data_->reference_index.size() - 1,
+                                                  chunk.begin(), chunk.end(), sp, ep);
+        emitted_ += hits;
+        return hits;
+    }
 
-    for (auto loc : ref_locations) {
+    return for_each_hit(data_->reference_index, chunk, [&](uint64_t loc) {
         // Determine block number using tloc rank
         int block_number = data_->rtloc(loc);
 
@@ -1152,11 +1260,11 @@ size_t BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx, 
         if (chunk_idx == 0) {
             // First chunk: save initial position. A pure-reference chunk traverses
             // no alternative, so it constrains nothing and seeds the universal set.
-            new_hash_map_[loc] = {OccurrenceInfo{(Position)loc, {}, PathSet{0}, 0, after}};
+            store(loc, OccurrenceInfo{(Position)loc, {}, PathSet{0}, 0, after});
         } else {
             // Validate continuity with previous chunk
             auto it = old_hash_map_.find(loc - step);
-            if (it == old_hash_map_.end()) continue;
+            if (it == old_hash_map_.end()) return;
 
             std::vector<OccurrenceInfo> bridged;
             for (auto occ : it->second) {   // by value: it is moved on from here
@@ -1172,7 +1280,7 @@ size_t BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx, 
                 if (occ.next_set > after) continue;
 
                 if (occ.next_set == after) {
-                    new_hash_map_[loc].push_back(std::move(occ));
+                    store(loc, std::move(occ));
                     continue;
                 }
 
@@ -1184,19 +1292,14 @@ size_t BioFMI::process_reference_matches(const String& chunk, size_t chunk_idx, 
                 // like rather than the silent miss it used to be.
                 bridged.clear();
                 bridge_empty_sets(occ, after, loc, bridged);
-                for (auto& b : bridged) new_hash_map_[loc].push_back(std::move(b));
+                for (auto& b : bridged) store(loc, std::move(b));
             }
         }
-    }
-
-    return hits;
+    });
 }
 
 size_t BioFMI::process_changes_matches(const String& chunk, size_t chunk_idx, int step) {
-    auto change_locations = sdsl::locate(data_->changes_index, chunk);
-    const size_t hits = change_locations.size();
-
-    for (auto loc : change_locations) {
+    return for_each_hit(data_->changes_index, chunk, [&](uint64_t loc) {
         // iloc marks the end of each degenerate *set*, so this rank is the
         // 0-based set index — the same index base_positions is keyed by.
         int set_idx = data_->riloc(loc) - 1;
@@ -1222,7 +1325,7 @@ size_t BioFMI::process_changes_matches(const String& chunk, size_t chunk_idx, in
         // breaks it — without this check, searching a 1-character tail reported
         // "AATTT" as passing through both alternatives of a symbol it never
         // reaches (test_locate_arbitrary).
-        if (offset + chunk_len <= 0 || offset >= alt_len) continue;
+        if (offset + chunk_len <= 0 || offset >= alt_len) return;
 
         // Where the chunk sits against the alternative decides both what it can
         // continue and what it leaves behind:
@@ -1247,21 +1350,31 @@ size_t BioFMI::process_changes_matches(const String& chunk, size_t chunk_idx, in
             // First chunk: save initial position with change number. Seed the
             // running set with this alternative's sources — every later stitch
             // intersects into it, so the whole match is constrained from here.
-            PathSet seed = source_of_change(change_number);
-            if (pathset_empty(seed, num_paths_)) continue;   // no path carries it
+            //
+            // Counting a first-and-final chunk: this hit is one entry exactly
+            // when some path carries the alternative, and nothing about it
+            // needs building. That test is the only use of the source set, and
+            // Sources reads it from the file on a cache miss — once per hit, of
+            // which a one-character pattern has millions spread over every
+            // alternative — so its answer is remembered per alternative.
+            if (count_only_ && !trace_enabled_) {
+                if (!seed_is_empty(change_number)) emitted_++;
+                return;
+            }
 
-            new_hash_map_[loc - alt_len].push_back(
-                OccurrenceInfo{(Position)loc, {change_number}, std::move(seed),
-                               ends_inside ? change_number : 0,
-                               ends_inside ? set_idx : set_idx + 1});
+            PathSet seed = source_of_change(change_number);
+            if (pathset_empty(seed, num_paths_)) return;   // no path carries it
+
+            store(loc - alt_len,
+                  OccurrenceInfo{(Position)loc, {change_number}, std::move(seed),
+                                 ends_inside ? change_number : 0,
+                                 ends_inside ? set_idx : set_idx + 1});
         } else {
             // Validate continuity with previous chunk
             validate_change_continuity(loc, alt_len, change_number, set_idx,
                                        starts_inside, ends_inside, step);
         }
-    }
-
-    return hits;
+    });
 }
 
 void BioFMI::validate_change_continuity(int loc, int alt_len, int change_number,
@@ -1287,7 +1400,7 @@ void BioFMI::validate_change_continuity(int loc, int alt_len, int change_number,
             // `paths` is already correct and `changes` already names it.
             occ.in_change = out_change;
             occ.next_set  = out_set;
-            new_hash_map_[key_out].push_back(std::move(occ));
+            store(key_out, std::move(occ));
         }
         return;
     }
@@ -1337,7 +1450,7 @@ void BioFMI::validate_change_continuity(int loc, int alt_len, int change_number,
             cand.in_change = out_change;
             cand.next_set  = out_set;
 
-            new_hash_map_[key_out].push_back(std::move(cand));
+            store(key_out, std::move(cand));
         }
     }
 }
@@ -1362,31 +1475,6 @@ std::vector<int> BioFMI::expand_paths(const PathSet& paths) const {
         out.push_back(id);
     }
     return out;
-}
-
-BioFMI::ResultMap BioFMI::convert_hash_to_result(const HashType& hash_map) {
-    ResultMap result;
-
-    for (const auto& [position, occurrences] : hash_map) {
-        for (const auto& occ : occurrences) {
-            const Position origin_pos = occ.origin;
-            const std::vector<int>& changes = occ.changes;
-            // Convert change indices from 1-based (SDSL rank) to 0-based (spec).
-            // Internal hash maps use 1-based values for rank/select consistency;
-            // the public ResultMap must expose 0-based global alternative indices.
-            std::vector<int> zero_based_changes;
-            zero_based_changes.reserve(changes.size());
-            for (int c : changes) zero_based_changes.push_back(c - 1);
-            // Sequence ID 0 (single sequence support for now).
-            // occ.paths is the accumulated source intersection — the set of
-            // genomes carrying this occurrence. It was already computed and
-            // tested for emptiness during the search, so reporting it is free.
-            result[0].push_back(Occurrence{origin_pos, std::move(zero_based_changes), occ.paths});
-        }
-    }
-
-    last_result_ = result;
-    return result;
 }
 
 void BioFMI::dump_readable(const std::filesystem::path& dump_path) const {

@@ -169,11 +169,30 @@ Each character removed multiplies both the answer and the cost by roughly `|alph
 which is the 4x a 4-letter alphabet predicts — no `> 3000x` cliff, because there is no
 candidate set to join against.
 
-**The binding constraint is memory, not time.** Every occurrence is materialised before
-`locate()` returns, so a one-character pattern on an 8 MB panel needs 9.2 GB. Under the
-experiment harness's `policy.mem_cap: 8G` that is an OOM, and it will look like a tool
-failure rather than a pattern that matched a hundred million times. Prefer `|P| >= l+1`
-for anything running under a cap.
+**Memory no longer tracks the answer (2026-10-01).** Until then every occurrence was
+materialised before `locate()` returned — the final chunk's candidate map, then a
+`ResultMap`, then its copy in `last_result_` — so a one-character pattern on the panel
+above needed 9.2 GB, and under the harness's `policy.mem_cap: 8G` that was an OOM looking
+like a tool failure. Now the final chunk's survivors are never stored: `count()` counts
+them, `locate(pattern, callback)` hands each to the caller as it is found, and
+`biofmi-locate` uses those two. What a query holds is the candidate set the *earlier*
+chunks pass on; a pattern of at most `l+1` characters has no earlier chunk and holds
+nothing per occurrence. On a `genrandomeds --ref-size-mb 8 --seed 42` panel at `l=9`
+(peak RSS, `/usr/bin/time -v`; best wall of 2, old and new binaries interleaved):
+
+| \|P\| | entries | old `--benchmark` | new `--benchmark` (`count()`) | old print | new print (streamed) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 4,036,339 | 43.6 s, 1527 MB | 41.1 s, 44 MB | 36.0 s, 1527 MB | 32.4 s, 44 MB |
+| 2 | 1,058,250 | 7.9 s, 447 MB | 6.4 s, 44 MB | 7.7 s, 447 MB | 7.1 s, 44 MB |
+| 3 | 276,990 | 1.8 s, 150 MB | 1.5 s, 44 MB | 1.9 s, 150 MB | 1.8 s, 44 MB |
+| 4 | 72,676 | 0.48 s, 72 MB | 0.41 s, 44 MB | 0.48 s, 72 MB | 0.47 s, 44 MB |
+| 9 | 77 | 0.06 s, 44 MB | 0.06 s, 44 MB | 0.06 s, 44 MB | 0.06 s, 44 MB |
+
+CARTESIAN; LINEAR is the same shape (`|P|=1`: 1539 MB → 57 MB, 40–44 s both). 44 MB is
+the loaded index. **Time still tracks the answer**: every changes-index hit is located to
+learn whether it touches its alternative. Calling the materialising `locate(pattern)` on
+such a pattern still holds the whole answer, by definition — prefer `count()` or the
+streaming overload.
 
 ### Summary of accepted input
 
@@ -182,7 +201,7 @@ for anything running under a cap.
 | `|P| == 0` | **Error** — throws `std::runtime_error`; the only refused length |
 | `|P| >= l+1` and `|P| % (l+1) == 0` | Valid — every chunk is full; the cheap case |
 | `|P| >= l+1` and `|P| % (l+1) != 0` | Valid — the `r`-character tail is verified against the surviving candidates, at about the cost of an exact multiple (above) |
-| `0 < |P| < l+1` | Valid — the whole pattern is one short chunk; correct at every length, but the answer and the memory to hold it grow by `|alphabet|` per character removed |
+| `0 < |P| < l+1` | Valid — the whole pattern is one short chunk; correct at every length, but the answer and the time to produce it grow by `|alphabet|` per character removed (memory does not, through `count()` or the streaming `locate()`) |
 | Characters not in the index alphabet | No match — an empty result, not an error |
 
 The valid alphabet is not hardcoded — it is whatever was indexed from the input EDS. The chunk size `l+1` is the fundamental unit: every (l+1)-char chunk covers exactly `l` chars of reference context plus 1 char of content (or pure reference), guaranteeing that a chunk query can straddle any reference–alternative boundary in a valid l-EDS.
@@ -247,13 +266,27 @@ Changes:  0 = A    (alternative 0 of set 0)  base_pos = 4
 - Paths that share a start position but differ in which changes they traverse are reported as **separate entries**.
 - A match **entirely within a single degenerate alternative** is valid (when the alternative is long enough to contain a full `(l+1)`-char chunk beyond its context window).
 - A match **entirely within reference** (no changes) has an empty changes list.
-- Result order is **undefined**.
+- Result order is **undefined**. In practice it is the order the final chunk finds them in (before 2026-10-01, the final hash map's iteration order), so compare results as multisets.
+
+### Streaming: `locate(pattern, callback)`
+
+Calls `callback(const Occurrence&)` once per entry, as it is found, and returns the number
+of entries. The entries are exactly those `locate(pattern)` returns, with the same `paths`;
+none is stored, so memory is bounded by the candidates the earlier chunks carry, not by the
+answer. The `Occurrence` is reused between calls — copy it to keep it. The callback must
+not query the same index, and `get_last_result()` is not updated. An exception from the
+callback propagates and leaves the index usable.
 
 ---
 
 ## `count()` behaviour
 
-Returns the total number of entries that `locate()` would return. Counts **paths** (one per valid EDS traversal), not distinct positions — and, as noted under Search modes, not `(genome, offset)` occurrences either. The name is historical; read it as "entries".
+Returns the total number of entries that `locate()` would return, in either mode — computed
+without building any of them (same memory bound as the streaming `locate()`). Counts
+**paths** (one per valid EDS traversal), not distinct positions — and, as noted under
+Search modes, not `(genome, offset)` occurrences either. The name is historical; read it as
+"entries". Checked against `locate()` (as a multiset) and the brute-force oracle at every
+length from 1 by `test_locate_fuzz`.
 
 ---
 
@@ -326,12 +359,13 @@ patterns names exactly the 85,307 `(genome, offset)` pairs a scan of the FASTA f
 
 ## Future improvements (out of scope for now)
 
-- **A counting or streaming path.** Every occurrence is materialised before `locate()`
-  returns, which is what makes a very short pattern memory-bound rather than time-bound.
+- **Counting a short pattern without locating its changes hits.** It needs a 2-D range
+  count (hits whose offset falls on an alternative's content), so a very short pattern is
+  still time-bound in proportion to its answer.
 - Matches at EDS boundaries (very start/end of the EDS) — currently only partially covered
 - Parallel locate across multiple query threads
 
 *Done since this list was written:* patterns of arbitrary length, no longer restricted to
 multiples of `l+1` (2026-08-30) nor to `|P| >= l+1` (2026-09-02); a short tail verified
 against the surviving candidates instead of searched, across symbol boundaries
-(2026-09-12).
+(2026-09-12); a counting and a streaming path, so no query holds its answer (2026-10-01).

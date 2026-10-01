@@ -118,7 +118,10 @@ which is why it is opt-in rather than part of the plain `--benchmark` path.
 
 ## Output format
 
-Human-readable output groups occurrences under each pattern:
+Human-readable output groups occurrences under each pattern. Each line is written
+as the search finds it — nothing is collected first — so the order of lines under
+a pattern is unspecified (as `locate()`'s is) and may differ between versions;
+sort them before comparing runs.
 
 ```
 Pattern: ACCCGCAATTCTGCTAACAATG...
@@ -186,9 +189,14 @@ both per character removed. On an 8 MB synthetic panel at `l=9`:
 | 2 | 37 s | 2.6 GB | — |
 | 1 | 154 s | 9.2 GB | — |
 
-Every occurrence is materialised before `locate()` returns, so **memory is the
-binding constraint**: a one-character pattern on an 8 MB panel wants 9.2 GB, and
-under a memory cap that surfaces as an OOM rather than as a very common pattern.
+Until 2026-10-01 every occurrence was materialised before the first line was
+written, so **memory was the binding constraint**: a one-character pattern on an
+8 MB panel wanted 9.2 GB, and under a memory cap that surfaced as an OOM rather
+than as a very common pattern. `biofmi-locate` now prints each entry as it is
+found and `--benchmark` counts without building any, so a pattern of at most
+`l+1` characters runs in the memory of the index alone, however often it occurs.
+Time still tracks the answer — each hit is located — so the table's wall column
+stands. See [`locate()` § Cost](locate_spec.md#cost-a-short-pattern-is-not-a-short-tail).
 
 See [`locate()` specification](locate_spec.md) for the full rule.
 
