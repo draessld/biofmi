@@ -51,7 +51,7 @@ All index files are written to a directory (default: `<input>.index/`). The base
 | `.ss` | SDSL | `set_sizes[]` — cumulative alternative count through each degenerate set |
 | `.aof` | SDSL | `offsets[]` — content length of each individual alternative (excluding context) |
 | `.d2g` | magic + SDSL | Degenerate-string number → global string id, for source-aware search: the 8 bytes `BFMID2G1`, then an `sdsl::sd_vector<>` (Elias-Fano) with bit `g` set iff global string `g` is a degenerate alternative, so `change_number` maps to `select_1(change_number)` |
-| `.meta` | plain text | Four integers: `context_length`, `n`, `m`, `N` (one per line) |
+| `.meta` | plain text | Four integers: `context_length`, `n`, `m`, `N` (one per line), then `format <n>` and `sdsl <flavour>` |
 
 The SDSL binary files are produced and consumed by `sdsl::store_to_file` / `sdsl::load_from_file`, except `.d2g`, which carries the magic header above. The `.meta` file is plain text and human-readable.
 
@@ -94,7 +94,23 @@ There is one entry per string in EDS order, so cardinality must equal the l-EDS'
 7        ← n  (number of EDS symbols)
 12       ← m  (total number of strings across all symbols)
 64       ← N  (total character count across all strings)
+format 2 ← index format version
+sdsl v2  ← SDSL line the index was written by: v2 = simongog, v3 = xxsds
 ```
+
+`load()` reads `.meta` before any SDSL file and refuses, by name, an index whose
+format version is newer than the binary reads or whose SDSL flavour differs from
+the one the binary was built against. The two SDSL lines serialise `csa_wt<>` and
+the bit vectors differently, and before this check a v3 binary handed a v2 index
+got as far as `sdsl::load_from_file` and failed with `Width of int_vector<1> was
+specified as 0`.
+
+A `.meta` of just the four integers is a **legacy index, format 1**, written
+before the fields existed (2026-10-01). Its other files are identical to format
+2's, and it was necessarily written by SDSL v2, so a v2 binary loads it and a v3
+binary refuses it naming SDSL v2 — the same both-layouts reading `.d2g` gets. The
+fields follow the counts rather than precede them so that a binary from before
+them, which reads four integers and stops, still loads a format-2 v2 index.
 
 ---
 

@@ -5,6 +5,10 @@
 // SDSL headers included in implementation only
 #include <sdsl/suffix_arrays.hpp>
 #include <sdsl/sd_vector.hpp>
+// xxsds/sdsl-lite (v3 onwards) ships a version header; simongog's v2 does not.
+#if __has_include(<sdsl/version.hpp>)
+#include <sdsl/version.hpp>
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -61,6 +65,25 @@ struct BioFMI::IndexData {
 // first — a length no index comes near to spelling these bytes — so the magic
 // separates the two layouts without renaming the file.
 static constexpr char kD2gMagic[8] = {'B', 'F', 'M', 'I', 'D', '2', 'G', '1'};
+
+// Index format version, written to .meta as `format <n>` after the four
+// counts. Version 1 is every index written before the field existed: the same
+// files, a .meta of four integers, and implicitly SDSL v2 — the only SDSL
+// anything was built against until then. Bump this when any index file's
+// layout changes in a way load() cannot read in both forms, as it does .d2g.
+static constexpr unsigned kIndexFormatVersion = 2;
+static constexpr unsigned kLegacyIndexFormatVersion = 1;
+static constexpr const char* kLegacySdslFlavour = "v2";
+
+unsigned BioFMI::index_format_version() { return kIndexFormatVersion; }
+
+std::string BioFMI::sdsl_flavour() {
+#ifdef SDSL_VERSION_MAJOR
+    return "v" + std::to_string(SDSL_VERSION_MAJOR);
+#else
+    return "v2";
+#endif
+}
 
 // mkdtemp gives a directory no other process holds, created 0700. C++17 has no
 // portable equivalent — filesystem offers no unique_path — so this is the POSIX
@@ -201,6 +224,10 @@ void BioFMI::save(const std::filesystem::path& output_dir) {
 
     // Save index metadata (context_length, n, m, N). Required, not best-effort:
     // load() cannot check a query's -l without it.
+    //
+    // The format version and SDSL flavour follow the four counts as `key value`
+    // lines rather than preceding them, so a binary from before the fields
+    // existed — which reads four integers and stops — still loads a v2 index.
     std::ofstream meta_file(base_name + ".meta");
     if (!meta_file) {
         throw std::runtime_error("Could not write " + base_name + ".meta");
@@ -209,7 +236,12 @@ void BioFMI::save(const std::filesystem::path& output_dir) {
     meta_file << n_ << "\n";
     meta_file << m_ << "\n";
     meta_file << N_ << "\n";
+    meta_file << "format " << kIndexFormatVersion << "\n";
+    meta_file << "sdsl " << sdsl_flavour() << "\n";
     meta_file.close();
+    if (!meta_file) {
+        throw std::runtime_error("Could not write " + base_name + ".meta");
+    }
 }
 
 void BioFMI::load(const std::filesystem::path& index_dir) {
@@ -245,7 +277,58 @@ void BioFMI::load(const std::filesystem::path& index_dir) {
     if (!(meta_file >> context_length_ >> n_ >> m_ >> N_)) {
         throw std::runtime_error("Could not read " + meta_path);
     }
+
+    // Then the format version and SDSL flavour, checked before any SDSL file is
+    // touched. Without this, an index from the other SDSL line got as far as
+    // sdsl::load_from_file and died with "Width of int_vector<1> was specified
+    // as 0" — true, and no help to anyone. A .meta without the fields is a
+    // legacy index (format 1), which was necessarily written by SDSL v2;
+    // accepting it is the counterpart of load_deg_to_global() reading the old
+    // .d2g layout.
+    unsigned format = kLegacyIndexFormatVersion;
+    std::string flavour = kLegacySdslFlavour;
+    bool has_format = false;
+    bool has_flavour = false;
+    for (std::string key, value; meta_file >> key >> value; ) {
+        if (key == "format") {
+            try {
+                size_t used = 0;
+                const unsigned long v = std::stoul(value, &used);
+                if (used != value.size() || v == 0) throw std::invalid_argument(value);
+                format = static_cast<unsigned>(v);
+            } catch (const std::exception&) {
+                throw std::runtime_error("Could not read " + meta_path +
+                                         ": bad format version '" + value + "'");
+            }
+            has_format = true;
+        } else if (key == "sdsl") {
+            flavour = value;
+            has_flavour = true;
+        }
+        // Other keys are ignored, so a later format can add fields that do
+        // not by themselves make the index unreadable.
+    }
     meta_file.close();
+
+    if (format > kIndexFormatVersion) {
+        throw std::runtime_error(
+            "Index at " + index_dir.string() + " has index format version " +
+            std::to_string(format) + "; this binary reads versions up to " +
+            std::to_string(kIndexFormatVersion) +
+            ". Rebuild the index with this binary, or query it with a newer one.");
+    }
+    if (flavour != sdsl_flavour()) {
+        const std::string how = has_flavour
+            ? "(index.meta says sdsl " + flavour + ")"
+            : (has_format ? "(index.meta has no sdsl field, so SDSL " + flavour + " is implied)"
+                          : "(index.meta predates the format field, so SDSL " +
+                                flavour + " is implied)");
+        throw std::runtime_error(
+            "Index at " + index_dir.string() + " was written by an SDSL " + flavour +
+            " build " + how + "; this binary is built against SDSL " + sdsl_flavour() +
+            ", whose on-disk format differs. Rebuild the index with this binary, "
+            "or query it with an SDSL " + flavour + " build.");
+    }
 
     // Load FM-indexes
     require(data_->reference_index, ".ri");

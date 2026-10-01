@@ -200,7 +200,7 @@ namespace biofmi {
 | `.loc` / `.iloc` / `.tloc` | Bit vectors for position mapping |
 | `.abp` / `.ss` / `.aof` | Metadata arrays |
 | `.d2g` | Degenerate-string number → global string id, for source-aware search |
-| `.meta` | Metadata (context_length, n, m, N) |
+| `.meta` | Metadata (context_length, n, m, N), then `format <n>` and `sdsl <v2\|v3>`; `load()` refuses a newer format or the other SDSL line by name, and reads a four-integer `.meta` as legacy format 1, SDSL v2 |
 
 ### EDS Format
 

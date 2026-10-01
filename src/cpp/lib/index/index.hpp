@@ -92,8 +92,26 @@ public:
     // Save index to disk
     void save(const std::filesystem::path& output_dir);
 
-    // Load index from disk
+    // Load index from disk. Throws, naming the cause, when `.meta` records an
+    // index format newer than this binary reads or an SDSL flavour other than
+    // the one it was built against (see index_format_version()).
     void load(const std::filesystem::path& index_dir);
+
+    /**
+     * On-disk index format this binary writes, recorded in `.meta` as
+     * `format <n>`. 1 is the implicit version of every index written before the
+     * field existed (2026-10-01); its files are otherwise identical to 2.
+     */
+    static unsigned index_format_version();
+
+    /**
+     * SDSL line this binary was compiled against, recorded in `.meta` as
+     * `sdsl <flavour>`: "v2" for simongog/sdsl-lite, "v<major>" for
+     * xxsds/sdsl-lite (which ships sdsl/version.hpp). The two serialise the
+     * same structures differently, so an index is only loadable by a binary of
+     * the flavour that wrote it. A `.meta` without the field implies "v2".
+     */
+    static std::string sdsl_flavour();
 
     // Dump internal structures in human-readable text form (for inspection/testing)
     void dump_readable(const std::filesystem::path& dump_path) const;

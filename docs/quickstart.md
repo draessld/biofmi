@@ -95,7 +95,7 @@ index.ri  index.ci                    the two FM-indexes
 index.loc index.iloc index.tloc       bit vectors for position mapping
 index.abp index.ss   index.aof        metadata arrays
 index.d2g                             degenerate-string → global string id
-index.meta                            context_length, n, m, N
+index.meta                            context_length, n, m, N, format version, SDSL flavour
 ```
 
 `.ri` indexes the reference; `.ci` indexes the alternatives, each stored with

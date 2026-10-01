@@ -90,15 +90,48 @@ targeted patterns. **Worked around at the data level**: `normalise_vcf.py` plus
 simongog `c32874c` on 2026-09-12 (`docs/installation.md` §4, CI). What is left is whether to
 follow SDSL to `xxsds/sdsl-lite` v3, the only maintained line — simongog's is archived.
 
-Measured on a copy of the tree, nothing changed in the source: v3 headers compile BioFMI
-with 0 errors, 9/9 unit tests pass, and on covid294 at `l=11` a v3-built index gives answers
-identical to the v2 one on 200 real patterns in LINEAR. **But the format differs**: `.ci`,
-`.ri`, `.loc`, `.iloc` and `.tloc` differ in bytes (`.ci` and `.ri` in size too), and a v3
-binary refuses a v2 index with `Width of int_vector<1> was specified as 0`. Moving means
-rebuilding every index under `~/Data` and every artifact a run directory points at, so do it
-between experiment campaigns, not during one — and add a format version to `.meta` first, so
-a mismatch fails by name. The trial still linked `/usr/local/lib/libsdsl.a` (v2) alongside
-the header-only v3; a real move drops `SDSL_LIBRARY` and probably the divsufsort link.
+**The prerequisite is done (2026-10-01): `.meta` carries a format version and the SDSL
+line.** After the four counts it now reads `format 2` and `sdsl v2|v3`; `load()` checks
+both before touching any SDSL file and refuses a newer format or the other line by name
+(`Index at … was written by an SDSL v2 build (index.meta says sdsl v2); this binary is
+built against SDSL v3 …`) instead of `Width of int_vector<1> was specified as 0`. A
+four-integer `.meta` is legacy format 1, implicitly v2, and still loads in a v2 build —
+`test_build` tests 5–7. The fields come after the counts, so a pre-change v2 binary
+still reads a new v2 index.
+
+**Re-trialled 2026-10-01 with a real build option**, `-DBIOFMI_SDSL_V3=ON` (branch `sdsl-v3-trial`) against v3.0.3
+headers in a gitignored `third_party/sdsl-v3`. Unlike the first trial it links neither
+`libsdsl.a` nor divsufsort (v3 carries its own), and EDSParser's `msa_transforms.cpp`
+compiles against v3 too. No longer quite "unchanged source": `.d2g` (2026-09-12) calls
+`sd_vector::load(std::ifstream&)`, which v3's templated cereal `load(archive_t&)` matches
+exactly, so one `static_cast<std::istream&>` was needed — harmless under v2. Then 0 errors,
+no new warnings, 9/9 unit and 24/24 e2e against v3 binaries.
+
+`l=11`, LINEAR with sources, each binary querying its own index; times are the median of
+9 interleaved runs, RSS from `/usr/bin/time`:
+
+| | v2 (`c32874c`) | v3 (3.0.3) |
+|---|---|---|
+| covid294 output, real / decoy / negative (200 each) | — | **byte-identical**, incl. `--samples` |
+| covid294 index, total bytes | 926,699 | 926,066 (−633) |
+| `.ri` / `.ci` | 8,895 / 626,393 | 8,884 / 625,776 |
+| `.loc` `.iloc` `.tloc` `.d2g` | — | same size ±5 B, different bytes |
+| `.abp` `.ss` `.aof` | — | byte-identical (`std::vector`) |
+| covid294 build | 0.096 s, 11.0 MB | 0.115 s, 11.8 MB |
+| covid294 locate, real / decoy / negative | 42.5 / 89.0 / 7.3 ms | 41.0 / 88.4 / 5.8 ms |
+| covid294 locate peak RSS | 6.2 MB | 6.7 MB |
+| tb_p100_norm index, total bytes | 3,977,071 | 3,974,205 (−2,866) |
+| tb_p100_norm build | 0.89 s | 0.94 s |
+| tb_p100_norm locate, 200 source-aware `\|P\|=120` | 38.9 ms | 38.6 ms, byte-identical |
+
+So: same answers, an index 0.07% smaller, query time indistinguishable, build ~5–20%
+slower (the gap is largest where the build is shortest, so probably construction
+overhead rather than throughput; not chased). Nothing here argues *for* moving except
+maintenance, and nothing argues against it but the rebuild. Moving still means
+rebuilding every index under `~/Data` and every artifact a run directory points at, so
+do it between experiment campaigns, not during one; the version check now makes a
+missed one fail loudly. A real move also makes `BIOFMI_SDSL_V3` the default, drops the
+`find_library` blocks, and changes CI and `docs/installation.md` §4.
 
 What C++20 would let the code say, none of it needed: `contains` (3 sites in edsparser),
 `starts_with` (4), `std::popcount` for `__builtin_popcount` (4 — all on `uint8_t`, so no
