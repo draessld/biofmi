@@ -69,46 +69,52 @@ int main(int argc, char** argv) {
         EDS eds = EDS::load(input_file);
         std::cout << " done\n";
 
-        // Validate l-EDS property: every INTERNAL non-degenerate segment (i.e. one
-        // that has a degenerate symbol on both its left and right sides) must have
-        // length >= l.  Boundary segments at the very start or end of the EDS may be
+        // Validate l-EDS property: every INTERNAL context segment (one with a
+        // degenerate symbol on both its left and right sides) must have length
+        // >= l. Boundary segments at the very start or end of the EDS may be
         // shorter and are handled correctly by the index builder.
+        //
+        // A segment is a maximal run of regular symbols, not one symbol:
+        // {CGCG}{A}{TGCC} is one context of 9 (EDS::Metadata, edsparser). Two
+        // degenerate symbols with nothing between them are an internal
+        // segment of length 0, which no l satisfies.
         std::cout << "Validating l-EDS property..." << std::flush;
         const auto& metadata = eds.get_metadata();
-        if (metadata.num_degenerate_symbols > 0) {
-            // Find the first and last degenerate symbol indices so we can skip the
-            // leading and trailing non-degenerate boundary segments.
-            size_t first_degen = SIZE_MAX, last_degen = 0;
-            for (size_t i = 0; i < metadata.is_degenerate.size(); i++) {
-                if (metadata.is_degenerate[i]) {
-                    if (first_degen == SIZE_MAX) first_degen = i;
-                    last_degen = i;
+        const size_t n_sym = metadata.is_degenerate.size();
+        bool seen_degenerate = false;
+        for (size_t i = 0; i < n_sym; ) {
+            if (metadata.is_degenerate[i]) {
+                if (i > 0 && metadata.is_degenerate[i - 1]) {
+                    std::cerr << "\nError: Input EDS does not satisfy l-EDS property\n";
+                    std::cerr << "  Degenerate symbols " << i - 1 << " and " << i
+                              << " are adjacent: an internal context of length 0"
+                              << " (< required " << context_length << ")\n";
+                    std::cerr << "  Please transform the EDS first using 'eds2leds -l "
+                              << context_length << "'\n";
+                    print_performance();
+                    return 1;
                 }
+                seen_degenerate = true;
+                ++i;
+                continue;
             }
-
-            // Check only non-degenerate symbols strictly between first_degen and last_degen.
-            // Cumulative string index is needed to look up string_lengths.
-            size_t cum_str_idx = 0;
-            for (size_t i = 0; i < metadata.is_degenerate.size(); i++) {
-                size_t sym_size = metadata.symbol_sizes[i];
-                if (!metadata.is_degenerate[i] && i > first_degen && i < last_degen) {
-                    // Internal non-degenerate symbol: its single string is at cum_str_idx.
-                    // TODO(bug): threshold is off by one relative to the context actually
-                    // stored (cl = l-1 in parse_eds, not l).  When cl is fixed to l the
-                    // threshold here becomes correct as-is; until then it is one too tight.
-                    if (metadata.string_lengths[cum_str_idx] < (size_t)context_length) {
-                        std::cerr << "\nError: Input EDS does not satisfy l-EDS property\n";
-                        std::cerr << "  Internal context at symbol " << i
-                                  << " has length " << metadata.string_lengths[cum_str_idx]
-                                  << " (< required " << context_length << ")\n";
-                        std::cerr << "  Please transform the EDS first using 'eds2leds -l "
-                                  << context_length << "'\n";
-                        print_performance();
-                        return 1;
-                    }
-                }
-                cum_str_idx += sym_size;
+            size_t j = i, len = 0;
+            while (j < n_sym && !metadata.is_degenerate[j]) {
+                len += metadata.string_lengths[metadata.cum_set_sizes[j]];
+                ++j;
             }
+            if (seen_degenerate && j < n_sym && len < (size_t)context_length) {
+                std::cerr << "\nError: Input EDS does not satisfy l-EDS property\n";
+                std::cerr << "  Internal context at symbol" << (j - i > 1 ? "s " : " ") << i;
+                if (j - i > 1) std::cerr << "-" << j - 1;
+                std::cerr << " has length " << len
+                          << " (< required " << context_length << ")\n";
+                std::cerr << "  Please transform the EDS first using 'eds2leds -l "
+                          << context_length << "'\n";
+                print_performance();
+                return 1;
+            }
+            i = j;
         }
         std::cout << " done\n\n";
 

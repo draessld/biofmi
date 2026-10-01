@@ -825,10 +825,35 @@ void BioFMI::parse_eds() {
     int base_pos = 0;  // Current position in reference sequence
     int set_size_cumulative = 0;  // Cumulative set size
 
-    // First position handling
-    if (n_ > 0 && metadata.is_degenerate[0]) {
+    // CONTEXT SEGMENTS, NOT SYMBOLS. Consecutive regular symbols spell one
+    // segment — {CGCG}{ATGC} is the string CGCGATGC — and everything below is
+    // keyed by segment: one T0 block `#seg#`, one base_positions entry, one
+    // context window. The structures assume strict alternation segment / set
+    // (set_before_block(), base_positions[set]), so writing each symbol as its
+    // own block put a '#' inside a conserved stretch (a match across it was
+    // lost) and shifted every base position after it by one set. Older
+    // vcf2eds wrote such runs; eds2leds never does, so no l-EDS it produced is
+    // affected. A run is accumulated here and flushed when a degenerate symbol
+    // or the end follows. String ids (`chi`, hence .d2g and the sources
+    // pairing) stay per symbol: they number the file, not the segments.
+    //
+    // A segment of total length 0 (only `{}` symbols) is no segment at all:
+    // it contributes no T0 block. The l-EDS check rejects one that is
+    // internal; at either end it would otherwise read as a reference block.
+    auto run_length_from = [&](size_t x) {
+        size_t len = 0;
+        for (; x < n_ && !metadata.is_degenerate[x]; ++x)
+            len += metadata.string_lengths[metadata.cum_set_sizes[x]];
+        return len;
+    };
+
+    // First position handling: the EDS opens with a set (possibly after an
+    // empty leading segment), so set 0 sits at T0 position 0.
+    if (n_ > 0 && metadata.num_degenerate_symbols > 0 && run_length_from(0) == 0) {
         data_->base_positions.push_back(0);
     }
+
+    std::string segment;   // the regular run being accumulated
 
     // Iterate through all symbols in the EDS
     for (size_t x = 0; x < n_; x++) {
@@ -836,42 +861,47 @@ void BioFMI::parse_eds() {
         size_t symbol_size = metadata.symbol_sizes[x];
 
         if (!metadata.is_degenerate[x]) {
-            // NON-DEGENERATE (reference) symbol
-            base_pos += symbol[0].size();
-            data_->base_positions.push_back(base_pos);
+            // NON-DEGENERATE (reference) symbol: extend the current segment,
+            // and close it only at the last symbol of the run.
+            segment += symbol[0];
+            const bool run_ends = (x + 1 >= n_) || metadata.is_degenerate[x + 1];
+            if (run_ends && !segment.empty()) {
+                base_pos += segment.size();
+                data_->base_positions.push_back(base_pos);
 
-            // Write to reference file
-            ref_file << symbol[0];
-            data_->tloc[ref_file.tellp()] = 1;
-            ref_file << CHANGE_SEPARATOR;
+                // Write to reference file
+                ref_file << segment;
+                data_->tloc[ref_file.tellp()] = 1;
+                ref_file << CHANGE_SEPARATOR;
 
-            // Update left context for next degenerate symbol.
-            // Pad with separator on the left when the segment is shorter than cl
-            // so every stored entry has exactly cl chars of left context.
-            if (symbol[0].size() < cl) {
-                context_left = std::string(cl - symbol[0].size(), CHANGE_SEPARATOR)
-                               + symbol[0];
-            } else {
-                context_left = symbol[0].substr(symbol[0].size() - cl, cl);
+                // Update left context for next degenerate symbol.
+                // Pad with separator on the left when the segment is shorter than cl
+                // so every stored entry has exactly cl chars of left context.
+                if (segment.size() < cl) {
+                    context_left = std::string(cl - segment.size(), CHANGE_SEPARATOR)
+                                   + segment;
+                } else {
+                    context_left = segment.substr(segment.size() - cl, cl);
+                }
             }
+            if (run_ends) segment.clear();
         } else {
             // DEGENERATE (changes) symbol
             set_size_cumulative += symbol_size;
             data_->set_sizes.push_back(set_size_cumulative);
 
-            // Determine right context from next non-degenerate symbol.
+            // Determine right context from the following segment — the whole
+            // run of regular symbols, read until cl characters are in hand.
             // Pad with separator on the right when the segment is shorter than cl
             // (including when there is no following segment at all).
-            if (x + 1 >= n_) {
-                context_right = std::string(cl, CHANGE_SEPARATOR);
+            context_right.clear();
+            for (size_t y = x + 1;
+                 y < n_ && !metadata.is_degenerate[y] && context_right.size() < cl; ++y)
+                context_right += eds_.read_symbol(y)[0];
+            if (context_right.size() < cl) {
+                context_right += std::string(cl - context_right.size(), CHANGE_SEPARATOR);
             } else {
-                StringSet next_symbol = eds_.read_symbol(x + 1);
-                if (next_symbol[0].size() < cl) {
-                    context_right = next_symbol[0]
-                                    + std::string(cl - next_symbol[0].size(), CHANGE_SEPARATOR);
-                } else {
-                    context_right = next_symbol[0].substr(0, cl);
-                }
+                context_right.resize(cl);
             }
 
             // Write all strings in this degenerate symbol with contexts

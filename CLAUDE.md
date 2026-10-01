@@ -53,7 +53,7 @@ Tests use plain `cassert` (no external framework). **Both `src/cpp/CMakeLists.tx
 | `test_locate_offset` | `test_locate_offset.cpp` | Offset arithmetic cross-check for the locate algorithm |
 | `test_locate_arbitrary` | `test_locate_arbitrary.cpp` | Arbitrary `\|P\|` vs a brute-force oracle at every length |
 | `test_locate_sources` | `test_locate_sources.cpp` | Source-aware (LINEAR) search: EDZ round-trip, non-transitivity, `.d2g` persistence, sample-set reporting, complement expansion |
-| `test_locate_fuzz` | `test_locate_fuzz.cpp` | Randomised differential locate: seeded panels vs a brute-force oracle, CARTESIAN and LINEAR |
+| `test_locate_fuzz` | `test_locate_fuzz.cpp` | Randomised differential locate: seeded panels vs a brute-force oracle, CARTESIAN and LINEAR; also with regular symbols split into runs |
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
@@ -175,9 +175,9 @@ Query processing splits the pattern into chunks of size `l` and tracks matches a
 
 `biofmi-build` validates the l-EDS property before building: every **internal** non-degenerate segment (one that has a degenerate symbol on both sides) must have length ≥ l. Boundary segments at the start/end of the EDS may be shorter and are handled correctly.
 
-The check iterates `metadata.is_degenerate[]` and `metadata.string_lengths[]` to find the first/last degenerate symbol indices, then rejects only internal short segments.
+A **segment is a maximal run of regular symbols**, not one symbol: `{CGCG}{A}{TGCC}` is one context of 9 (2026-10-01). The check walks `metadata.is_degenerate[]` run by run, summing `string_lengths[]`, rejects an internal run shorter than l, and rejects two adjacent degenerate symbols (an internal segment of length 0). `parse_eds()` likewise writes one T0 block, one `base_positions` entry and one context window per run — before that a run got a `#` inside it and shifted every later base position, losing matches silently (TODO §7b). String ids (`chi`, `.d2g`) stay per symbol; they number the file.
 
-**Do NOT check `metadata.max_context_length`** — that was the old (wrong) check. `min_context_length` includes boundary segments which may legitimately be shorter than l.
+**Do NOT check `metadata.min_context_length`** — it includes boundary segments, which may legitimately be shorter than l. `metadata.min_internal_context_length` is the constrained quantity (edsparser, 2026-10-01); `max_context_length` was the original wrong check.
 
 ### EDSParser Submodule
 
@@ -356,6 +356,7 @@ the default**; `set_tail_threshold(t)` / `--tail-threshold t` searches tails of 
 | Two concurrent `biofmi-build` runs at the same `l` corrupted each other: the scratch directory was `/tmp/biofmi_index_<l>`, a fixed name shared machine-wide, never removed | `BioFMI` ctor uses `mkdtemp`; destructor removes what it created |
 | e2e locate fixtures used `\|P\| = l`, one short of the `l+1` minimum, and had been failing since the chunk-size off-by-one fix | `tests/e2e/test_locate.sh` + `tests/e2e/expected/locate/` regenerated at valid lengths |
 | A short tail was always searched — 2.15 s against 0.10 ms verified at `r=1` — because verifying could not cross a symbol boundary, so `set_tail_threshold()` refused any value but 0 | `extend_candidates()` + `walk_tail()` from `in_change`/`next_set`; `t0_to_ref_pos()` a binary search; verify is the default; `biofmi-locate --tail-threshold` |
+| Consecutive regular symbols (`{CGCG}{A}{TGCC}`, older `vcf2eds` output) were indexed as separate T0 blocks — a `#` inside a conserved stretch and every later base position shifted — and the l-EDS check judged each symbol alone | `parse_eds()` accumulates a run into one block; `biofmi-build` checks runs and rejects adjacent degenerate symbols; `test_build_structure` 5, `test_locate_fuzz` 5 |
 | `.d2g` stored a strictly increasing sequence as 64-bit integers (up to 11% of a measured index) | Elias-Fano `sd_vector` behind a magic in `save()`; `load_deg_to_global()` still reads the old layout |
 
 **The benchmark suite measured the wrong thing for months (fixed 2026-09-02).** Three
