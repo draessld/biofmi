@@ -367,7 +367,9 @@ void BioFMI::load_deg_to_global(const std::string& path) {
     }
 
     if (std::equal(magic, magic + sizeof magic, kD2gMagic)) {
-        data_->d2g.load(in);
+        // Through std::istream&: SDSL v3 also has a templated cereal load(archive_t&),
+        // which an std::ifstream argument matches exactly and v2 lacks.
+        data_->d2g.load(static_cast<std::istream&>(in));
         if (!in) throw std::runtime_error("Could not read " + path);
     } else {
         // The layout before 2026-09-12: 64 bits an entry. Compact it in memory;

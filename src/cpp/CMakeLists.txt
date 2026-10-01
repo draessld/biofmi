@@ -33,6 +33,34 @@ link_directories(BEFORE ${CMAKE_LIBRARY_PATH})
 find_package(Boost REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
+# SDSL line. The default is simongog/sdsl-lite v2, pinned to c32874c
+# (docs/installation.md §4): headers plus libsdsl and divsufsort. BIOFMI_SDSL_V3
+# builds against xxsds/sdsl-lite v3 instead, which is header-only — it carries
+# its own divsufsort — so none of those libraries is linked. Set before the
+# EDSParser subdirectory so that its one SDSL user (msa_transforms.cpp) compiles
+# against the same headers; mixing the two lines in one binary is an ODR mess.
+#
+# The two lines write different index files, which .meta records as
+# `sdsl v2` / `sdsl v3`; load() refuses an index from the other one by name.
+# Trial only (TODO §5): v3 is not installed anywhere, and the prefix below is a
+# gitignored copy of its include/ tree.
+option(BIOFMI_SDSL_V3 "Build against xxsds/sdsl-lite v3 (header-only) instead of simongog v2" OFF)
+set(BIOFMI_SDSL_V3_PREFIX "${CMAKE_SOURCE_DIR}/../../third_party/sdsl-v3"
+    CACHE PATH "Prefix holding include/sdsl of xxsds/sdsl-lite v3")
+if(BIOFMI_SDSL_V3)
+    get_filename_component(BIOFMI_SDSL_V3_PREFIX "${BIOFMI_SDSL_V3_PREFIX}" ABSOLUTE)
+    if(NOT EXISTS "${BIOFMI_SDSL_V3_PREFIX}/include/sdsl/version.hpp")
+        message(FATAL_ERROR "BIOFMI_SDSL_V3=ON but ${BIOFMI_SDSL_V3_PREFIX}/include/sdsl/version.hpp "
+                            "does not exist; copy xxsds/sdsl-lite's include/ there")
+    endif()
+    set(SDSL_INCLUDE_DIR "${BIOFMI_SDSL_V3_PREFIX}/include")
+    include_directories(BEFORE "${SDSL_INCLUDE_DIR}")
+    set(SDSL_LIBRARY "")
+    set(DIVSUFSORT_LIBRARY "")
+    set(DIVSUFSORT64_LIBRARY "")
+    message(STATUS "SDSL: xxsds v3, header-only, from ${SDSL_INCLUDE_DIR}")
+endif()
+
 # Add EDSParser library from submodule (lib/ only — avoids pulling in edsparser tools and tests)
 set(EDSPARSER_LIB_DIR "${CMAKE_SOURCE_DIR}/../../external/edsparser/src/cpp/lib")
 add_subdirectory("${EDSPARSER_LIB_DIR}" "${CMAKE_BINARY_DIR}/edsparser_lib")
@@ -59,6 +87,7 @@ else()
     message(WARNING "OpenMP not found. Parallel processing will be disabled.")
 endif()
 
+if(NOT BIOFMI_SDSL_V3)
 # Check for SDSL
 find_path(SDSL_INCLUDE_DIR sdsl/suffix_arrays.hpp
     PATHS
@@ -119,6 +148,7 @@ if(DIVSUFSORT64_LIBRARY)
     message(STATUS "Found divsufsort64 library: ${DIVSUFSORT64_LIBRARY}")
 else()
     message(WARNING "divsufsort64 library not found")
+endif()
 endif()
 
 # Enable testing
@@ -195,4 +225,9 @@ message(STATUS "  Build type          : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  C++ standard        : ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Install prefix      : ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  Boost version       : ${Boost_VERSION}")
+if(BIOFMI_SDSL_V3)
+    message(STATUS "  SDSL                : v3 (xxsds, header-only)")
+else()
+    message(STATUS "  SDSL                : v2 (simongog)")
+endif()
 message(STATUS "")

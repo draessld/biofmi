@@ -177,3 +177,6 @@ experiments/
 # Tex
 tex
 *.zip
+# Private SDSL v3 prefix for the BIOFMI_SDSL_V3 trial (TODO §5); never committed.
+/third_party/
+/build-v3/

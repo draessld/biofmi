@@ -101,6 +101,21 @@ moving to it means rebuilding every index. `.meta` records the line that wrote a
 (`sdsl v2` / `sdsl v3`), and a build of the other line refuses it by name; before that
 field, a v3 build died inside SDSL with `Width of int_vector<1> was specified as 0`.
 
+To try v3 without installing it anywhere, put its headers under the checkout and
+configure with `BIOFMI_SDSL_V3`; nothing from `/usr/local` or `~` is linked then, since
+v3 carries its own divsufsort:
+
+```bash
+git clone --depth 1 --branch v3.0.3 https://github.com/xxsds/sdsl-lite.git third_party/sdsl-v3-src
+mkdir -p third_party/sdsl-v3/include && cp -r third_party/sdsl-v3-src/include/sdsl third_party/sdsl-v3/include/
+mkdir -p build-v3 && cd build-v3
+cmake ../src/cpp -DCMAKE_BUILD_TYPE=Release -DBIOFMI_SDSL_V3=ON   # BIOFMI_SDSL_V3_PREFIX to point elsewhere
+make -j4
+```
+
+`third_party/` and `build-v3/` are gitignored. Indexes the two builds write are not
+interchangeable; `.meta` records which line wrote one (`sdsl v2` / `sdsl v3`).
+
 `$HOME` is a deliberate choice: BioFMI's CMake searches `$ENV{HOME}/include` and
 `$ENV{HOME}/lib` explicitly, alongside `/usr/local` and `/usr`, so an
 install there is found with no extra flags and needs no root.
