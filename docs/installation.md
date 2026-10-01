@@ -96,9 +96,10 @@ anyway: identity on one panel is evidence, not a guarantee.
 
 The SDSL-lite that `xxsds/sdsl-lite` maintains (v3, header-only) is a different
 library and not the supported dependency. BioFMI compiles and passes its tests against
-it unchanged, but its on-disk format is not v2's: a v3 build refuses an index written
-by a v2 build (`Width of int_vector<1> was specified as 0`), so moving to it means
-rebuilding every index.
+it with one cast (in `load_deg_to_global()`), but its on-disk format is not v2's, so
+moving to it means rebuilding every index. `.meta` records the line that wrote an index
+(`sdsl v2` / `sdsl v3`), and a build of the other line refuses it by name; before that
+field, a v3 build died inside SDSL with `Width of int_vector<1> was specified as 0`.
 
 `$HOME` is a deliberate choice: BioFMI's CMake searches `$ENV{HOME}/include` and
 `$ENV{HOME}/lib` explicitly, alongside `/usr/local` and `/usr`, so an
