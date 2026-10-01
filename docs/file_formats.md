@@ -30,6 +30,8 @@ A valid input to `biofmi-build` must satisfy the **l-EDS property**: every *inte
 
 **Boundary segments** at the very start or end of the EDS may be shorter (or absent entirely).
 
+A **segment** is a maximal run of regular symbols, not one symbol: `{CGCG}{A}{TGCC}` is one context of 9, and is indexed as one T₀ block. Two adjacent degenerate symbols form an internal segment of length 0 and are rejected.
+
 This constraint guarantees that each degenerate alternative can be stored with exactly `l` characters of context on each side drawn purely from the adjacent non-degenerate segments — which is what the changes-string layout depends on.
 
 **Validation**: `biofmi-build` checks the l-EDS property at startup. If a segment is too short it prints the offending symbol index and exits with an error. Use `eds2leds -l <l>` from EDSParser to produce a conforming l-EDS from any EDS.

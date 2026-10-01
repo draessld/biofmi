@@ -8,7 +8,7 @@ BioFMI builds two FM-indexes from an l-EDS file and combines them to answer patt
 
 ## 1. Prerequisites: the l-EDS constraint
 
-Before building, `biofmi-build` validates that every **internal** non-degenerate segment (one flanked by a degenerate symbol on both sides) has length ≥ `l`. Boundary segments at the very start or end of the EDS are exempt.
+Before building, `biofmi-build` validates that every **internal** non-degenerate segment (one flanked by a degenerate symbol on both sides) has length ≥ `l`. Boundary segments at the very start or end of the EDS are exempt. A segment is a maximal run of regular symbols (`{CGCG}{A}{TGCC}` is one context of 9, one T₀ block, one base position); two adjacent degenerate symbols are an internal segment of length 0 and are rejected.
 
 This constraint guarantees that every degenerate alternative can be stored with exactly `l` characters of context on each side drawn purely from the adjacent non-degenerate segments, which is what the changes string relies on. See [file_formats.md](file_formats.md) for the changes-string layout.
 

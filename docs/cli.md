@@ -29,6 +29,10 @@ segment — one with a degenerate symbol on both sides — is at least `l`
 characters long. Boundary segments at the very start or end of the EDS may be
 shorter and are handled correctly.
 
+A segment is a maximal run of regular symbols, not one symbol: `{CGCG}{A}{TGCC}`
+is one context of 9. Two degenerate symbols with nothing between them are an
+internal segment of length 0 and are rejected at any `l`.
+
 A file that fails this is rejected rather than indexed, because the chunked
 search depends on it: a chunk of `l+1` characters must never be able to span two
 degenerate symbols.
