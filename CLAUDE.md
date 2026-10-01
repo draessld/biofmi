@@ -54,10 +54,11 @@ Tests use plain `cassert` (no external framework). **Both `src/cpp/CMakeLists.tx
 | `test_locate_arbitrary` | `test_locate_arbitrary.cpp` | Arbitrary `\|P\|` vs a brute-force oracle at every length |
 | `test_locate_sources` | `test_locate_sources.cpp` | Source-aware (LINEAR) search: EDZ round-trip, non-transitivity, `.d2g` persistence, sample-set reporting, complement expansion |
 | `test_locate_fuzz` | `test_locate_fuzz.cpp` | Randomised differential locate: seeded panels vs a brute-force oracle, CARTESIAN and LINEAR |
+| `test_extract` | `test_extract.cpp` | `extract(g, i, j)`, genome lengths and genome coordinates vs each genome's path spelled out, hand-written and seeded panels, sample rates 1–64 |
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-09-02 everything passes with assertions live**: BioFMI 9/9 unit and 14/14 e2e, edsparser 7/7 unit and 9/9 e2e. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-09-02 everything passes with assertions live**: BioFMI 9/9 unit and 14/14 e2e, edsparser 7/7 unit and 9/9 e2e. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage. On 2026-10-01, with `test_extract` added, BioFMI is 10/10 unit and 24/24 e2e.
 
 The 2026-08-11 version of that claim was worth less than it looked. edsparser never got the `-UNDEBUG` fix BioFMI took on 2026-08-30, so its five assert-based unit tests — `test_eds`, `test_merge`, `test_sources`, `test_stats`, `test_vcf`, 591 assertions between them — had none of them compiled in; `nm -D --undefined-only <test> | grep __assert_fail` returned nothing for every binary. Fixed 2026-09-02, and the suite is 7/7 with them live, so nothing was hiding. Its other four tests (`test_msa`, `test_integration`, `test_memory_smoke`, `test_memory_stress`) check with `if` rather than `assert` and were never affected.
 
@@ -69,7 +70,7 @@ eds2leds --version     # COMMIT=<sha> COMMIT_DATE=<iso8601> DIRTY=<0|1>
 
 `experiments/scripts/run_tb_experiment.sh` refuses to run on a binary whose `COMMIT_DATE` predates the complement fix. Both e2e harnesses now resolve tools from `build/tools/` before `PATH` (override with `EDSPARSER_TOOLS_FROM_PATH=1` / `BIOFMI_TOOLS_FROM_PATH=1`). BioFMI's was missed when edsparser's was fixed and only caught on 2026-09-02: it was running an Aug 11 `biofmi-locate` out of `~/.local/bin`, older than arbitrary `|P|` and the chunk stitch, and its eleven "failures" were that stale binary disagreeing with expectations the fresh one meets.
 
-**Note:** `tests/unit/` contains only the 9 files registered in CMakeLists.txt above. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
+**Note:** `tests/unit/` contains only the 10 files registered in CMakeLists.txt above, plus `fuzz_panel.hpp` — the seeded panel generator and path speller `test_locate_fuzz` and `test_extract` share. Pre-split tests that used the old `biofmi::` namespace (test_eds, test_merge, test_msa, test_sources, test_stats, test_transform, test_vcf) were removed — their equivalents live in `external/edsparser/tests/unit/`.
 
 ## Typical Workflow
 
@@ -90,6 +91,11 @@ biofmi-build -i data.l5.leds -l 5 -o data.l5.index
 biofmi-locate -i data.l5.index -l 5 -p "ACGTACGTAC"
 biofmi-locate -i data.l5.index -l 5 -P patterns.txt
 biofmi-locate --benchmark -i data.l5.index -l 5 -P patterns.txt
+
+# 5. Genomes back out of the index (needs the sources; TODO §9)
+biofmi-extract -i data.l5.index -s data.seds -r 3:1000-1100     # genome 3, [1000,1100)
+biofmi-extract -i data.l5.index -s data.seds -r 3               # all of genome 3
+biofmi-locate  -i data.l5.index -l 5 -s data.seds --genome-coords -p ACGTACGTAC  # id:position
 ```
 
 ## Benchmarks
@@ -366,6 +372,40 @@ Fixing the presets alone made it worse and quieter — the guard then rejected a
 lengths and the scenario produced no rows at all, with nothing but a warning to say so.
 Check `cut -d, -f3 results/<run>.csv | sort -u` lists all four scenarios before trusting a
 run.
+
+**Genomes come back out, with coordinates (2026-10-01, TODO §9).** Under the partition
+(TODO §4) a genome is a path, so its sequence is T0 with its own alternative spliced in at
+each degenerate symbol, and a T0 coordinate `p` after sets `[0, s)` sits at `p + delta_g(s)`,
+`delta_g(s)` the summed length of the alternatives genome `g` took before set `s`.
+`build_genome_map(b)` stores `delta_g` at every `b`-th set for every genome — `k·⌈n/b⌉`
+entries, bit-compressed — from the attached sources in one pass, and refuses a panel whose
+sources do not partition (a genome on no alternative of a symbol, or on two). Anything
+between samples is a walk of at most `b-1` sets, each resolving the genome's alternative from
+the sources. On top of it: `extract(g, i, j)` (reference from I_0, alternatives from I_D, both
+`sdsl::extract`), `genome_length(g)`, `genome_position(g, occ)` (−1 when `g` does not carry
+it), and `genome_positions(occ)` for every carrier in one walk. Nothing is persisted —
+sources stay out of the index (§2). CLI: `biofmi-extract`, and `biofmi-locate --genome-coords`,
+which prints `--samples` as `id:position`.
+
+Validated on real data, not only against the brute-force `test_extract`: on `tb_p100_norm` at
+`l=9` all 100 genomes extracted whole are byte-identical to the `bcftools consensus` FASTA in
+`~/Data/tb/panel_100_norm/genomes/` (441 Mbp, 34 s), all 100 lengths agree, and
+`--genome-coords` on 200 random patterns names exactly the 85,307 `(genome, offset)` pairs a scan of
+that FASTA finds. Cost on the same panel (100 genomes, 17,039 degenerate symbols, a 3.87 MB
+index; 5,000 random lookups each, SEDS — EDZ measured the same):
+
+| `b` | map | of index | one genome's coordinate | all 100 at once | extract 100 bp |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.41 MB | 88% | 0.17 µs | 0.95 µs | 12.5 µs |
+| 4 | 853 KB | 22% | 1.4 µs | 4.5 µs | 13.4 µs |
+| 16 | 214 KB | 5.5% | 5.6 µs | 28 µs | 19.3 µs |
+| **32** (default) | 107 KB | 2.8% | 12.7 µs | 53 µs | 27.0 µs |
+| 128 | 28 KB | 0.7% | 52 µs | 229 µs | 69 µs |
+| 1024 | 4 KB | 0.1% | 469 µs | 1.9 ms | 492 µs |
+
+Full sums are 88% of the index even bit-compressed (16 bits an entry here; 64-bit words
+would be 13.6 MB, 3.5x the index), so they are not the default. A walk step costs ~0.8 µs and
+is the sources' LRU cache, not the arithmetic — see TODO §9.
 
 ### Future Work
 

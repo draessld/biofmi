@@ -41,6 +41,8 @@ int main(int argc, char** argv) {
         Length context_length;
         bool benchmark = false;
         bool list_samples = false;
+        bool genome_coords = false;
+        size_t sample_rate = BioFMI::kDefaultGenomeSampleRate;
         size_t tail_threshold = 0;
         std::filesystem::path chunk_stats_file;
 
@@ -64,6 +66,14 @@ int main(int argc, char** argv) {
             ("samples", po::bool_switch(&list_samples),
                 "List the genome ids carrying each occurrence, not just how many. "
                 "Requires -s/-z; without sources the index has no basis to name them.")
+            ("genome-coords", po::bool_switch(&genome_coords),
+                "With --samples, give each carrying genome as id:position, the "
+                "occurrence's start in that genome's own coordinates. Requires -s/-z; "
+                "implies --samples.")
+            ("sample-rate", po::value<size_t>(&sample_rate),
+                "Sample every b-th degenerate symbol in the per-genome prefix sums "
+                "--genome-coords uses; 1 stores them all, larger trades memory for a "
+                "walk of up to b symbols per lookup.")
             ("tail-threshold", po::value<size_t>(&tail_threshold),
                 "Shortest tail of |P| mod (l+1) characters still searched in the index; "
                 "a shorter one is verified against the candidates the full chunks "
@@ -121,9 +131,13 @@ int main(int argc, char** argv) {
             }
             std::cerr << "Mode: LINEAR (source-aware) — " << index.num_paths()
                       << " paths from " << src << "\n";
+            if (genome_coords) {
+                list_samples = true;
+                index.build_genome_map(sample_rate);
+            }
         } else {
-            if (list_samples) {
-                std::cerr << "Error: --samples requires -s/--seds or -z/--edz; without "
+            if (list_samples || genome_coords) {
+                std::cerr << "Error: --samples/--genome-coords requires -s/--seds or -z/--edz; without "
                              "sources the index\n  cannot name the genomes carrying a "
                              "match.\n";
                 print_performance();
@@ -235,7 +249,7 @@ int main(int argc, char** argv) {
                     if (result.empty()) {
                         *out << "No occurrences found\n";
                     } else {
-                        index.print_result(result, *out, list_samples);
+                        index.print_result(result, *out, list_samples, genome_coords);
                     }
                     *out << "\n";
                 } else {

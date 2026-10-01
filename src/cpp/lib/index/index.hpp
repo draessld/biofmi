@@ -165,6 +165,75 @@ public:
      */
     std::vector<int> expand_paths(const PathSet& paths) const;
 
+    // ------------------------------------------------ genome coordinates (TODO §9)
+    //
+    // Under the partition requirement (TODO §4) every genome carries exactly one
+    // alternative of every degenerate symbol, so a genome *is* a path: T0 with
+    // that alternative spliced in at each set. Its coordinates are therefore T0
+    // coordinates shifted by the summed length of the alternatives it took
+    // before them, delta_g(s) = sum over s' < s of |choice_g(s')|.
+    //
+    // Nothing here is stored in the index — sources are read at query time, as
+    // LINEAR does (TODO §2). What is added is a sampled table of delta_g, built
+    // from the attached sources by build_genome_map(): delta_g(s) for every
+    // b-th set s and every genome g, k * ceil(n/b) entries, bit-compressed to the
+    // width of the largest. Anything between samples is a walk of at most b-1
+    // sets, each resolving the genome's alternative from the sources. b = 1 is
+    // full prefix sums and no walk at all.
+
+    // Default sampling rate. Chosen from the tb_p100_norm measurement in
+    // docs/locate_spec.md § Genome coordinates, not derived.
+    static constexpr size_t kDefaultGenomeSampleRate = 32;
+
+    /**
+     * Build the per-genome sampled prefix sums, every `sample_rate` degenerate
+     * sets. Requires attach_sources(). One pass over the sources of every
+     * degenerate alternative; it also checks the partition and throws, naming
+     * the symbol and genome, if some genome carries no alternative of a symbol
+     * or more than one — on such a panel "genome g" is not one string, and an
+     * answer would be an arbitrary one of several.
+     */
+    void build_genome_map(size_t sample_rate = kDefaultGenomeSampleRate);
+    bool has_genome_map() const { return genome_rate_ != 0; }
+    size_t genome_sample_rate() const { return genome_rate_; }
+
+    // In-memory size of the sampled table plus the per-genome lengths, bytes.
+    size_t genome_map_bytes() const;
+
+    // Length of genome g (1-based path id).
+    size_t genome_length(int g) const;
+
+    /**
+     * Characters [i, j) of genome g (1-based path id, 0-based half-open range).
+     *
+     * Finds the symbol holding i by a binary search over g's samples and a walk
+     * of at most b sets, then spells forward: reference from I_0 and the
+     * genome's alternative of each set from I_D, both with sdsl::extract. Throws
+     * std::out_of_range unless 0 <= i <= j <= genome_length(g).
+     */
+    String extract(int g, size_t i, size_t j) const;
+
+    /**
+     * Where a reported occurrence starts in genome g, or -1 if g does not carry
+     * it. `position` and `changes` are exactly as locate() reports them (T0 or
+     * base-plus-offset; 0-based global change ids). g carries the occurrence iff
+     * it is in the source set of every change listed — the occurrence's path is
+     * fixed by those and by T0, since every set it crosses is listed, empty
+     * alternatives included.
+     */
+    int64_t genome_position(int g, Position position, const std::vector<int>& changes) const;
+    int64_t genome_position(int g, const Occurrence& occ) const {
+        return genome_position(g, occ.position, occ.changes);
+    }
+
+    /**
+     * genome_position() for every genome carrying `occ`, as (genome, position)
+     * pairs in ascending genome order. One walk serves all of them: each set
+     * between the sample and the occurrence has its sources read once, not once
+     * per genome. LINEAR only; empty without sources.
+     */
+    std::vector<std::pair<int, int64_t>> genome_positions(const Occurrence& occ) const;
+
     // Query operations
     ResultMap locate(const String& pattern);
     size_t count(const String& pattern);
@@ -249,8 +318,11 @@ public:
      * a few hundred ids per line buries the positions they belong to.
      * In CARTESIAN mode nothing is annotated — see Occurrence::paths.
      */
+    //
+    // `genome_coords` (requires build_genome_map()) lists each carrying genome
+    // as `id:position`, its start in that genome, and implies `list_samples`.
     void print_result(const ResultMap& result, std::ostream& os = std::cout,
-                      bool list_samples = false) const;
+                      bool list_samples = false, bool genome_coords = false) const;
 
 private:
     // One in-flight candidate match.
@@ -477,6 +549,27 @@ private:
     // it denotes the empty set exactly when k == num_paths. Testing .empty()
     // alone would miss that and keep a branch no genome carries alive.
     static bool pathset_empty(const PathSet& s, size_t num_paths);
+
+    // Membership of path id g under complement encoding. Sets are sorted.
+    static bool pathset_contains(const PathSet& s, int g);
+
+    // ---- genome coordinates; see build_genome_map()
+
+    // Sampling rate of the genome map; 0 when none is built.
+    size_t genome_rate_ = 0;
+    size_t genome_samples_per_path_ = 0;   // ceil(num_sets / rate)
+
+    // 0-based degenerate set holding a 1-based change_number.
+    int set_of_change(int change_number) const;
+
+    // 1-based change_number genome g takes at 0-based set s. Throws if it takes
+    // none (the partition is broken there).
+    int choice_of(int g, int s) const;
+
+    // delta_g(s): summed length of g's alternatives at sets [0, s), s <= num_sets.
+    int64_t genome_delta(int g, int s) const;
+
+    void require_genome_map(int g) const;
 
 
 };

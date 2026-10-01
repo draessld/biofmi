@@ -257,6 +257,73 @@ Returns the total number of entries that `locate()` would return. Counts **paths
 
 ---
 
+## Genome coordinates
+
+`locate()` reports positions in T0 terms. With sources attached, a genome is a path — under the
+partition requirement (TODO §4) it carries exactly one alternative of every degenerate symbol —
+so its own coordinates follow, and its sequence can be read back out of the index.
+
+### Definitions
+
+- **Genome `g`** — a 1-based path id, the ids `--samples` prints.
+- **`delta_g(s)`** — the summed length of the alternatives `g` takes at degenerate sets `[0, s)`.
+  Set `s` begins in genome `g` at `base_position(s) + delta_g(s)`.
+- **Genome position of an occurrence** `(position, changes)` in a genome carrying it:
+  `position + delta_g(s)`, where `s` is
+  - the set of the first change, if the match starts inside it — the first change is non-empty
+    and its set's `base_position <= position`;
+  - otherwise the number of sets with `base_position <= position`: a match starting at T0
+    character `p` lies after every set placed at or before `p`.
+
+  `g` carries the occurrence iff it is in the source set of every listed change; the listed
+  changes are every set the match crosses, empty alternatives included, so nothing else
+  constrains it. A genome that does not carry it gets `-1`.
+
+### API
+
+| call | result |
+|---|---|
+| `build_genome_map(b)` | samples `delta_g` at every `b`-th set for every genome; throws if the sources do not partition |
+| `genome_length(g)` | `T0 length + delta_g(n)` |
+| `extract(g, i, j)` | characters `[i, j)` of genome `g`; `std::out_of_range` unless `i <= j <= genome_length(g)` |
+| `genome_position(g, occ)` | the occurrence's start in genome `g`, or `-1` |
+| `genome_positions(occ)` | `(g, position)` for every genome in `occ.paths`, ascending |
+
+All require sources (`attach_sources()`) and a map; none is meaningful in CARTESIAN mode, where
+a path is not a genome. Re-attaching sources discards the map.
+
+### Cost
+
+`delta_g` between samples is a walk of at most `b - 1` sets, each resolving `g`'s alternative from
+the sources; `extract()` binary-searches `g`'s samples for the set holding `i`, walks, then spells
+forward with `sdsl::extract` on I_0 and I_D. Measured on `tb_p100_norm` at `l=9` (100 genomes,
+17,039 degenerate symbols, a 3.87 MB index; 5,000 random lookups):
+
+| `b` | map | of index | one genome | all 100 | extract 100 bp |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.41 MB | 88% | 0.17 µs | 0.95 µs | 12.5 µs |
+| 2 | 1.70 MB | 44% | 0.76 µs | 2.3 µs | 13.4 µs |
+| 4 | 853 KB | 22% | 1.4 µs | 4.5 µs | 13.4 µs |
+| 8 | 427 KB | 11% | 2.8 µs | 11.8 µs | 16.2 µs |
+| 16 | 214 KB | 5.5% | 5.6 µs | 28 µs | 19.3 µs |
+| **32** | 107 KB | 2.8% | 12.7 µs | 53 µs | 27.0 µs |
+| 64 | 54 KB | 1.4% | 27 µs | 121 µs | 39 µs |
+| 128 | 28 KB | 0.7% | 52 µs | 229 µs | 69 µs |
+| 256 | 14 KB | 0.4% | 106 µs | 455 µs | 134 µs |
+| 1024 | 4 KB | 0.1% | 469 µs | 1.9 ms | 492 µs |
+
+"One genome" is `genome_position()` at a random T0 position (a reference character, which every
+genome carries), "all 100" is `genome_positions()` for the same, which reads each set on the walk
+once for every carrier. Building the map is one pass over the sources, 0.07–0.10 s at every `b`.
+EDZ sources measured the same as SEDS. **`b = 32` is the default** — under 3% of the index for
+a coordinate in ~13 µs; full sums are 88% of it even bit-compressed.
+
+Validated against `bcftools consensus` genomes, which share no code with this one: all 100
+genomes extracted whole are byte-identical, and `biofmi-locate --genome-coords` on 200 random
+patterns names exactly the 85,307 `(genome, offset)` pairs a scan of the FASTA finds.
+
+---
+
 ## Future improvements (out of scope for now)
 
 - **A counting or streaming path.** Every occurrence is materialised before `locate()`
