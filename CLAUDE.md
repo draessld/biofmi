@@ -58,9 +58,9 @@ Tests use plain `cassert` (no external framework). **Both `src/cpp/CMakeLists.tx
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-10-01 everything passes with assertions live**, from clean build trees on the `integration` branches of both repos: BioFMI 10/10 unit and 26/26 e2e (three suites: 6 + 15 + 5), edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-10-01 everything passes with assertions live**, from clean build trees on the `integration2` branches of both repos (edsparser `ab67b2d`): BioFMI 10/10 unit and 26/26 e2e (three suites: 6 + 15 + 5); edsparser 8/8 ctest-run unit tests — the seven plus `test_transform_fuzz` — with `test_memory_smoke` reported *Skipped* (no generated data) and `test_memory_stress` *Disabled* by default, and 9/9 e2e suites, 155 tests, 0 skipped. edsparser's e2e harness now refuses a binary whose `COMMIT`/`DIRTY` stamp is not the tree under test. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
 
-The 2026-08-11 version of that claim was worth less than it looked. edsparser never got the `-UNDEBUG` fix BioFMI took on 2026-08-30, so its five assert-based unit tests — `test_eds`, `test_merge`, `test_sources`, `test_stats`, `test_vcf`, 591 assertions between them — had none of them compiled in; `nm -D --undefined-only <test> | grep __assert_fail` returned nothing for every binary. Fixed 2026-09-02, and the suite is 7/7 with them live, so nothing was hiding. Its other four tests (`test_msa`, `test_integration`, `test_memory_smoke`, `test_memory_stress`) check with `if` rather than `assert` and were never affected.
+The 2026-08-11 version of that claim was worth less than it looked. edsparser never got the `-UNDEBUG` fix BioFMI took on 2026-08-30, so its five assert-based unit tests — `test_eds`, `test_merge`, `test_sources`, `test_stats`, `test_vcf`, 591 assertions between them — had none of them compiled in; `nm -D --undefined-only <test> | grep __assert_fail` returned nothing for every binary. Fixed 2026-09-02, and the suite is 7/7 with them live, so nothing was hiding. Its other four tests (`test_msa`, `test_integration`, `test_memory_smoke`, `test_memory_stress`) checked with `if` rather than `assert` and were never affected — but `test_integration` accepted `find("4")` for n=4 and `test_msa` test 7 asserted nothing; since 2026-10-01 both compare exact values, and `-UNDEBUG` is applied per test target under every build type.
 
 **Always rebuild before trusting a test result, and never trust `~/.local/bin`.** Both failures seen on 2026-08-11 were stale artifacts, and the dangerous direction is silent: the installed `eds2leds` was from Jul 6, predating the complement fix (Aug 4), so it produced l-EDS containing strings no genome carries *without erroring*. Tools now report provenance:
 
@@ -142,12 +142,13 @@ repo-relative paths (`resolve.prefer: build/tools`); it defaults to
 **The DGX tier (2026-09-14)** runs every experiment on the DGX, plus bigger panels with no
 laptop counterpart; `dgx/README.md` is the entry point, open items are `TODO.md` §7c. Its
 bundle ships this checkout's *working tree*, so provenance stamps read `DIRTY=1` while
-anything is uncommitted. Since 2026-10-01 the edsparser submodule points at its
-`integration` head (branch `integration` in both repos, built on `submodule-advance`): the
-4b grouping fix (`d2cef03`), the C++20/`-UNDEBUG` CMake change that had sat uncommitted in
-its working tree (`7c5482a`), consecutive regular symbols as one segment, and
-`vcf2eds --split-groups`. None of it is pushed, so a clone off GitHub cannot check that
-commit out yet — push edsparser's branch before the DGX pulls.
+anything is uncommitted. The first integration wave — the 4b grouping fix (`d2cef03`), the
+C++20/`-UNDEBUG` CMake change (`7c5482a`), consecutive regular symbols as one segment, and
+`vcf2eds --split-groups` — is pushed: `origin/main` is BioFMI `56f2eb1`, edsparser `b799f70`.
+The second, on branch `integration2` in both repos (edsparser `ab67b2d`: test hygiene, the
+transform fuzzer and its six fixes, the bcftools overlap check, the API cleanup), is **not
+pushed**, and the gitlink here names `ab67b2d` — push edsparser's `integration2` before the DGX
+pulls this branch.
 The 2026-09-15 re-scan settled what the machine provides: no TB pool survives there (only
 `panel_100_snv50`), so the 1141 panel is a fresh ~5 GB download, and samtools/tabix/bgzip/
 minimap2/Nextclade are absent with `~/.local/bin/bcftools` at 1.21 — `ALLOW_FETCH=1
@@ -244,7 +245,13 @@ admits genomes that do not carry the match. The submodule carries the fix since 
 (`test_vcf` test 17), but panels written before it keep the defect: `tb_p100_snv50` and the
 TB growth panels breach. Every xbench spec on a VCF-derived panel now audits it as its
 `prepare` stage (`partition_gate.sh`) and measures nothing if it breaches;
-`docs/search_modes.md` § Choosing.
+`docs/search_modes.md` § Choosing. **The oracle side has the same caveat:** genomes
+materialised with `bcftools consensus` differ from what `vcf2eds` encodes wherever a sample has
+calls at overlapping records (the two tools resolve them by different rules). Since 2026-10-01
+`vcf2eds` reports exactly those samples and `--strict-overlaps` refuses them: every sample of
+the raw `panel_100`, `panel_100_snv50` and `panel_500` differs, the normalised panels
+(`panel_100_norm`, which every TB oracle here uses, and `panel_500` through `normalise_vcf.py`)
+none. edsparser TODO, "Overlapping calls".
 
 Sources are read at query time and are **not** embedded in the index; the one new
 artifact is `.d2g`, mapping degenerate-string number to global string id, because a

@@ -69,12 +69,42 @@ targeted patterns. **Worked around at the data level**: `normalise_vcf.py` plus
 - **Submodule advanced (2026-10-01).** The fix had never been committed — it sat in the
   standalone `~/Documents/uni_projects/edsparser` working tree beside an unrelated, also
   uncommitted 2026-09-02 API cleanup. Its hunks alone are edsparser `d2cef03`, with the
-  C++20/`-UNDEBUG` change on top as `7c5482a`; branch `submodule-advance` in both repos,
-  now under `integration` in both (with the regular-symbol merge and `--split-groups`),
-  **not pushed**. That standalone tree still holds the fix uncommitted and will conflict
-  with `d2cef03` when its owner commits there. edsparser's `vcf-group-split` carries its
-  own copy of the fix (`9cb034e`); only its `--split-groups` commit was taken onto
-  `integration`, so that copy should be dropped rather than merged.
+  C++20/`-UNDEBUG` change on top as `7c5482a`; merged with the regular-symbol merge and
+  `--split-groups` as `integration`, now pushed (`origin/main`, edsparser `b799f70`). The
+  API cleanup from that standalone tree was then ported onto `integration2` (`e9634e6`), so
+  the tree holds nothing the submodule still needs (its C++17 CMake was deliberately not
+  taken) — discard it rather than commit it (both halves would conflict). edsparser's `vcf-group-split` carries its own copy of the fix
+  (`9cb034e`); only its `--split-groups` commit was taken, so drop that copy.
+- **The oracle genomes and `vcf2eds` agree only on normalised panels.** `bcftools consensus`
+  (which materialises every TB oracle here) and `vcf2eds` resolve calls at overlapping records
+  by different rules. Since edsparser `d68ca14` `vcf2eds` names the samples whose genome
+  differs (exactly: checked against bcftools 1.19 on every fuzz case) and `--strict-overlaps`
+  refuses them. Raw `panel_100`: 100/100 samples differ (306 groups); `panel_100_snv50`:
+  100/100 (219); raw `panel_500`: 500/500 (663); `panel_100_norm` and `panel_500` after
+  `normalise_vcf.py`: 0. Add `--strict-overlaps` to the §3 pipeline's `vcf2eds` step.
+- **The edsparser fuzz fixes do not reach any published l-EDS (checked 2026-10-01).**
+  `test_transform_fuzz` found six bugs; the ones that touch `eds2leds` output are a leading
+  run of regular symbols measured from its second symbol (3), an empty boundary regular
+  symbol dropped in compact output (4), input sources copied verbatim on a zero-iteration or
+  block-mode run (5), and — above 63 paths — a complement ∩ complement covering every path
+  kept as a string no genome carries (6, the LINEAR-side twin of 20d8ff1). Old (`b799f70`)
+  vs new eds2leds, regenerated from the published inputs:
+
+  | panel (paths) | l | LINEAR `.leds`+`.seds` | CARTESIAN `.leds` |
+  |---|---|---|---|
+  | covid294 (294) | 3 5 9 11 14 19 29 39 59 | identical at all 9 | identical at 3–14; 19–59 OOM at 7 GB in both |
+  | tb_p100_norm (100) | 3 5 9 11 14 19 29 39 59 | identical at all 9 | identical at 3–19; 29–59 OOM in both |
+  | tb_p100_snv50 (100) | 3 5 9 11 14 19 29 39 59 | identical at all 9 | identical at 3–19; 29–59 OOM in both |
+  | syn_ctx200_2mb (50, `l_sweep`) | 3 4 5 7 9 11 14 19 23 29 39 59 119 | identical at all 13 | identical at all 13 |
+
+  The new output also equals, byte for byte, all 43 l-EDS files the experiments stored
+  (`~/Data/covid/derived/leds`, `~/Data/tb/derived/p100_{norm,snv50}`). Bugs 3–5 cannot fire
+  on these inputs at all (none starts with two regular symbols or holds an empty one; sources
+  are text; no block mode), which covers the OOM cells, and bug 6 never fired on the three
+  panels above 63 paths. With identical l-EDS the index is identical; `biofmi-locate` on the
+  200 standard patterns (`genpatterns --seed 7 -l 120`) gives the same sorted output under
+  56f2eb1 and `integration2` (covid294 l=5, 11; tb_p100_norm l=11; LINEAR and CARTESIAN).
+  **No published LINEAR or CARTESIAN number needs rerunning for these fixes.**
 - **Gated (2026-10-01).** `~/Data/experiments/biofmi/partition_gate.sh` runs the audit as
   the `prepare` stage of `kp_cost_tb`, `tb_scaling`, `chunk_cost_tb`, `tail_cost`,
   `panel_growth` and their generated `_big` twins; every later stage `needs` it, so a
@@ -275,14 +305,16 @@ covid (Nextclade-aligned GenBank panels to ~56,000 genomes) and synthetic data (
 reference length, density). Pipeline and decisions: `~/Data/experiments/biofmi/dgx/README.md`.
 Smoke-tested on the laptop end to end; the base tier rebuilds byte-identically.
 
-- **Push both repos' `integration` branches** (and `5db672a` with them). They supersede
-  `submodule-advance` and the feature branches merged into them on 2026-10-01 —
-  BioFMI `index-format-version`, `regular-symbol-merge`, `extract-genome`, `count-stream`;
-  edsparser `regular-symbol-merge-on-4b`, `vcf-group-split` (its `--split-groups` commit
-  only) — which can be deleted once `integration` is pushed; `sdsl-v3-trial` stays apart
-  (§5). Everything is committed but only locally: until edsparser's branch is on GitHub a DGX
-  `git submodule update` cannot fetch the commit the pointer names, and `~/Projects/biofmi`
-  would build older code.
+- **Push both repos' `integration2` branches.** `integration` is pushed (`origin/main`:
+  BioFMI `56f2eb1`, edsparser `b799f70`), so `submodule-advance` and the feature branches
+  merged into it — BioFMI `index-format-version`, `regular-symbol-merge`, `extract-genome`,
+  `count-stream`; edsparser `regular-symbol-merge-on-4b`, `vcf-group-split` — can be deleted;
+  `sdsl-v3-trial` stays apart (§5). `integration2` (edsparser `ab67b2d`: `test-hygiene`,
+  `transform-fuzz`, the overlap check, the API cleanup) is local only, and the gitlink names
+  `ab67b2d`: until edsparser's `integration2` is on GitHub a DGX `git submodule update` cannot
+  fetch it. After pushing, delete edsparser `test-hygiene` and `transform-fuzz` and their
+  worktrees. The UTC build stamp (edsparser `068f8ed`) moves `COMMIT_DATE` by −2 h against
+  stamps from before it; check the specs' `require_after` gates still mean what they say.
 - **DGX re-scanned 2026-09-15.** No TB pool survives (only `panel_100_snv50`), so the 1141
   panel is a fresh ~5 GB download; samtools/tabix/bgzip/minimap2/Nextclade are absent and
   `~/.local/bin/bcftools` is 1.21 — `ALLOW_FETCH=1 ./10_setup.sh` builds 1.19 into the bundle.
