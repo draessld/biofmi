@@ -70,8 +70,11 @@ targeted patterns. **Worked around at the data level**: `normalise_vcf.py` plus
   standalone `~/Documents/uni_projects/edsparser` working tree beside an unrelated, also
   uncommitted 2026-09-02 API cleanup. Its hunks alone are edsparser `d2cef03`, with the
   C++20/`-UNDEBUG` change on top as `7c5482a`; branch `submodule-advance` in both repos,
+  now under `integration` in both (with the regular-symbol merge and `--split-groups`),
   **not pushed**. That standalone tree still holds the fix uncommitted and will conflict
-  with `d2cef03` when its owner commits there.
+  with `d2cef03` when its owner commits there. edsparser's `vcf-group-split` carries its
+  own copy of the fix (`9cb034e`); only its `--split-groups` commit was taken onto
+  `integration`, so that copy should be dropped rather than merged.
 - **Gated (2026-10-01).** `~/Data/experiments/biofmi/partition_gate.sh` runs the audit as
   the `prepare` stage of `kp_cost_tb`, `tb_scaling`, `chunk_cost_tb`, `tail_cost`,
   `panel_growth` and their generated `_big` twins; every later stage `needs` it, so a
@@ -220,7 +223,8 @@ anything more from it.
 - **E10 at k = 1141, with orders.** Local pool is the 500 isolates in `~/Data/tb/calls`; the DGX
   holds 1141. One order there already gave 116,166 degenerate symbols (k^0.72 from k=100).
   `gen_growth_panels.py` with `TB_POOL` pointed at the 1141 merge list, `KS` extended.
-- **Split regular symbols — resolved 2026-10-01** (branch `regular-symbol-merge`, both repos).
+- **Split regular symbols — resolved 2026-10-01** (branch `regular-symbol-merge`, both repos;
+  on `integration` since 2026-10-01).
   Consecutive regular symbols are one context segment everywhere now. All 72 extra symbols on
   `panel_100_snv50` (27 runs, longest 23 symbols) were panel-fixed SNPs: a variant group whose
   one surviving haplotype every sample carries, all with source `{0}`. Decisions:
@@ -261,8 +265,8 @@ anything more from it.
 - **`panel_growth` peak RSS reads 126.254 MB in all 52 cells** — the watchdog's floor, not a
   measurement. Not quoted; undiagnosed.
 - **Dirty edsparser build tree** (`eds2leds`, `edsparser-stats` at 1cba45e, DIRTY=1) — xbench
-  warned on `panel_growth`. Rebuilt clean at `7c5482a` on 2026-10-01 (DIRTY=0); `panel_growth`
-  itself now waits on §4b.
+  warned on `panel_growth`. Rebuilt clean at `7c5482a` on 2026-10-01 (DIRTY=0), and again at
+  the edsparser `integration` head the same day; `panel_growth` itself now waits on §4b.
 
 ## 7c. The DGX tier (2026-09-14)
 
@@ -271,10 +275,14 @@ covid (Nextclade-aligned GenBank panels to ~56,000 genomes) and synthetic data (
 reference length, density). Pipeline and decisions: `~/Data/experiments/biofmi/dgx/README.md`.
 Smoke-tested on the laptop end to end; the base tier rebuilds byte-identically.
 
-- **Push both repos' `submodule-advance` branches** (and `5db672a` with them). The edsparser
-  C++20/`-UNDEBUG` change is committed now (`7c5482a`, 2026-10-01), but only locally: until
-  edsparser's branch is on GitHub a DGX `git submodule update` cannot fetch the commit the
-  pointer names, and `~/Projects/biofmi` would build older code.
+- **Push both repos' `integration` branches** (and `5db672a` with them). They supersede
+  `submodule-advance` and the feature branches merged into them on 2026-10-01 —
+  BioFMI `index-format-version`, `regular-symbol-merge`, `extract-genome`, `count-stream`;
+  edsparser `regular-symbol-merge-on-4b`, `vcf-group-split` (its `--split-groups` commit
+  only) — which can be deleted once `integration` is pushed; `sdsl-v3-trial` stays apart
+  (§5). Everything is committed but only locally: until edsparser's branch is on GitHub a DGX
+  `git submodule update` cannot fetch the commit the pointer names, and `~/Projects/biofmi`
+  would build older code.
 - **DGX re-scanned 2026-09-15.** No TB pool survives (only `panel_100_snv50`), so the 1141
   panel is a fresh ~5 GB download; samtools/tabix/bgzip/minimap2/Nextclade are absent and
   `~/.local/bin/bcftools` is 1.21 — `ALLOW_FETCH=1 ./10_setup.sh` builds 1.19 into the bundle.
@@ -322,5 +330,7 @@ sampled per-genome prefix sums (`build_genome_map(b)`, default `b = 32`), `biofm
 - **Refuses rather than guesses on a broken partition.** `build_genome_map()` throws, naming
   the symbol and genome, when a genome carries no alternative of a symbol or several — every
   §4b-affected panel (`tb_p100_snv50`, any VCF panel from the vendored `vcf2eds`) and every
-  diploid one (§4a). Advancing `external/edsparser` (§4b) is what makes it usable on fresh VCF
-  panels.
+  diploid one (§4a). `external/edsparser` carries the 4b fix since 2026-10-01, so a VCF panel
+  regenerated with the submodule's `vcf2eds` is usable; panels written before it are not.
+- **Re-validated on the integration head** (run-merged `parse_eds()`, streaming locate):
+  100/100 genomes and 258,746 `(genome, offset)` pairs on 200 patterns, see `CLAUDE.md`.

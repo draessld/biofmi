@@ -58,7 +58,7 @@ Tests use plain `cassert` (no external framework). **Both `src/cpp/CMakeLists.tx
 
 `test_locate_correctness` is the primary correctness suite. It expands all EDS paths into concrete strings (brute-force oracle) and compares every result of `locate()` and `count()` against the oracle. It covers: invalid pattern lengths, no-match, pure-reference matches, reference↔change boundary matches, matches starting inside alternatives, matches spanning two degenerate sets, same position with different change paths, and `count()` consistency.
 
-EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-10-01 everything passes with assertions live**, from clean build trees on the advanced submodule: BioFMI 9/9 unit and 24/24 e2e (three suites: 4 + 15 + 5), edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
+EDSParser has its own test suite: `ctest` from `external/edsparser/build/src/cpp`, with the executables themselves in `external/edsparser/build/tools/`. **As of 2026-10-01 everything passes with assertions live**, from clean build trees on the `integration` branches of both repos: BioFMI 10/10 unit and 26/26 e2e (three suites: 6 + 15 + 5), edsparser 7/7 unit and 9/9 e2e suites. An earlier note here claimed the edsparser suite did not build — that was a stale build directory, not a real breakage.
 
 The 2026-08-11 version of that claim was worth less than it looked. edsparser never got the `-UNDEBUG` fix BioFMI took on 2026-08-30, so its five assert-based unit tests — `test_eds`, `test_merge`, `test_sources`, `test_stats`, `test_vcf`, 591 assertions between them — had none of them compiled in; `nm -D --undefined-only <test> | grep __assert_fail` returned nothing for every binary. Fixed 2026-09-02, and the suite is 7/7 with them live, so nothing was hiding. Its other four tests (`test_msa`, `test_integration`, `test_memory_smoke`, `test_memory_stress`) check with `if` rather than `assert` and were never affected.
 
@@ -142,10 +142,12 @@ repo-relative paths (`resolve.prefer: build/tools`); it defaults to
 **The DGX tier (2026-09-14)** runs every experiment on the DGX, plus bigger panels with no
 laptop counterpart; `dgx/README.md` is the entry point, open items are `TODO.md` §7c. Its
 bundle ships this checkout's *working tree*, so provenance stamps read `DIRTY=1` while
-anything is uncommitted. Since 2026-10-01 the edsparser submodule points at `7c5482a`
-(branch `submodule-advance` in both repos): the 4b grouping fix plus the C++20/`-UNDEBUG`
-CMake change that had sat uncommitted in its working tree. Neither is pushed, so a clone
-off GitHub cannot check that commit out yet — push edsparser's branch before the DGX pulls.
+anything is uncommitted. Since 2026-10-01 the edsparser submodule points at its
+`integration` head (branch `integration` in both repos, built on `submodule-advance`): the
+4b grouping fix (`d2cef03`), the C++20/`-UNDEBUG` CMake change that had sat uncommitted in
+its working tree (`7c5482a`), consecutive regular symbols as one segment, and
+`vcf2eds --split-groups`. None of it is pushed, so a clone off GitHub cannot check that
+commit out yet — push edsparser's branch before the DGX pulls.
 The 2026-09-15 re-scan settled what the machine provides: no TB pool survives there (only
 `panel_100_snv50`), so the 1141 panel is a fresh ~5 GB download, and samtools/tabix/bgzip/
 minimap2/Nextclade are absent with `~/.local/bin/bcftools` at 1.21 — `ALLOW_FETCH=1
@@ -175,7 +177,7 @@ Query processing splits the pattern into chunks of size `l` and tracks matches a
 - **Position** — 0-based: T₀ index if match starts in reference; `base_position_of_set + offset_within_alternative` if match starts inside a degenerate alternative.
 - **Changes** — ordered list of 0-based global alternative indices (numbered across all alternatives of all degenerate sets in EDS order) that the match passes through. **A zero-length alternative counts as traversed** even though it contributes no character: the match exists only on the path that chose it, and `changes` drives the source intersection. Two reference blocks separated by such a symbol are adjacent along that path — a match crossing between them was silently lost until 2026-08-31.
 - `count()` returns total number of entries (paths), not distinct positions.
-- **Nothing holds the answer (2026-10-01).** `locate(pattern, callback)` streams each entry as the final chunk finds it and returns how many; `count()` runs the same search building none; `locate(pattern)` is the stream collected (plus `last_result_`). The final chunk's survivors go to a sink (`final_sink_`, via `store()`) instead of `new_hash_map_`, and hits come straight off the SA range (`for_each_hit()`) rather than an `sdsl::locate()` vector, so memory is the candidates the *earlier* chunks hand on — nothing per occurrence for `|P| <= l+1`. `biofmi-locate` prints through the stream and `--benchmark` uses `count()`. Entry **order changed** (undefined by spec; was final hash-map order): output is identical as a per-pattern line multiset, not byte for byte — sort before diffing.
+- **Nothing holds the answer (2026-10-01, `count-stream`).** `locate(pattern, callback)` streams each entry as the final chunk finds it and returns how many; `count()` runs the same search building none; `locate(pattern)` is the stream collected (plus `last_result_`). The final chunk's survivors go to a sink (`final_sink_`, via `store()`) instead of `new_hash_map_`, and hits come straight off the SA range (`for_each_hit()`) rather than an `sdsl::locate()` vector, so memory is the candidates the *earlier* chunks hand on — nothing per occurrence for `|P| <= l+1`. `biofmi-locate` prints through the stream and `--benchmark` uses `count()`. Entry **order changed** (undefined by spec; was final hash-map order): output is identical as a per-pattern line multiset, not byte for byte — sort before diffing.
 - Future work: EDS boundary edge cases.
 
 ### l-EDS validation in `biofmi-build`
@@ -365,6 +367,8 @@ the default**; `set_tail_threshold(t)` / `--tail-threshold t` searches tails of 
 | A short tail was always searched — 2.15 s against 0.10 ms verified at `r=1` — because verifying could not cross a symbol boundary, so `set_tail_threshold()` refused any value but 0 | `extend_candidates()` + `walk_tail()` from `in_change`/`next_set`; `t0_to_ref_pos()` a binary search; verify is the default; `biofmi-locate --tail-threshold` |
 | Consecutive regular symbols (`{CGCG}{A}{TGCC}`, older `vcf2eds` output) were indexed as separate T0 blocks — a `#` inside a conserved stretch and every later base position shifted — and the l-EDS check judged each symbol alone | `parse_eds()` accumulates a run into one block; `biofmi-build` checks runs and rejects adjacent degenerate symbols; `test_build_structure` 5, `test_locate_fuzz` 5 |
 | `.d2g` stored a strictly increasing sequence as 64-bit integers (up to 11% of a measured index) | Elias-Fano `sd_vector` behind a magic in `save()`; `load_deg_to_global()` still reads the old layout |
+| A v3-SDSL binary handed a v2 index died in `sdsl::load_from_file` with "Width of int_vector<1> was specified as 0"; nothing on disk said which format or SDSL line wrote an index | `.meta` gains `format <n>` and `sdsl <flavour>` after its four counts; `load()` refuses a newer format or the other flavour by name; `test_build` 5–7 |
+| Short patterns were memory-bound: every occurrence materialised (three times) before `locate()` returned, and `count()` delegated to it — `\|P\|=1` on an 8 MB panel took 1.5 GB | `search()` hands the final chunk to a sink via `store()`; `locate(pattern, callback)`, a non-materialising `count()`; `biofmi-locate` prints through the stream; `test_locate_fuzz` 6–7 |
 
 **The benchmark suite measured the wrong thing for months (fixed 2026-09-02).** Three
 independent places assumed the chunk size was `l`, all correct before the off-by-one fix
@@ -413,6 +417,16 @@ index; 5,000 random lookups each, SEDS — EDZ measured the same):
 Full sums are 88% of the index even bit-compressed (16 bits an entry here; 64-bit words
 would be 13.6 MB, 3.5x the index), so they are not the default. A walk step costs ~0.8 µs and
 is the sources' LRU cache, not the arithmetic — see TODO §9.
+
+**Re-checked on the integration head (2026-10-01)**, where extraction meets the run-merged
+`parse_eds()` and the streaming locate (`--genome-coords` prints from inside the callback):
+on `tb_p100_norm` `linear_l9`, all 100 genomes extract byte-identical to `genomes.fa`, and
+`--genome-coords` on 200 patterns of 8–64 bp drawn from those genomes names exactly the
+258,746 `(genome, offset)` pairs a scan of the FASTA finds. Against the 2026-09-15 main
+(`2c4f423`) on the same l-EDS: every index file byte-identical except `.meta` (the two new
+lines), and `biofmi-locate` output — SEDS and EDZ with `--samples`, and CARTESIAN — the
+same lines once sorted (3,417 / 3,418 lines; order differs, as `count-stream` says), with
+identical `--benchmark` counts. `test_extract` test 4 covers split runs.
 
 ### Future Work
 

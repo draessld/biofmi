@@ -68,6 +68,8 @@ biofmi-locate -i data.l9.index -l 9 -P patterns.txt -o hits.txt
 | `-s`, `--seds` | path | Source file of the indexed l-EDS (`.seds` or `.edz`; format auto-detected). Switches the search to **LINEAR** — a match must lie on a single path through the panel. |
 | `-z`, `--edz` | path | Same, but forces binary EDZ parsing regardless of extension. Mutually exclusive with `-s`. |
 | `--samples` | — | List the genome ids carrying each occurrence rather than just their count. Requires `-s` or `-z`. |
+| `--genome-coords` | — | List each carrying genome as `id:position`, the occurrence's start in that genome's own coordinates. Implies `--samples`; requires `-s` or `-z` and sources that partition the genomes. See [Genome coordinates](locate_spec.md#genome-coordinates). |
+| `--sample-rate` | integer | Sample the per-genome prefix sums `--genome-coords` uses every `b` degenerate symbols (default 32). `1` stores them all; larger trades memory for a walk of up to `b` symbols per lookup. |
 
 Without `-s`/`-z` the search is **CARTESIAN** and pairs every alternative of one
 degenerate symbol with every alternative of the next. On an l-EDS that was
@@ -116,6 +118,38 @@ which is why it is opt-in rather than part of the plain `--benchmark` path.
 
 ---
 
+## `biofmi-extract`
+
+Spells stretches of individual genomes back out of an index plus its sources
+(a genome is a path through the panel). Coordinates are 0-based and half-open;
+genomes are the 1-based path ids `--samples` reports. Output is FASTA, one
+record per region, headed `>g:i-j`.
+
+```bash
+biofmi-extract -i data.l9.index -s data.l9.seds -r 3:1000-1100   # genome 3, [1000,1100)
+biofmi-extract -i data.l9.index -s data.l9.seds -r 3 -r 5 -o g.fa  # genomes 3 and 5, whole
+biofmi-extract -i data.l9.index -s data.l9.seds --lengths          # every genome's length
+```
+
+| Flag | Argument | Meaning |
+|---|---|---|
+| `-i`, `--index` | path | Index directory produced by `biofmi-build`. |
+| `-l`, `--context-length` | integer | Optional; checked against the index when given. |
+| `-s`, `--seds` / `-z`, `--edz` | path | Source file of the indexed l-EDS, as for `biofmi-locate`. Required. |
+| `-r`, `--region` | `g:i-j` or `g` | Region to extract (repeatable); `g` alone is the whole genome. |
+| `-R`, `--region-file` | path | Regions, one per line, as `g:i-j` or `g i j`. |
+| `--lengths` | — | Print every genome's length. |
+| `-b`, `--sample-rate` | integer | As `biofmi-locate --sample-rate` (default 32). |
+| `-o`, `--output` | path | Write the FASTA here instead of stdout. |
+| `--benchmark` | N | Time N random extracts and N random coordinate lookups; one TSV row on stdout. |
+
+Refuses, naming the symbol and genome, when the sources do not partition the
+genomes — some genome on no alternative of a symbol, or on two — because
+"genome g" is then not one string. See
+[Genome coordinates](locate_spec.md#genome-coordinates).
+
+---
+
 ## Output format
 
 Human-readable output groups occurrences under each pattern. Each line is written
@@ -139,7 +173,8 @@ Each result line is `position[ changes ]`, optionally followed by `samples=N`:
 - **changes** — the 0-based global alternative indices the match passes
   through, in order. Empty for a match lying entirely in the reference.
 - **samples** — how many genomes carry this occurrence. Shown only in LINEAR
-  mode; `--samples` replaces the count with the ids themselves.
+  mode; `--samples` replaces the count with the ids themselves, and
+  `--genome-coords` with `id:position` pairs, e.g. `samples=2{ 3:10811 7:10790 }`.
 
 Under `--benchmark`, output is instead `<pattern>\t<count>` per line, with
 summary counts on stderr (`Total patterns`, `Patterns matched`,
