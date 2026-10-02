@@ -212,13 +212,30 @@ on both panels, smaller than the r-index on the larger one only.
 
 - **Hardware section** is missing from the draft; `dgx_results/MACHINE.txt` has the DGX
   description.
-- **No repetitions** behind `tab:sizes` or the TB comparison paragraph; both sit near the
-  timer floor.
-- **E4**'s matching-pattern column is quantised at ~25 ms above `l=9`.
-- **`merge_mode`**: none of its run directories has a `summary.csv`.
-- **Seven run directories from 2026-08-26 17:29** (`biofmi_covid`, `biofmi_synthetic`,
-  `cartesian`, `cartesian_synthetic`, `linear`, `l_sweep`, `merge_mode`) hold four files each
-  and no summary. Never diagnosed.
+- ~~**No repetitions** behind `tab:sizes` or the TB comparison paragraph~~ — **resolved
+  2026-10-02**: `baselines_covid294_reps/2026-10-02_00-02-40` and
+  `baselines_tb_reps/2026-10-02_00-04-01` (10 reps; r-index TB builds 3), medians with the
+  2nd–9th order-statistic interval (`~/Data/experiments/biofmi/reps_summary.py`). Query is now
+  the marginal per-pattern cost (N vs 2N tiled sets, load excluded), so `tab:sizes`' query
+  column changed meaning: 2.8 / 103 / 5.4 ms per 200 patterns (this work / EDS-BWT / r-index),
+  construction 0.091 / 0.111 / 2.61 s; 29x vs the r-index's SE-SAIS build, 7.4x vs its
+  divsufsort build (0.673 s); query 1.9x. TB: build 0.52 s / 28 MB vs r-index 310 s / 1.85 GB
+  (divsufsort 69 s / 2.95 GB); query 0.013 vs 0.032 ms/pattern (2.4x). Draft and
+  `make_paper_figures.py` checks updated.
+- ~~**E4**'s matching-pattern column is quantised at ~25 ms above `l=9`~~ — **resolved
+  2026-10-02**, `linear_reps/2026-10-02_00-24-27`. The quantum was the xbench watchdog's
+  `poll_ms: 25`, not the tool (`specs/REPETITIONS.md`). Every cell now resolves. Decoy
+  speedup 1.9/3.2/4.1/4.9/5.7x at `l`=3/5/9/11/14, 2.4x at 19, parity from 29 (decoys fail on
+  sequence in both modes). **New finding:** on matching patterns LINEAR costs 1–2% at
+  `l<=11`, outside the rep interval at `l`=3 and 5 — by E4's own criterion a small real cost,
+  now stated in the draft (verdict row changed); LINEAR is faster at `l`=14–29 (0.93–0.70x).
+  E5 reproduced exactly.
+- ~~**`merge_mode`**: none of its run directories has a `summary.csv`~~ — not so: both
+  surviving runs (`2026-08-16_17-02-33_repro`, `2026-08-25_16-04-06_cleanup-check`) have one.
+  The summary-less directories were the 2026-08-26 17:29 set below.
+- ~~**Seven run directories from 2026-08-26 17:29** hold four files each and no summary~~ —
+  diagnosed: dry runs (`--dry-run` leaves an empty run directory behind that looks like an
+  aborted run; `REPETITIONS.md` now says to point `XBENCH_RUNS` elsewhere for one). Deleted.
 - **Send the SOPanG empty-alternative bug** to Cisłak & Grabowski with
   `baselines/sopang_empty_variant_bug.py`, so a response can be cited by submission.
 
@@ -292,11 +309,19 @@ anything more from it.
   (T0 0, 182 options) and last (190 options — H) are the 5'/3' ends, six more in the last 16% of
   T0. Masking alignment ends is standard SARS-CoV-2 practice (De Maio et al., virological.org) —
   a concrete candidate for the 6a filter. After filtering, rerun E1's Poisson fit and E10-covid.
-- **`panel_growth` peak RSS reads 126.254 MB in all 52 cells** — the watchdog's floor, not a
-  measurement. Not quoted; undiagnosed.
+- **`panel_growth` peak RSS reads 126.254 MB in all 52 cells** — the harness's own RSS, not a
+  measurement: `ru_maxrss` survives fork and exec, so every child of the ~121–126 MB xbench
+  process reported at least that (`specs/REPETITIONS.md`). Fixed in xbench 2026-10-01
+  (`peak_rss_mb` is now the tool's own VmHWM). Not quoted; **`panel_growth` needs a rerun for
+  memory** (it already waits on §4b). Every harness `peak_rss_mb` near 120–131 MB in a run
+  before 2026-10-01 is the same floor: `tb_scaling`'s "constant 126.9 MB" build memory was one
+  (rerun `tb_scaling/2026-10-02_01-27-27`: 8.0 → 28 MB over 16x N, ~N^0.46; the draft's E8
+  "build memory not at all" is corrected), as are `l_sweep`'s and the 08-26 notebooks' flat
+  RSS columns (annotated, no rerun yet).
 - **Dirty edsparser build tree** (`eds2leds`, `edsparser-stats` at 1cba45e, DIRTY=1) — xbench
   warned on `panel_growth`. Rebuilt clean at `7c5482a` on 2026-10-01 (DIRTY=0), and again at
   the edsparser `integration` head the same day; `panel_growth` itself now waits on §4b.
+  Closed for the 2026-10-02 runs (`*_reps`, `tb_scaling`): edsparser `ab67b2d`, DIRTY=0.
 
 ## 7c. The DGX tier (2026-09-14)
 
@@ -330,7 +355,8 @@ Smoke-tested on the laptop end to end; the base tier rebuilds byte-identically.
 1. **6a** — choose the covid294 filter, then rebuild its arm. Everything in the results that
    quotes covid294's N, H or the OOM wall waits on it.
 2. **§7, first two items** — `tab:dataset` row and break-even into the text. No runs.
-3. **6g, the cheap half** — hardware section, repetitions on the baseline tables, the SOPanG
+3. **6g, the cheap half** — hardware section, ~~repetitions on the baseline tables~~ (done
+   2026-10-02), the SOPanG
    bug report.
 4. **§3** — `panel_500` through the filter, normalisation, audit and baseline protocol.
 5. **6c** — covid294 past its knee; the `l` axis on `nmN_scaling`.
