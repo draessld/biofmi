@@ -139,6 +139,14 @@ repo-relative paths (`resolve.prefer: build/tools`); it defaults to
 `~/Documents/uni_projects/biofmi` and takes `BIOFMI_REPO` as an override.
 `XBENCH_RUNS` moves the run directories.
 
+**Harness pitfalls (diagnosed 2026-10-02, `specs/REPETITIONS.md`).** Any harness
+`peak_rss_mb` near 120–131 MB in a run before 2026-10-01 is xbench's own RSS, not the
+tool's (`ru_maxrss` survives fork and exec) — trust the tool's `Peak Memory:` line
+(`tool_peak_mb`) instead. `wall_s` is rounded up to the spec's `poll_ms` (E4's ~25 ms
+quantum was `poll_ms: 25`); use `poll_ms: 1` and tiled pattern sets for short queries.
+`--dry-run` leaves an empty run directory that looks like an aborted run, so give it
+`XBENCH_RUNS=/tmp/...`.
+
 **The DGX tier (2026-09-14)** runs every experiment on the DGX, plus bigger panels with no
 laptop counterpart; `dgx/README.md` is the entry point, open items are `TODO.md` §7c. Its
 bundle ships this checkout's *working tree*, so provenance stamps read `DIRTY=1` while
