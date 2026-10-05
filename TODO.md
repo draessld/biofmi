@@ -252,6 +252,16 @@ on both panels, smaller than the r-index on the larger one only.
 - **Counting units against EDS-BWT**: paths, (segment, string, offset) and (genome, offset)
   differ by orders of magnitude. A level-0 *set* comparison needs a canonical form —
   (EDS position, sorted option indices) — before EDS-BWT agreement can be claimed.
+- **Does SOPanG 2 verify sources pairwise?** Its paper (arXiv 2004.03033, Sec. 2) builds the
+  verification tree backwards from the segment where a Shift-Or match ends, joining a node to a
+  child "only if (ii) the two variants share at least one common source" — a *pairwise* test. Its
+  problem statement asks for the intersection over the whole path. If the implementation keeps only
+  the pairwise test, it admits exactly the non-transitive paths of Observation 7 (`obs:nontransitive`):
+  source sets {1,2}, {2,3}, {3,4} on three consecutive variants. Check in the code
+  (github.com/MrAlexSee/sopang, the verification stage) whether a running intersection is carried, and
+  test it directly: a three-symbol EDS with those source sets and a pattern spanning all three must give
+  no match. A positive result would be a second SOPanG 2 defect beside E6's empty-option one; until
+  checked, the draft does not claim it (`tex/NOTESTOKNOW.md` §9).
 - **Baselines not run**: SOPanG without `-S`, BNDM-EDS and EDSM at level 0; the ref+VCF
   indexes (gramtools, jisearch, Panaln, HISAT2, GCSA2), which need an EDS-to-reference
   projection first.

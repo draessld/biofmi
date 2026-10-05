@@ -231,6 +231,9 @@ of one degenerate symbol with every alternative of the next, a cross product whe
 LINEAR language needs a source-set intersection. It now carries a running `PathSet` along
 each candidate match and prunes the branch the moment no path carries the whole thing.
 
+The paper (`tex/`, its own local repo) calls the two modes **PHASED** (= LINEAR) and **UNPHASED** (= CARTESIAN);
+the code and the docs keep LINEAR / CARTESIAN.
+
 Source-aware search is opt-in — pass the l-EDS's source file to `biofmi-locate`:
 
 ```bash

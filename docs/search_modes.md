@@ -1,5 +1,9 @@
 # Search modes: LINEAR and CARTESIAN
 
+> **Naming in the paper.** The paper calls these modes **PHASED** (= LINEAR) and **UNPHASED**
+> (= CARTESIAN), after the phased language $\mathcal{L}_{\mathrm{ph}}$ they answer; the code, the CLI and
+> this documentation keep LINEAR and CARTESIAN.
+
 An elastic-degenerate string describes a *set* of strings. Before you can ask
 "does this pattern occur", you have to answer a prior question: **which set?**
 BioFMI supports two answers, and the difference is not a tuning knob — it
