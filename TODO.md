@@ -398,3 +398,12 @@ sampled per-genome prefix sums (`build_genome_map(b)`, default `b = 32`), `biofm
   regenerated with the submodule's `vcf2eds` is usable; panels written before it are not.
 - **Re-validated on the integration head** (run-merged `parse_eds()`, streaming locate):
   100/100 genomes and 258,746 `(genome, offset)` pairs on 200 patterns, see `CLAUDE.md`.
+
+## 10. Code maintenance
+
+- **Rename `offsets` to `lengths` (paper notes #12, 2026-10-24).** `IndexData::offsets`
+  (`index.hpp:313`, file `.aof`) holds the length of each degenerate string; the paper now calls
+  the array `len`, because the original BIO-FMI's "offset" is the shift `q - p` between `T_i`
+  and `T_0`, which this array is not. Rename the member, its uses (`offsets[change_number - 1]`
+  …) and the comments; keep the `.aof` file name or bump the `.meta` format if it changes.
+  `base_positions` matches the original's base position and stays.

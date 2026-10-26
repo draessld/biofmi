@@ -176,7 +176,7 @@ The `BioFMI` class (C++ namespace `biofmi`) holds two SDSL `csa_wt<>` compressed
 - **Reference index** (`.ri`): indexes the non-degenerate common sequence T₀, stored as `#seg1#seg2#...`
 - **Changes index** (`.ci`): indexes variable regions, each stored as `left_ctx + alt + right_ctx + #`
 
-Position mapping between the two indexes uses three SDSL bit vectors with rank/select support (`.loc`, `.iloc`, `.tloc`), plus metadata arrays for base positions, set sizes, and offsets (`.abp`, `.ss`, `.aof`).
+Position mapping between the two indexes uses three SDSL bit vectors with rank/select support (`.loc`, `.iloc`, `.tloc`), plus metadata arrays for base positions, set sizes, and offsets (`.abp`, `.ss`, `.aof`). Despite its name, `IndexData::offsets` (`.aof`) holds the *length* of each degenerate string — the paper calls it `len`, and the original BIO-FMI's "offset" (the shift between `T_i` and `T_0`) is something else; rename pending, TODO §10.
 
 Query processing splits the pattern into chunks of size `l` and tracks matches across both indexes using hash maps, with early termination on empty intermediate results. `locate_short()`, `locate_long()`, and `validate_chunk_positions()` are stub methods (not yet called by `locate()`) — the main `locate()` loop handles all pattern lengths directly.
 
