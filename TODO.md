@@ -407,3 +407,11 @@ sampled per-genome prefix sums (`build_genome_map(b)`, default `b = 32`), `biofm
   and `T_0`, which this array is not. Rename the member, its uses (`offsets[change_number - 1]`
   …) and the comments; keep the `.aof` file name or bump the `.meta` format if it changes.
   `base_positions` matches the original's base position and stays.
+
+- **Rename to EDS-BIO-FMI (paper notes #86, 2026-10-31).** The paper now calls this index
+  EDS-BIO-FMI, to tell it apart from the original BIO-FMI of Procházka and Holub (2014). An
+  improvement for when there is time, not a blocker: the tools (`biofmi-build`, `biofmi-locate`,
+  `biofmi-extract`), the library and the `COMMIT`/`DIRTY` provenance stamps are named in every
+  xbench spec and run directory under `~/Data/experiments/biofmi`, so a rename must keep the old
+  binary names working (symlinks or aliases) or the finished measurements stop being reproducible
+  as recorded. Until then the paper says it is implemented as `biofmi`.
