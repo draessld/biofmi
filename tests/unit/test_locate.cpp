@@ -10,7 +10,7 @@ int main() {
 
         // Test 1: Build index from simple EDS in memory
         std::cout << "  Creating simple l-EDS and building index (l=4)...\n";
-        std::stringstream ss("{ACGT}{A,C}{TG}{G,T}");
+        std::stringstream ss("{ACGT}{A,C}{TGCA}{G,T}");
         EDS eds(ss);
         BioFMI index(std::move(eds), 4);
         index.build();

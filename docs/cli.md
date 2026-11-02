@@ -18,7 +18,7 @@ eds-biofmi-build -i data.l9.leds -l 9 -o data.l9.index
 |---|---|---|
 | `-i`, `--input` | path | Input **l-EDS** file. Must already satisfy the l-EDS constraint — see below. |
 | `-o`, `--output` | path | Output index **directory**. Created if absent. |
-| `-l`, `--context-length` | integer | Context length `l`. Minimum 3. Must match the `l` the l-EDS was merged at, and the `l` used at query time. |
+| `-l`, `--context-length` | integer | Context length `l`, at least 1 (0 is refused; it was accepted and answered wrongly before 2026-11-02). Must match the `l` the l-EDS was merged at, and the `l` used at query time. |
 | `--dump` | — | Also write `<output>/index.dump.txt`, a human-readable dump of the internal arrays. Useful for debugging, large on real data. |
 | `-h`, `--help` | — | Show help. |
 
@@ -55,7 +55,7 @@ eds-biofmi-locate -i data.l9.index -l 9 -P patterns.txt -o hits.txt
 | Flag | Argument | Meaning |
 |---|---|---|
 | `-i`, `--index` | path | Index directory produced by `eds-biofmi-build`. |
-| `-l`, `--context-length` | integer | Must match the build. |
+| `-l`, `--context-length` | integer | Must match the build; checked against the index's `.meta`, and a mismatch exits 1. |
 | `-p`, `--pattern` | string | A single pattern. |
 | `-P`, `--pattern-file` | path | A file of patterns, one per line. Mutually useful with `-p`; use one or the other. |
 | `-o`, `--output` | path | Write results here instead of stdout. `-o /dev/null` discards them, which matters when a pattern set is megabytes. |

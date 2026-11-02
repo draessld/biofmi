@@ -1,6 +1,8 @@
 // Index building tests
 #include "index/index.hpp"
 #include <edsparser/formats/eds.hpp>
+#include <sdsl/int_vector.hpp>
+#include <sdsl/io.hpp>
 #include <sstream>
 #include <iostream>
 #include <cassert>
@@ -13,7 +15,7 @@ void test_simple_index_build() {
     std::cout << "Test 1: Simple index building... ";
 
     // Create a simple l-EDS
-    std::stringstream ss("{ACGT}{A,C}{TG}{G,T}");
+    std::stringstream ss("{ACGT}{A,C}{TGCA}{G,T}");
     edsparser::EDS eds(ss);
 
     // Build index with context length 4
@@ -33,7 +35,7 @@ void test_index_save_load() {
     std::cout << "Test 2: Index save and load... ";
 
     // Create a simple l-EDS
-    std::stringstream ss("{ACGT}{A,C}{TG}{G,T}");
+    std::stringstream ss("{ACGT}{A,C}{TGCA}{G,T}");
     edsparser::EDS eds(ss);
 
     // Build and save index
@@ -72,7 +74,7 @@ void test_index_with_file() {
     // Create a temporary l-EDS file
     std::filesystem::path test_file = std::filesystem::temp_directory_path() / "test.leds";
     std::ofstream ofs(test_file);
-    ofs << "{ACGT}{A,C}{TG}{G,T}";
+    ofs << "{ACGT}{A,C}{TGCA}{G,T}";
     ofs.close();
 
     // Build index from file
@@ -179,12 +181,26 @@ void test_meta_round_trip() {
     std::cout << "PASSED\n";
 }
 
+// Rewrite .abp, .ss and .aof as formats 1-2 stored them: std::vector<int>,
+// which sdsl serialises differently from the bit-compressed int_vector<> of
+// format 3.
+static void downgrade_arrays(const std::filesystem::path& dir) {
+    for (const char* ext : {".abp", ".ss", ".aof"}) {
+        const std::string path = (dir / "index").string() + ext;
+        sdsl::int_vector<> wide;
+        assert(sdsl::load_from_file(wide, path));
+        std::vector<int> narrow(wide.begin(), wide.end());
+        assert(sdsl::store_to_file(narrow, path));
+    }
+}
+
 void test_meta_legacy() {
     std::cout << "Test 6: legacy .meta (four integers) loads as format 1, SDSL v2... ";
     auto dir = save_small_index("biofmi_test_meta_legacy");
     auto lines = read_lines(dir / "index.meta");
     lines.resize(4);
     write_lines(dir / "index.meta", lines);
+    downgrade_arrays(dir);
 
     if (biofmi::BioFMI::sdsl_flavour() == "v2") {
         // Exactly what a binary from before the field wrote: it must load.
@@ -197,6 +213,31 @@ void test_meta_legacy() {
         expect_load_throws(dir, {"SDSL v2", "predates", biofmi::BioFMI::sdsl_flavour()});
     }
 
+    std::filesystem::remove_all(dir);
+    std::cout << "PASSED\n";
+}
+
+void test_format2_arrays() {
+    std::cout << "Test 6b: a format 2 index (32-bit arrays) loads and answers the same... ";
+    auto dir = save_small_index("biofmi_test_format2");
+    {
+        biofmi::BioFMI current(dir);
+        const auto snap_new = current.get_snapshot();
+
+        auto lines = read_lines(dir / "index.meta");
+        lines[4] = "format 2";
+        write_lines(dir / "index.meta", lines);
+        downgrade_arrays(dir);
+
+        biofmi::BioFMI old(dir);
+        const auto snap_old = old.get_snapshot();
+        assert(snap_old.base_positions == snap_new.base_positions);
+        assert(snap_old.set_sizes == snap_new.set_sizes);
+        assert(snap_old.lengths == snap_new.lengths);
+        for (const char* pat : {"AAAAAGTTTT", "TTTTAGGGG", "GGGGT", "AAAAACTTTTCGGGGA"})
+            assert(old.count(pat) == current.count(pat));
+        assert(old.count("AAAAAGTTTT") == 1);
+    }
     std::filesystem::remove_all(dir);
     std::cout << "PASSED\n";
 }
@@ -236,6 +277,82 @@ void test_meta_mismatch() {
     std::cout << "PASSED\n";
 }
 
+// ---------------------------------------------------------- input validation
+//
+// The l-EDS check lived only in eds-biofmi-build until 2026-11-02, so the
+// library built an index from anything, and answered wrongly on it.
+
+static void expect_build_throws(const std::string& eds_text, biofmi::Length l,
+                                const std::string& needle) {
+    std::stringstream ss(eds_text);
+    edsparser::EDS eds(ss);
+    std::stringstream ss2(eds_text);
+    edsparser::EDS eds2(ss2);
+    bool threw = false;
+    try {
+        biofmi::BioFMI::check_leds(eds, l);
+    } catch (const std::invalid_argument& e) {
+        threw = std::string(e.what()).find(needle) != std::string::npos;
+    }
+    assert(threw && "check_leds() must refuse this input");
+    threw = false;
+    try {
+        biofmi::BioFMI index(std::move(eds2), l);
+        index.build();
+    } catch (const std::runtime_error& e) {
+        threw = std::string(e.what()).find(needle) != std::string::npos;
+    }
+    assert(threw && "build() must refuse this input");
+}
+
+void test_leds_validation() {
+    std::cout << "Test 8: build() refuses input that is not an l-EDS... ";
+
+    expect_build_throws("{ACGT}{A,C}{TG}{G,T}", 4, "symbol 2 has length 2");
+    expect_build_throws("{ACGT}{A,C}{TG}{CA}{G,T}", 5, "symbols 2-3 has length 4");
+    expect_build_throws("{ACGT}{A,C}{G,T}{ACGT}", 3, "symbols 1 and 2 are adjacent");
+    expect_build_throws("{ACGT}{A,C}{TGCA}{G,T}", 0, "at least 1");
+
+    // Short segments at either end are allowed, and so is l = 1.
+    std::stringstream ends("{A}{C,G}{TTT}{A,T}{C}");
+    biofmi::BioFMI::check_leds(edsparser::EDS(ends), 3);
+    std::stringstream ss("{A,C}{T}{G,T}");
+    edsparser::EDS eds(ss);
+    biofmi::BioFMI index(std::move(eds), 1);
+    index.build();
+    assert(index.count("AT") == 1);
+
+    std::cout << "PASSED\n";
+}
+
+void test_save_failure() {
+    std::cout << "Test 9: save() reports a file it could not write... ";
+
+    // A directory where index.ri should go: store_to_file fails. This used to
+    // be ignored, and eds-biofmi-build said "Index successfully built".
+    const std::filesystem::path dir = save_small_index("biofmi_test_save_fail");
+    std::filesystem::remove(dir / "index.ri");
+    std::filesystem::create_directory(dir / "index.ri");
+
+    std::stringstream ss("{AAAAA}{G,C,T}{TTTT}{A,C}{GGGG}{T,G,A}");
+    edsparser::EDS eds(ss);
+    biofmi::BioFMI index(std::move(eds), 4);
+    index.build();
+    bool threw = false;
+    try {
+        index.save(dir);
+    } catch (const std::runtime_error& e) {
+        threw = std::string(e.what()).find("index.ri") != std::string::npos;
+    }
+    assert(threw && "save() must throw when a file cannot be written");
+    // .meta goes first, so what is left is not mistaken for an index.
+    assert(!std::filesystem::exists(dir / "index.meta"));
+    expect_load_throws(dir, {"index.meta"});
+
+    std::filesystem::remove_all(dir);
+    std::cout << "PASSED\n";
+}
+
 int main() {
     std::cout << "=== BioFMI Index Building Tests ===\n\n";
 
@@ -246,7 +363,10 @@ int main() {
         test_complex_eds();
         test_meta_round_trip();
         test_meta_legacy();
+        test_format2_arrays();
         test_meta_mismatch();
+        test_leds_validation();
+        test_save_failure();
 
         std::cout << "\n✓ All tests passed!\n";
         return 0;

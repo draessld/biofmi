@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 
 namespace po = boost::program_options;
 using namespace biofmi;
@@ -31,6 +32,7 @@ int main(int argc, char** argv) {
     try {
         std::filesystem::path input_file;
         std::filesystem::path output_file;
+        long long context_length_arg;
         Length context_length;
         bool dump_readable;
 
@@ -40,7 +42,8 @@ int main(int argc, char** argv) {
             ("version,V", "Print version and build provenance (COMMIT, COMMIT_DATE, DIRTY) and exit")
             ("input,i", po::value<std::filesystem::path>(&input_file)->required(), "Input l-EDS file")
             ("output,o", po::value<std::filesystem::path>(&output_file), "Output index directory")
-            ("context-length,l", po::value<Length>(&context_length)->required(), "Context length")
+            ("context-length,l", po::value<long long>(&context_length_arg)->required(),
+             "Context length l >= 1")
             ("dump", po::bool_switch(&dump_readable)->default_value(false),
              "Write human-readable dump of index internals to <output>/index.dump.txt");
 
@@ -59,6 +62,16 @@ int main(int argc, char** argv) {
 
         po::notify(vm);
 
+        // Parsed signed: boost reads "-1" into an unsigned as 4294967295,
+        // which then failed as bad_alloc on padding contexts that long.
+        if (context_length_arg < 1 || context_length_arg > std::numeric_limits<Length>::max()) {
+            std::cerr << "Error: context length -l must be in 1.."
+                      << std::numeric_limits<Length>::max() << ", got " << context_length_arg << "\n";
+            print_performance();
+            return 1;
+        }
+        context_length = static_cast<Length>(context_length_arg);
+
         // Set output directory (default: input_file.index)
         if (!vm.count("output")) {
             std::string filename = input_file.filename().replace_extension("");
@@ -75,52 +88,19 @@ int main(int argc, char** argv) {
         EDS eds = EDS::load(input_file);
         std::cout << " done\n";
 
-        // Validate l-EDS property: every INTERNAL context segment (one with a
-        // degenerate symbol on both its left and right sides) must have length
-        // >= l. Boundary segments at the very start or end of the EDS may be
-        // shorter and are handled correctly by the index builder.
-        //
-        // A segment is a maximal run of regular symbols, not one symbol:
-        // {CGCG}{A}{TGCC} is one context of 9 (EDS::Metadata, edsparser). Two
-        // degenerate symbols with nothing between them are an internal
-        // segment of length 0, which no l satisfies.
+        // Validate the l-EDS property (BioFMI::check_leds): every internal
+        // segment — a maximal run of regular symbols with a degenerate symbol
+        // on both sides — at least l long, no two degenerate symbols adjacent.
+        // build() checks it again; asking first is only for the hint below.
         std::cout << "Validating l-EDS property..." << std::flush;
-        const auto& metadata = eds.get_metadata();
-        const size_t n_sym = metadata.is_degenerate.size();
-        bool seen_degenerate = false;
-        for (size_t i = 0; i < n_sym; ) {
-            if (metadata.is_degenerate[i]) {
-                if (i > 0 && metadata.is_degenerate[i - 1]) {
-                    std::cerr << "\nError: Input EDS does not satisfy l-EDS property\n";
-                    std::cerr << "  Degenerate symbols " << i - 1 << " and " << i
-                              << " are adjacent: an internal context of length 0"
-                              << " (< required " << context_length << ")\n";
-                    std::cerr << "  Please transform the EDS first using 'eds2leds -l "
-                              << context_length << "'\n";
-                    print_performance();
-                    return 1;
-                }
-                seen_degenerate = true;
-                ++i;
-                continue;
-            }
-            size_t j = i, len = 0;
-            while (j < n_sym && !metadata.is_degenerate[j]) {
-                len += metadata.string_lengths[metadata.cum_set_sizes[j]];
-                ++j;
-            }
-            if (seen_degenerate && j < n_sym && len < (size_t)context_length) {
-                std::cerr << "\nError: Input EDS does not satisfy l-EDS property\n";
-                std::cerr << "  Internal context at symbol" << (j - i > 1 ? "s " : " ") << i;
-                if (j - i > 1) std::cerr << "-" << j - 1;
-                std::cerr << " has length " << len
-                          << " (< required " << context_length << ")\n";
-                std::cerr << "  Please transform the EDS first using 'eds2leds -l "
-                          << context_length << "'\n";
-                print_performance();
-                return 1;
-            }
-            i = j;
+        try {
+            BioFMI::check_leds(eds, context_length);
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "\nError: " << e.what() << "\n";
+            std::cerr << "  Please transform the EDS first using 'eds2leds -l "
+                      << context_length << "'\n";
+            print_performance();
+            return 1;
         }
         std::cout << " done\n\n";
 

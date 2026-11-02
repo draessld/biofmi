@@ -598,6 +598,37 @@ void test_boundary_last_symbol_degenerate() {
 }
 
 // ---------------------------------------------------------------------------
+// Test 1c: reserved characters in the pattern are refused
+//
+// CHANGE_SEPARATOR delimits blocks and pads short contexts, so a pattern
+// holding it used to match those: "AAG#" was found at the end of T0, and on an
+// EDS opening with a set "##AG" at position 2^64 - 2 (a negative offset
+// wrapped into Position). Whitespace (a CRLF pattern file's '\r') and NUL
+// matched nothing and said so, which is as wrong. All are errors now.
+// ---------------------------------------------------------------------------
+void test_error_reserved_characters() {
+    std::cout << "Test 1c: reserved characters in the pattern are refused... ";
+
+    BioFMI idx = build_index("{A,C}GGGTTT{T,G}CCCA", 3);
+    for (const std::string& pat : {std::string("##AG"), std::string("TTT#"),
+                                  std::string("GG#T"), std::string("GGGT\r"),
+                                  std::string("GG T"), std::string("GGG\tT"),
+                                  std::string("GG\0T", 4)}) {
+        bool threw = false;
+        try { idx.locate(pat); } catch (const std::runtime_error&) { threw = true; }
+        assert(threw && "locate() must refuse a reserved character");
+        threw = false;
+        try { idx.count(pat); } catch (const std::runtime_error&) { threw = true; }
+        assert(threw && "count() must refuse a reserved character");
+    }
+    // The same patterns without the reserved character are ordinary queries.
+    assert(idx.count("GGGT") == 1);
+    assert(idx.count("AGGG") == 1);
+
+    std::cout << "PASSED\n";
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 int main() {
@@ -608,6 +639,7 @@ int main() {
     try {
         test_error_pattern_too_short();
         test_error_pattern_not_multiple_of_l();
+        test_error_reserved_characters();
         test_no_match();
         test_reference_only_matches();
         test_reference_change_boundary();

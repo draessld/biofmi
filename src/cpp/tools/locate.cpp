@@ -120,6 +120,15 @@ int main(int argc, char** argv) {
         // Load index
         std::cerr << "Loading index from " << index_file << "...\n";
         BioFMI index(index_file);
+        // -l is required, and the index records the l it was built with. A
+        // mismatch used to run silently on the index's l (the search reads
+        // only that), with --chunk-stats planning chunks of the wrong size.
+        if (index.get_statistics().context_length != context_length) {
+            std::cerr << "Error: -l " << context_length << " but the index was built with l="
+                      << index.get_statistics().context_length << "\n";
+            print_performance();
+            return 1;
+        }
         if (vm.count("tail-threshold")) index.set_tail_threshold(tail_threshold);
 
         // Attach sources, if given, for LINEAR (source-aware) search.
@@ -168,6 +177,10 @@ int main(int argc, char** argv) {
             }
             std::string line;
             while (std::getline(pfile, line)) {
+                // A CRLF file leaves '\r' on every line; it ends the line, it is
+                // not part of the pattern. Other whitespace is refused by the
+                // search (BioFMI::check_pattern).
+                if (!line.empty() && line.back() == '\r') line.pop_back();
                 if (!line.empty()) {
                     patterns.push_back(line);
                 }
@@ -219,6 +232,7 @@ int main(int argc, char** argv) {
         size_t total_occurrences = 0;
         size_t patterns_matched = 0;
         size_t pattern_id = 0;
+        size_t failed = 0;
         for (const auto& p : patterns) {
             try {
                 // Nothing here holds the answer. Benchmark mode wants only the
@@ -282,12 +296,13 @@ int main(int argc, char** argv) {
                 if (!benchmark) {
                     // "Pattern:" is already written: it precedes the stream.
                     // Every error locate() raises on its own input (an empty
-                    // pattern) is thrown before the first entry, so the output
-                    // is what it always was; one raised mid-stream follows the
-                    // entries already printed.
+                    // pattern, a reserved character) is thrown before the
+                    // first entry, so the output is what it always was; one
+                    // raised mid-stream follows the entries already printed.
                     *out << "Error: " << e.what() << "\n\n";
                 }
                 std::cerr << "Error searching pattern '" << p << "': " << e.what() << "\n";
+                failed++;
             }
             pattern_id++;
         }
@@ -336,7 +351,9 @@ int main(int argc, char** argv) {
         }
 
         print_performance();
-        return 0;
+        // The other patterns were still searched; the exit status says that
+        // not all of them were.
+        return failed ? 1 : 0;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";

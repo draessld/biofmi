@@ -76,8 +76,8 @@ void test_offset_arithmetic() {
 
     // Verify the byte layout assumed in the worked example above.
     assert(snap.changes_text == "#TTTGAAA#TTTCAAA#");
-    assert((snap.base_positions == std::vector<int>{6, 12}));
-    assert((snap.lengths == std::vector<int>{1, 1}));
+    assert((snap.base_positions == std::vector<int64_t>{6, 12}));
+    assert((snap.lengths == std::vector<int64_t>{1, 1}));
     assert((snap.loc_ones == std::vector<size_t>{0, 8, 16}));
 
     // Pure-reference: "AAAT" appears at T0[0] and T0[6].

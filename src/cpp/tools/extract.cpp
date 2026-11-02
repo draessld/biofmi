@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <string>
@@ -27,17 +28,47 @@ namespace {
 
 struct Region { int genome; size_t begin, end; };
 
-// "g:i-j" (0-based, half-open) or "g i j"; the whole genome when only "g" is given.
+// A decimal number and nothing else: no sign, no space, no trailing text.
+bool parse_number(const std::string& s, size_t& v) {
+    if (s.empty() || s.size() > 18) return false;
+    v = 0;
+    for (char c : s) {
+        if (c < '0' || c > '9') return false;
+        v = v * 10 + (size_t)(c - '0');
+    }
+    return true;
+}
+
+// "g:i-j" (0-based, half-open) or "g i j"; the whole genome when only "g" is
+// given. Strict: this used to turn every ':' and '-' into a space and read
+// what it could, so "-2" was genome 2 and "2:abc" all of genome 2.
 bool parse_region(const std::string& text, Region& r, bool& whole) {
-    std::string t = text;
-    for (char& c : t) if (c == ':' || c == '-' || c == '\t') c = ' ';
-    std::istringstream is(t);
-    whole = false;
-    if (!(is >> r.genome)) return false;
-    if (!(is >> r.begin)) { whole = true; return true; }
-    if (!(is >> r.end)) return false;
-    std::string rest;
-    return !(is >> rest);
+    std::vector<std::string> tok;
+    const size_t colon = text.find(':');
+    if (colon != std::string::npos) {
+        const std::string range = text.substr(colon + 1);
+        const size_t dash = range.find('-');
+        if (dash == std::string::npos) return false;
+        tok = {text.substr(0, colon), range.substr(0, dash), range.substr(dash + 1)};
+        // Surrounding blanks only (a region file's line may carry them).
+        auto trim = [](std::string& s) {
+            const char* ws = " \t\r";
+            s.erase(0, s.find_first_not_of(ws));
+            s.erase(s.find_last_not_of(ws) + 1);
+        };
+        trim(tok.front());
+        trim(tok.back());
+    } else {
+        std::istringstream is(text);
+        for (std::string t; is >> t;) tok.push_back(t);
+        if (tok.size() != 1 && tok.size() != 3) return false;
+    }
+    size_t g = 0;
+    if (!parse_number(tok[0], g) || g > (size_t)std::numeric_limits<int>::max()) return false;
+    r.genome = (int)g;
+    whole = tok.size() == 1;
+    if (whole) return true;
+    return parse_number(tok[1], r.begin) && parse_number(tok[2], r.end);
 }
 
 }  // namespace

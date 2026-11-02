@@ -124,7 +124,7 @@ simongog `c32874c` on 2026-09-12 (`docs/installation.md` §4, CI). What is left 
 follow SDSL to `xxsds/sdsl-lite` v3, the only maintained line — simongog's is archived.
 
 **The prerequisite is done (2026-10-01): `.meta` carries a format version and the SDSL
-line.** After the four counts it now reads `format 2` and `sdsl v2|v3`; `load()` checks
+line.** After the four counts it now reads `format 2` (3 since 2026-11-02, the bit-compressed arrays) and `sdsl v2|v3`; `load()` checks
 both before touching any SDSL file and refuses a newer format or the other line by name
 (`Index at … was written by an SDSL v2 build (index.meta says sdsl v2); this binary is
 built against SDSL v3 …`) instead of `Width of int_vector<1> was specified as 0`. A

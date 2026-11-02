@@ -55,6 +55,8 @@ All index files are written to a directory (default: `<input>.index/`). The base
 
 The SDSL binary files are produced and consumed by `sdsl::store_to_file` / `sdsl::load_from_file`, except `.d2g`, which carries the magic header above. The `.meta` file is plain text and human-readable.
 
+`.abp`, `.ss` and `.aof` are `sdsl::int_vector<>`s bit-compressed to the widest value each holds (format 3, 2026-11-02), so their width follows the panel: 23 bits a T₀ coordinate for an 8 Mbp reference, 32 for a human genome. Formats 1–2 stored them as `std::vector<int>`, which silently overflowed once T₀ or the changes text passed 2³¹; `load()` still reads those, choosing the layout by the format version, and compresses them in memory. Coordinates are 64-bit throughout the search. Alternatives and sets are still counted in `int` (change numbers, `Occurrence::changes`), and the build refuses a panel with more than 2³¹ − 1 degenerate strings. On an 8 Mbp `genrandomeds` panel at `l=9` the three files went from 9.6 MB to 3.7 MB; every other file is byte-identical.
+
 ### Why `.d2g` exists
 
 `locate()` works in `change_number`, a 1-based rank over **degenerate strings only** — the index `lengths[change_number - 1]` is keyed by. A `Sources` file is indexed by a **global string id** over *all* strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.
@@ -94,7 +96,7 @@ There is one entry per string in EDS order, so cardinality must equal the l-EDS'
 7        ← n  (number of EDS symbols)
 12       ← m  (total number of strings across all symbols)
 64       ← N  (total character count across all strings)
-format 2 ← index format version
+format 3 ← index format version
 sdsl v2  ← SDSL line the index was written by: v2 = simongog, v3 = xxsds
 ```
 
@@ -112,6 +114,9 @@ binary refuses it naming SDSL v2 — the same both-layouts reading `.d2g` gets. 
 fields follow the counts rather than precede them so that a binary from before
 them, which reads four integers and stops, still loads a format-2 v2 index.
 
+Format 3 (2026-11-02) changed the layout of `.abp`, `.ss` and `.aof` (above). A
+format-2 binary refuses a format-3 index by name; this one reads all three.
+
 ---
 
 ## 4. Reference string layout
@@ -122,7 +127,7 @@ them, which reads four integers and stops, still loads a format-2 v2 index.
 #seg0#seg1#seg2#...#segK#
 ```
 
-- `#` is `CHANGE_SEPARATOR` (ASCII 1, not in any valid sequence).
+- `#` is `CHANGE_SEPARATOR` (`'#'`, `common.hpp`). No indexed string and no pattern may contain it (`check_pattern()`, `parse_eds()`).
 - Every non-degenerate symbol is written as a single segment.
 - `tloc[i] = 1` at every position `i` that holds a `#`.
 

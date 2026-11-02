@@ -115,6 +115,29 @@ public:
      */
     static std::string sdsl_flavour();
 
+    /**
+     * Characters neither an indexed string nor a pattern may contain:
+     * CHANGE_SEPARATOR, which delimits the blocks of both texts and pads short
+     * contexts (a pattern holding it matched those and reported positions no
+     * genome has, past the end of T0 or before its start); NUL, which SDSL
+     * reserves as the text terminator; and whitespace.
+     */
+    static bool is_reserved_char(char c);
+
+    // Throws std::runtime_error (as the empty pattern always has) when
+    // `pattern` is empty or holds a reserved character, naming the first one
+    // and its offset. Every search calls it.
+    static void check_pattern(const String& pattern);
+
+    /**
+     * Throws std::invalid_argument unless `eds` is an l-EDS for `l`: l >= 1,
+     * no two degenerate symbols adjacent, and every internal segment — a
+     * maximal run of regular symbols with a degenerate symbol on both sides —
+     * at least l long. Segments at either end may be shorter. build() calls
+     * it, so no index is built from input it would answer wrongly on.
+     */
+    static void check_leds(const EDS& eds, Length l);
+
     // Dump internal structures in human-readable text form (for inspection/testing)
     void dump_readable(const std::filesystem::path& dump_path) const;
 
@@ -273,10 +296,10 @@ public:
      *
      * The Occurrence passed is only valid during the call; copy it to keep it.
      * The callback must not search this index (the candidate maps are in use).
-     * The const genome-coordinate calls
-     * (genome_positions(), genome_position(), extract()) read neither, and are
-     * safe from it — eds-biofmi-locate --genome-coords prints through them there. An exception thrown by the callback
-     * propagates and abandons the search.
+     * The const genome-coordinate calls (genome_positions(), genome_position(),
+     * extract()) read neither, and are safe from it — eds-biofmi-locate
+     * --genome-coords prints through them there. An exception thrown by the
+     * callback propagates and abandons the search.
      */
     using OccurrenceCallback = std::function<void(const Occurrence&)>;
     size_t locate(const String& pattern, const OccurrenceCallback& on_occurrence);
@@ -308,9 +331,9 @@ public:
     struct IndexSnapshot {
         std::string ref_text;            // full reference file content (with '#' separators)
         std::string changes_text;        // full changes file content (with '#' separators)
-        std::vector<int> base_positions; // cumulative T0 length before each degenerate set
-        std::vector<int> set_sizes;      // cumulative string count through each degenerate set
-        std::vector<int> lengths;        // length of each individual degenerate string (.aof)
+        std::vector<int64_t> base_positions; // cumulative T0 length before each degenerate set
+        std::vector<int64_t> set_sizes;      // cumulative string count through each degenerate set
+        std::vector<int64_t> lengths;        // length of each individual degenerate string (.aof)
         std::vector<size_t> tloc_ones;   // positions i where tloc[i] == 1
         std::vector<size_t> loc_ones;    // positions i where loc[i] == 1
         std::vector<size_t> iloc_ones;   // positions i where iloc[i] == 1
@@ -545,8 +568,8 @@ private:
         bool   verify;  // extend candidates rather than search (Threshold mode)
     };
 
-    // Split a pattern into chunks according to the active tail mode. Throws if
-    // the pattern is too short to yield a single full chunk.
+    // Split a pattern into chunks according to the active tail mode. Throws
+    // only for the empty pattern; one shorter than l+1 is a single short chunk.
     std::vector<ChunkPlan> plan_chunks(size_t pattern_len) const;
 
     /**
@@ -566,10 +589,10 @@ private:
 
     // Where a candidate's next character lies, during extend_candidates().
     struct TailCursor {
-        int in_change;  // 1-based alternative being spelled, 0 in the reference
-        int alt_off;    // offset of the next character within that alternative
-        int t0;         // T0 of the next reference character (in_change == 0)
-        int next_set;   // 0-based first degenerate set not yet passed
+        int     in_change;  // 1-based alternative being spelled, 0 in the reference
+        int64_t alt_off;    // offset of the next character within that alternative
+        int64_t t0;         // T0 of the next reference character (in_change == 0)
+        int     next_set;   // 0-based first degenerate set not yet passed
     };
 
     // Spell tail[done..] forward from `at` for candidates all standing there,
@@ -581,14 +604,14 @@ private:
     // T0 coordinate -> position in the reference index text, or -1 past the
     // end of T0. Inverse of the `t0 = ref_pos - rtloc(ref_pos)` mapping
     // process_reference_matches() uses. O(log segments).
-    int t0_to_ref_pos(int t0) const;
+    int64_t t0_to_ref_pos(int64_t t0) const;
 
     // Locate helper methods
     // Both return the raw sdsl::locate() hit count for the chunk, so a trace
     // can separate what the index returned from what survived the stitch.
     size_t process_reference_matches(const String& chunk, size_t chunk_idx, int step);
     size_t process_changes_matches(const String& chunk, size_t chunk_idx, int step);
-    void validate_change_continuity(int loc, int alt_len, int change_number,
+    void validate_change_continuity(int64_t loc, int64_t alt_len, int change_number,
                                     int set_idx, bool starts_inside,
                                     bool ends_inside, int step);
 
@@ -598,7 +621,15 @@ private:
     PathSet source_of_change(int change_number) const;
 
     // Content length of a degenerate alternative, by 1-based change_number.
-    int change_length_of(int change_number) const;
+    int64_t change_length_of(int change_number) const;
+
+    // T0 coordinate of degenerate set `s` (0-based), and the 1-based change
+    // numbers of its first and last alternative. The arrays behind them are
+    // bit-compressed and unsigned; these read them as the signed quantities
+    // the search does arithmetic in.
+    int64_t base_position(int s) const;
+    int first_change_of(int s) const;
+    int last_change_of(int s) const;
 
     // True when the EDS opens with a degenerate symbol, which shifts the
     // correspondence between a reference block and the sets around it by one.
@@ -636,7 +667,7 @@ private:
      *
      * `out` is left untouched when no way through survives.
      */
-    void bridge_empty_sets(const OccurrenceInfo& occ, int target, int t0,
+    void bridge_empty_sets(const OccurrenceInfo& occ, int target, int64_t t0,
                            std::vector<OccurrenceInfo>& out) const;
 
     // Shared tail of the two attach_sources() overloads.

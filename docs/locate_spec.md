@@ -203,6 +203,7 @@ streaming overload.
 | `|P| >= l+1` and `|P| % (l+1) != 0` | Valid — the `r`-character tail is verified against the surviving candidates, at about the cost of an exact multiple (above) |
 | `0 < |P| < l+1` | Valid — the whole pattern is one short chunk; correct at every length, but the answer and the time to produce it grow by `|alphabet|` per character removed (memory does not, through `count()` or the streaming `locate()`) |
 | Characters not in the index alphabet | No match — an empty result, not an error |
+| `#` (`CHANGE_SEPARATOR`), NUL or whitespace anywhere in `P` | **Error** — throws `std::runtime_error` naming the character and its offset (`BioFMI::check_pattern()`, 2026-11-02). `#` delimits and pads both texts, so it used to match there and report positions no genome has; whitespace matched nothing and said so. `eds-biofmi-locate` strips a trailing `\r` from each line of a pattern file and exits 1 if any pattern was refused |
 
 The valid alphabet is not hardcoded — it is whatever was indexed from the input EDS. The chunk size `l+1` is the fundamental unit: every (l+1)-char chunk covers exactly `l` chars of reference context plus 1 char of content (or pure reference), guaranteeing that a chunk query can straddle any reference–alternative boundary in a valid l-EDS.
 
