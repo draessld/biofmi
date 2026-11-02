@@ -218,9 +218,9 @@ def plot_build_size_sweep(df: pd.DataFrame, out_dir: Path) -> bool:
     p95_mem = sub["memory_p95_mb"].tolist() if "memory_p95_mb" in sub.columns else None
 
     _plot_line_with_band(ax_rt,  x, y_rt,  sd_rt,  color=COLORS["build"],
-                         label="biofmi-build", p95=p95_rt)
+                         label="eds-biofmi-build", p95=p95_rt)
     _plot_line_with_band(ax_mem, x, y_mem, sd_mem, color=COLORS["build"],
-                         label="biofmi-build", p95=p95_mem)
+                         label="eds-biofmi-build", p95=p95_mem)
 
     ax_rt.set_xlabel("Input l-EDS size (MB)")
     ax_rt.set_ylabel("Runtime (s)  [median ± stddev, P95 dotted]")
@@ -234,7 +234,7 @@ def plot_build_size_sweep(df: pd.DataFrame, out_dir: Path) -> bool:
 
     _add_throughput_annotation(ax_rt, sub)
 
-    fig.suptitle("biofmi-build: runtime & memory vs input size  (context l=5)",
+    fig.suptitle("eds-biofmi-build: runtime & memory vs input size  (context l=5)",
                  fontsize=11, y=1.02)
     _add_machine_footnote(fig)
     fig.tight_layout()
@@ -295,7 +295,7 @@ def plot_build_context_sweep(df: pd.DataFrame, out_dir: Path) -> bool:
     ax_mem.set_title("Build memory vs context length")
 
     input_mb = sub["input_size_mb"].mean()
-    fig.suptitle(f"biofmi-build: runtime & memory vs context length  (input ≈{input_mb:.0f} MB)",
+    fig.suptitle(f"eds-biofmi-build: runtime & memory vs context length  (input ≈{input_mb:.0f} MB)",
                  fontsize=11, y=1.02)
     _add_machine_footnote(fig)
     fig.tight_layout()
@@ -377,7 +377,7 @@ def plot_locate_pattern_length(df: pd.DataFrame, out_dir: Path) -> bool:
 
     input_mb = sub["input_size_mb"].mean()
     fig.suptitle(
-        f"biofmi-locate: search time vs pattern length  (index ≈{input_mb:.0f} MB, l=5)",
+        f"eds-biofmi-locate: search time vs pattern length  (index ≈{input_mb:.0f} MB, l=5)",
         fontsize=11, y=1.02,
     )
     _add_machine_footnote(fig)
@@ -409,9 +409,9 @@ def plot_locate_dataset_size(df: pd.DataFrame, out_dir: Path) -> bool:
     fig, (ax_tpp, ax_mem) = plt.subplots(1, 2, figsize=(10, 4))
 
     _plot_line_with_band(ax_tpp, x, tpp_med, tpp_std, color=COLORS["locate"],
-                         label="biofmi-locate")
+                         label="eds-biofmi-locate")
     _plot_line_with_band(ax_mem, x, mem_med, mem_std, color=COLORS["locate"],
-                         label="biofmi-locate")
+                         label="eds-biofmi-locate")
 
     ax_tpp.set_xlabel("Index dataset size (MB)")
     ax_tpp.set_ylabel("Time per pattern (ms)  [median ± stddev]")
@@ -425,7 +425,7 @@ def plot_locate_dataset_size(df: pd.DataFrame, out_dir: Path) -> bool:
 
     pat_len = int(sub["pattern_length"].iloc[0]) if "pattern_length" in sub.columns else "?"
     fig.suptitle(
-        f"biofmi-locate: performance vs dataset size  (pattern length={pat_len} bp, l=5)",
+        f"eds-biofmi-locate: performance vs dataset size  (pattern length={pat_len} bp, l=5)",
         fontsize=11, y=1.02,
     )
     _add_machine_footnote(fig)
@@ -497,8 +497,8 @@ def plot_summary(df: pd.DataFrame, out_dir: Path) -> bool:
     ax_mem.invert_yaxis()
 
     legend_items = [
-        mpatches.Patch(color=COLORS["build"],  label="build phase (biofmi-build)"),
-        mpatches.Patch(color=COLORS["locate"], label="locate phase (biofmi-locate)"),
+        mpatches.Patch(color=COLORS["build"],  label="build phase (eds-biofmi-build)"),
+        mpatches.Patch(color=COLORS["locate"], label="locate phase (eds-biofmi-locate)"),
     ]
     fig.legend(handles=legend_items, loc="lower center", ncol=2,
                fontsize=9, bbox_to_anchor=(0.5, -0.05))

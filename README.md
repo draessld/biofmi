@@ -1,9 +1,16 @@
-# BIO-FMI
+# EDS-BIO-FMI
 
 **FM-index for Elastic-Degenerate Strings (EDS)**
 
+EDS-BIO-FMI extends BIO-FMI (Procházka & Holub, 2014) from a reference and its
+variants to elastic-degenerate strings. The tools are `eds-biofmi-build`,
+`eds-biofmi-locate` and `eds-biofmi-extract`; their names before 2026-11-02,
+`biofmi-*`, are kept as symlinks. The repository, library and C++ namespace are
+still called `biofmi`. Each tool reports what it was built from with
+`--version` (`COMMIT`, `COMMIT_DATE`, `DIRTY`).
+
 A research implementation of a dual FM-index that efficiently searches
-pangenomic data encoded as Elastic-Degenerate Strings. BIO-FMI indexes
+pangenomic data encoded as Elastic-Degenerate Strings. EDS-BIO-FMI indexes
 both the common (reference) sequence and all variable regions, supporting
 exact pattern matching across any combination of genomic paths.
 
@@ -16,7 +23,7 @@ either a single string (non-degenerate) or a set of alternative strings
 (degenerate, representing a variant site). A match to a pattern can span
 reference segments, single variants, or both.
 
-BIO-FMI builds two SDSL FM-indexes:
+EDS-BIO-FMI builds two SDSL FM-indexes:
 - **Reference index** — over the non-degenerate backbone T₀
 - **Changes index** — over variable regions, each stored with `l`-length
   flanking context
@@ -34,8 +41,8 @@ biofmi/
 ├── src/cpp/
 │   ├── lib/index/          # BioFMI class — build, save/load, locate, count
 │   └── tools/
-│       ├── build.cpp       # biofmi-build  — index construction
-│       └── locate.cpp      # biofmi-locate — pattern search
+│       ├── build.cpp       # eds-biofmi-build  — index construction
+│       └── locate.cpp      # eds-biofmi-locate — pattern search
 ├── external/edsparser/     # Git submodule — EDS parsing & data preparation
 │   └── src/cpp/tools/
 │       ├── eds2leds        # EDS → l-EDS transformation
@@ -95,19 +102,19 @@ eds2leds -i data.eds -l 5 -o data.l5.leds
 
 # ── 2. Build index ────────────────────────────────────────────────────────
 
-biofmi-build -i data.l5.leds -l 5 -o data.l5.index
+eds-biofmi-build -i data.l5.leds -l 5 -o data.l5.index
 
 # ── 3. Search ─────────────────────────────────────────────────────────────
 
 # Single pattern
-biofmi-locate -i data.l5.index -l 5 -p "ACGTACGTAC"
+eds-biofmi-locate -i data.l5.index -l 5 -p "ACGTACGTAC"
 
 # Pattern file
 edsparser-genpatterns -i data.l5.leds -n 200 -l 10 -o patterns.txt
-biofmi-locate -i data.l5.index -l 5 -P patterns.txt
+eds-biofmi-locate -i data.l5.index -l 5 -P patterns.txt
 
 # Benchmark mode (counts only, no per-hit output)
-biofmi-locate --benchmark -i data.l5.index -l 5 -P patterns.txt
+eds-biofmi-locate --benchmark -i data.l5.index -l 5 -P patterns.txt
 ```
 
 **Real genomic data:**
@@ -124,12 +131,12 @@ vcf2eds -i variants.vcf -r reference.fa -l 5
 
 ## Tools
 
-### `biofmi-build`
+### `eds-biofmi-build`
 
-Build a BIO-FMI index from an l-EDS file.
+Build an EDS-BIO-FMI index from an l-EDS file.
 
 ```
-biofmi-build -i <file.leds> -l <context_length> [-o <output_dir>] [--dump]
+eds-biofmi-build -i <file.leds> -l <context_length> [-o <output_dir>] [--dump]
 ```
 
 - Validates the l-EDS property (all internal contexts ≥ l) before building
@@ -137,12 +144,12 @@ biofmi-build -i <file.leds> -l <context_length> [-o <output_dir>] [--dump]
   `.tloc`, `.abp`, `.ss`, `.aof`, `.meta`
 - `--dump` writes a human-readable text dump of all internal structures
 
-### `biofmi-locate`
+### `eds-biofmi-locate`
 
 Search patterns in a built index.
 
 ```
-biofmi-locate -i <index_dir> -l <context_length> (-p PATTERN | -P FILE)
+eds-biofmi-locate -i <index_dir> -l <context_length> (-p PATTERN | -P FILE)
               [-o output] [--benchmark]
 ```
 
@@ -268,7 +275,7 @@ The index requires that every **internal** non-degenerate segment (between
 two variant sites) has length ≥ l. Boundary segments at the very start or
 end of the EDS may be shorter.
 
-`biofmi-build` validates this at load time and rejects non-compliant inputs
+`eds-biofmi-build` validates this at load time and rejects non-compliant inputs
 with a helpful error message including the suggested `eds2leds` command.
 
 ---

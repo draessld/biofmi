@@ -26,13 +26,13 @@ Characters used internally by the parser (`{`, `}`, `,`) must not appear in sequ
 
 ## 2. l-EDS constraint
 
-A valid input to `biofmi-build` must satisfy the **l-EDS property**: every *internal* non-degenerate segment (one that has a degenerate symbol on both its left and right sides) must have length ≥ `l`.
+A valid input to `eds-biofmi-build` must satisfy the **l-EDS property**: every *internal* non-degenerate segment (one that has a degenerate symbol on both its left and right sides) must have length ≥ `l`.
 
 **Boundary segments** at the very start or end of the EDS may be shorter (or absent entirely).
 
 This constraint guarantees that each degenerate alternative can be stored with exactly `l` characters of context on each side drawn purely from the adjacent non-degenerate segments — which is what the changes-string layout depends on.
 
-**Validation**: `biofmi-build` checks the l-EDS property at startup. If a segment is too short it prints the offending symbol index and exits with an error. Use `eds2leds -l <l>` from EDSParser to produce a conforming l-EDS from any EDS.
+**Validation**: `eds-biofmi-build` checks the l-EDS property at startup. If a segment is too short it prints the offending symbol index and exits with an error. Use `eds2leds -l <l>` from EDSParser to produce a conforming l-EDS from any EDS.
 
 ---
 
@@ -49,7 +49,7 @@ All index files are written to a directory (default: `<input>.index/`). The base
 | `.tloc` | SDSL | Bit vector: `1` at every `#` in the reference string (reference block boundaries) |
 | `.abp` | SDSL | `base_positions[]` — cumulative T₀ length before each EDS symbol |
 | `.ss` | SDSL | `set_sizes[]` — cumulative alternative count through each degenerate set |
-| `.aof` | SDSL | `offsets[]` — content length of each individual alternative (excluding context) |
+| `.aof` | SDSL | `lengths[]` — content length of each individual alternative (excluding context); the file keeps its old name, from when the array was called `offsets` |
 | `.d2g` | magic + SDSL | Degenerate-string number → global string id, for source-aware search: the 8 bytes `BFMID2G1`, then an `sdsl::sd_vector<>` (Elias-Fano) with bit `g` set iff global string `g` is a degenerate alternative, so `change_number` maps to `select_1(change_number)` |
 | `.meta` | plain text | Four integers: `context_length`, `n`, `m`, `N` (one per line), then `format <n>` and `sdsl <flavour>` |
 
@@ -57,7 +57,7 @@ The SDSL binary files are produced and consumed by `sdsl::store_to_file` / `sdsl
 
 ### Why `.d2g` exists
 
-`locate()` works in `change_number`, a 1-based rank over **degenerate strings only** — the index `offsets[change_number - 1]` is keyed by. A `Sources` file is indexed by a **global string id** over *all* strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.
+`locate()` works in `change_number`, a 1-based rank over **degenerate strings only** — the index `lengths[change_number - 1]` is keyed by. A `Sources` file is indexed by a **global string id** over *all* strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.
 
 That count is not recoverable from the other index artifacts, and a loaded index has no EDS to ask, because `load()` never populates `eds_`. So the mapping is built during `parse_eds()` — where the walk is left-to-right and the counter is free — and persisted.
 
@@ -175,7 +175,7 @@ The `sloc(k)` select operation returns the file byte offset of the preceding `#`
 
 ## 6. Human-readable dump
 
-`biofmi-build --dump` (or `BioFMI::dump_readable()`) writes a text file `index.dump.txt` inside the index directory. It shows:
+`eds-biofmi-build --dump` (or `BioFMI::dump_readable()`) writes a text file `index.dump.txt` inside the index directory. It shows:
 
 ```
 === BioFMI Index Dump ===
@@ -206,7 +206,7 @@ base_positions (abp) — cumulative reference length before each symbol:
 set_sizes (ss) — cumulative string count through each degenerate set:
   [2]
 
-offsets (aof) — length of each change string (excluding context):
+lengths (aof) — length of each change string (excluding context):
   [1, 1]
 ```
 

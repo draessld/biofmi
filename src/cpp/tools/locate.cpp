@@ -1,4 +1,5 @@
 #include "index/index.hpp"
+#include "version.hpp"
 #include <edsparser/common.hpp>
 #include <boost/program_options.hpp>
 #include <iostream>
@@ -46,9 +47,10 @@ int main(int argc, char** argv) {
         size_t tail_threshold = 0;
         std::filesystem::path chunk_stats_file;
 
-        po::options_description desc("Locate patterns in BIO-FMI index");
+        po::options_description desc("Locate patterns in EDS-BIO-FMI index");
         desc.add_options()
             ("help,h", "Show help message")
+            ("version,V", "Print version and build provenance (COMMIT, COMMIT_DATE, DIRTY) and exit")
             ("index,i", po::value<std::filesystem::path>(&index_file)->required(), "Index file or directory")
             ("context-length,l", po::value<Length>(&context_length)->required(), "Context length")
             ("pattern,p", po::value<std::string>(&pattern), "Single pattern to search")
@@ -93,6 +95,10 @@ int main(int argc, char** argv) {
         if (vm.count("help")) {
             std::cout << desc << "\n";
             print_performance();
+            return 0;
+        }
+        if (vm.count("version")) {
+            biofmi::print_version("eds-biofmi-locate");
             return 0;
         }
 

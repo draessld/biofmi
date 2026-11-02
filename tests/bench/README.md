@@ -89,7 +89,7 @@ portability when comparing plots generated on different machines.
 ## Tool discovery
 
 **The build tree wins, always.**
-- `biofmi-build`, `biofmi-locate` — `$BIOFMI_ROOT/build/tools/`, then PATH
+- `eds-biofmi-build`, `eds-biofmi-locate` — `$BIOFMI_ROOT/build/tools/`, then PATH
 - `genrandomeds`, `eds2leds`, `edsparser-genpatterns` —
   `$BIOFMI_ROOT/external/edsparser/build/tools/`, then PATH
 

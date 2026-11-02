@@ -55,7 +55,7 @@ A consequence worth stating, because it is easy to assume otherwise: two referen
 
 ## Search modes: what counts as a "valid path"
 
-`locate()` has two modes, selected by whether source (haplotype) sets are attached with `BioFMI::attach_sources()` — `biofmi-locate -s <file>` or `-z <file>`.
+`locate()` has two modes, selected by whether source (haplotype) sets are attached with `BioFMI::attach_sources()` — `eds-biofmi-locate -s <file>` or `-z <file>`.
 
 | mode | condition | a path is valid when |
 |---|---|---|
@@ -175,7 +175,7 @@ materialised before `locate()` returned — the final chunk's candidate map, the
 above needed 9.2 GB, and under the harness's `policy.mem_cap: 8G` that was an OOM looking
 like a tool failure. Now the final chunk's survivors are never stored: `count()` counts
 them, `locate(pattern, callback)` hands each to the caller as it is found, and
-`biofmi-locate` uses those two. What a query holds is the candidate set the *earlier*
+`eds-biofmi-locate` uses those two. What a query holds is the candidate set the *earlier*
 chunks pass on; a pattern of at most `l+1` characters has no earlier chunk and holds
 nothing per occurrence. On a `genrandomeds --ref-size-mb 8 --seed 42` panel at `l=9`
 (peak RSS, `/usr/bin/time -v`; best wall of 2, old and new binaries interleaved):
@@ -274,7 +274,7 @@ Calls `callback(const Occurrence&)` once per entry, as it is found, and returns 
 of entries. The entries are exactly those `locate(pattern)` returns, with the same `paths`;
 none is stored, so memory is bounded by the candidates the earlier chunks carry, not by the
 answer. The `Occurrence` is reused between calls — copy it to keep it. The callback must
-not query the same index, and `get_last_result()` is not updated. An exception from the
+not query the same index. An exception from the
 callback propagates and leaves the index usable.
 
 ---
@@ -352,7 +352,7 @@ EDZ sources measured the same as SEDS. **`b = 32` is the default** — under 3% 
 a coordinate in ~13 µs; full sums are 88% of it even bit-compressed.
 
 Validated against `bcftools consensus` genomes, which share no code with this one: all 100
-genomes extracted whole are byte-identical, and `biofmi-locate --genome-coords` on 200 random
+genomes extracted whole are byte-identical, and `eds-biofmi-locate --genome-coords` on 200 random
 patterns names exactly the 85,307 `(genome, offset)` pairs a scan of the FASTA finds.
 
 ---

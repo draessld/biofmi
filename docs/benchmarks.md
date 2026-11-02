@@ -227,4 +227,4 @@ RAM, OS — so numbers from different machines are not silently compared.
 - [`locate()` specification](locate_spec.md) — what a query returns and what a
   short tail costs
 - [Index internals](index_internals.md) — where build time and index bytes go
-- [CLI reference](cli.md) — `--benchmark` on `biofmi-locate` for per-query timing
+- [CLI reference](cli.md) — `--benchmark` on `eds-biofmi-locate` for per-query timing

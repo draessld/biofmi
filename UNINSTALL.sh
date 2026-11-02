@@ -27,7 +27,7 @@ print_info()   { echo -e "${YELLOW}[i]${NC} $1"; }
 # Confirm
 echo -e "${YELLOW}This will remove:${NC}"
 echo "  - build/ directory and compiled binaries"
-echo "  - biofmi-build and biofmi-locate from ~/.local/bin/"
+echo "  - eds-biofmi-build, -locate, -extract and their old biofmi-* names from ~/.local/bin/"
 echo ""
 read -p "Continue? [y/N] " -n 1 -r
 echo ""
@@ -51,9 +51,10 @@ echo ""
 # Remove installed tools
 echo -e "${BLUE}Removing installed tools...${NC}"
 REMOVED=0
-for tool in biofmi-build biofmi-locate; do
+for tool in eds-biofmi-build eds-biofmi-locate eds-biofmi-extract \
+            biofmi-build biofmi-locate biofmi-extract; do
     for prefix in "$HOME/.local/bin" "$HOME/bin" "/usr/local/bin"; do
-        if [ -f "$prefix/$tool" ]; then
+        if [ -e "$prefix/$tool" ] || [ -L "$prefix/$tool" ]; then
             rm -f "$prefix/$tool"
             print_status "Removed $prefix/$tool"
             REMOVED=$((REMOVED + 1))

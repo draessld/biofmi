@@ -2,8 +2,8 @@
 # BioFMI benchmark suite.
 #
 # Measures time and memory for:
-#   • building the FM-index (biofmi-build) across EDS sizes and context lengths
-#   • locating patterns (biofmi-locate) across pattern lengths and dataset sizes
+#   • building the FM-index (eds-biofmi-build) across EDS sizes and context lengths
+#   • locating patterns (eds-biofmi-locate) across pattern lengths and dataset sizes
 #
 # Usage:
 #   ./bench.sh [--size quick|standard|large]
@@ -38,10 +38,10 @@ Usage: bench.sh [--size PRESET]
   --size large      N=10 reps, sizes 5-50 MB,  context l∈{3,5,10,20}  (~90 min)
 
 Scenarios:
-  build_size_sweep    — biofmi-build time/memory vs EDS size  (l=5 fixed)
-  build_context_sweep — biofmi-build time/memory vs context length l
-  locate_pattern_length — biofmi-locate time/occurrence vs pattern length
-  locate_dataset_size   — biofmi-locate time/pattern vs dataset size
+  build_size_sweep    — eds-biofmi-build time/memory vs EDS size  (l=5 fixed)
+  build_context_sweep — eds-biofmi-build time/memory vs context length l
+  locate_pattern_length — eds-biofmi-locate time/occurrence vs pattern length
+  locate_dataset_size   — eds-biofmi-locate time/pattern vs dataset size
 
 Results → tests/bench/results/YYYY-MM-DD_HH-MM-SS.csv
 Run bench_compare.sh afterwards to detect regressions.

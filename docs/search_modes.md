@@ -44,18 +44,18 @@ wrong is the single most common source of confusion.
 | Half | Set by | Effect |
 |---|---|---|
 | **Which l-EDS was merged** | `eds2leds -s sources.seds` (or not) | A source-aware merge keeps only combinations some genome carries. A source-free merge keeps every combination of adjacent alternatives. |
-| **How the index is searched** | `biofmi-locate -s` / `-z` (or not) | With sources, a running intersection prunes any match no single genome carries. Without, every alternative pairs with every other. |
+| **How the index is searched** | `eds-biofmi-locate -s` / `-z` (or not) | With sources, a running intersection prunes any match no single genome carries. Without, every alternative pairs with every other. |
 
 That gives three meaningful configurations:
 
 ```bash
 # LINEAR merge, source-aware search — the pangenomic answer
 eds2leds  -i panel.eds -s panel.seds -l 9 -o linear_l9.leds
-biofmi-build  -i linear_l9.leds -l 9 -o idx
-biofmi-locate -i idx -l 9 -s linear_l9.seds -P patterns.txt
+eds-biofmi-build  -i linear_l9.leds -l 9 -o idx
+eds-biofmi-locate -i idx -l 9 -s linear_l9.seds -P patterns.txt
 
 # LINEAR merge, source-free search — over-reports; useful only as a control
-biofmi-locate -i idx -l 9 -P patterns.txt
+eds-biofmi-locate -i idx -l 9 -P patterns.txt
 
 # CARTESIAN merge, source-free search — the cross product, consistently
 eds2leds  -i panel.eds -l 9 -o cartesian_l9.leds

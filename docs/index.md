@@ -44,10 +44,10 @@ carry them.
             │  eds2leds -l N [-s]           (EDSParser)
             ▼
       panel.lN.leds + .seds                  l-EDS: internal segments ≥ N
-            │  biofmi-build -l N
+            │  eds-biofmi-build -l N
             ▼
       panel.lN.index/                        dual FM-index + metadata
-            │  biofmi-locate -l N [-s]
+            │  eds-biofmi-locate -l N [-s]
             ▼
       occurrences: position, changes, carrying genomes
 ```
@@ -61,7 +61,7 @@ and the query.
 
 **The l-EDS property.** Every *internal* non-degenerate segment — one with a
 degenerate symbol on both sides — must be at least `l` characters. Boundary
-segments at the start or end may be shorter. `biofmi-build` verifies this and
+segments at the start or end may be shorter. `eds-biofmi-build` verifies this and
 refuses input that fails it, because the chunked search depends on a chunk of
 `l+1` characters never spanning two degenerate symbols.
 
@@ -90,7 +90,7 @@ large answer, which has to be held in memory. See
 
 | Page | Contents |
 |---|---|
-| [CLI reference](cli.md) | `biofmi-build` and `biofmi-locate`, flag by flag |
+| [CLI reference](cli.md) | `eds-biofmi-build` and `eds-biofmi-locate`, flag by flag |
 | [`locate()` specification](locate_spec.md) | Exactly what a query returns, and what it costs |
 | [File formats](file_formats.md) | EDS, l-EDS, sources, and every index file |
 | [Architecture](architecture.md) | Components, data flow, key classes |
@@ -105,5 +105,5 @@ BioFMI was split from EDSParser in November 2025:
 - **[EDSParser](https://github.com/draessld/EDSParser)** (`external/edsparser/`,
   a submodule) — EDS parsing, format transformations (MSA/VCF → EDS, EDS →
   l-EDS), statistics, pattern generation.
-- **BioFMI** (this repository) — index building (`biofmi-build`), querying
-  (`biofmi-locate`), and the benchmark suite.
+- **BioFMI** (this repository) — index building (`eds-biofmi-build`), querying
+  (`eds-biofmi-locate`), and the benchmark suite.

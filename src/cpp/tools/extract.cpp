@@ -1,4 +1,4 @@
-// biofmi-extract: read a stretch of one genome back out of the index (TODO §9).
+// eds-biofmi-extract: read a stretch of one genome back out of the index (TODO §9).
 //
 // Under the partition requirement every genome is a path through the l-EDS, so
 // its sequence is T0 with its own alternative spliced in at each degenerate
@@ -6,6 +6,7 @@
 // nothing else: the reference comes out of I_0 and the alternatives out of I_D.
 
 #include "index/index.hpp"
+#include "version.hpp"
 #include <edsparser/common.hpp>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -64,11 +65,12 @@ int main(int argc, char** argv) {
         unsigned seed = 1;
 
         po::options_description desc(
-            "Extract stretches of genomes from a BIO-FMI index plus its sources.\n"
+            "Extract stretches of genomes from an EDS-BIO-FMI index plus its sources.\n"
             "Coordinates are 0-based and half-open; genomes are the 1-based path ids\n"
             "--samples reports. Requires sources that partition the genomes (TODO §4)");
         desc.add_options()
             ("help,h", "Show help message")
+            ("version,V", "Print version and build provenance (COMMIT, COMMIT_DATE, DIRTY) and exit")
             ("index,i", po::value<std::filesystem::path>(&index_file)->required(), "Index directory")
             ("context-length,l", po::value<Length>(&context_length),
                 "Context length; checked against the index when given")
@@ -96,6 +98,10 @@ int main(int argc, char** argv) {
         if (vm.count("help")) {
             std::cout << desc << "\n";
             print_performance();
+            return 0;
+        }
+        if (vm.count("version")) {
+            biofmi::print_version("eds-biofmi-extract");
             return 0;
         }
         po::notify(vm);

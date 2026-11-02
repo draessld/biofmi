@@ -5,8 +5,8 @@ source "$SCRIPT_DIR/helpers.sh"
 
 DATA_DIR="$BIOFMI_ROOT/tests/e2e/data"
 EXPECTED_DIR="$SCRIPT_DIR/expected/locate"
-BUILD_TOOL=$(find_tool "biofmi-build") || { echo "ERROR: biofmi-build not found"; exit 1; }
-LOCATE_TOOL=$(find_tool "biofmi-locate") || { echo "ERROR: biofmi-locate not found"; exit 1; }
+BUILD_TOOL=$(find_tool "eds-biofmi-build") || { echo "ERROR: eds-biofmi-build not found"; exit 1; }
+LOCATE_TOOL=$(find_tool "eds-biofmi-locate") || { echo "ERROR: eds-biofmi-locate not found"; exit 1; }
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -17,7 +17,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "=== biofmi-locate ==="
+echo "=== eds-biofmi-locate ==="
 
 test_locate_known_pattern_has_results() {
     local out

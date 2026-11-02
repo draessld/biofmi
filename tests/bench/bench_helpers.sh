@@ -151,7 +151,7 @@ run_bench_scenario() {
 # Metric collection — locate (needs occurrence counts from stderr)
 # ---------------------------------------------------------------------------
 
-# Run biofmi-locate (in --benchmark mode) N times.
+# Run eds-biofmi-locate (in --benchmark mode) N times.
 # Includes one discarded warmup run before measurement (Rule 1 + Rule 7: page index
 # into OS file cache so disk I/O does not pollute measured runs).
 #

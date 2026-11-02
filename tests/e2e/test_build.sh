@@ -4,11 +4,11 @@ BIOFMI_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
 DATA_DIR="$BIOFMI_ROOT/tests/e2e/data"
-TOOL=$(find_tool "biofmi-build") || { echo "ERROR: biofmi-build not found"; exit 1; }
+TOOL=$(find_tool "eds-biofmi-build") || { echo "ERROR: eds-biofmi-build not found"; exit 1; }
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-echo "=== biofmi-build ==="
+echo "=== eds-biofmi-build ==="
 
 test_build_basic_succeeds() {
     "$TOOL" -i "$DATA_DIR/simple_l5.eds" -l 5 -o "$TMPDIR/idx" >/dev/null 2>&1

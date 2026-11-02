@@ -1,17 +1,17 @@
 # Command-line reference
 
-Two tools: `biofmi-build` turns an l-EDS into an index, `biofmi-locate` queries
+Two tools: `eds-biofmi-build` turns an l-EDS into an index, `eds-biofmi-locate` queries
 it. Both live in `build/tools/` after a build, and both print a
 `[Performance] Runtime / Peak Memory` line to stderr when they finish.
 
 ---
 
-## `biofmi-build`
+## `eds-biofmi-build`
 
 Builds the dual FM-index from an l-EDS file.
 
 ```bash
-biofmi-build -i data.l9.leds -l 9 -o data.l9.index
+eds-biofmi-build -i data.l9.leds -l 9 -o data.l9.index
 ```
 
 | Flag | Argument | Meaning |
@@ -24,7 +24,7 @@ biofmi-build -i data.l9.leds -l 9 -o data.l9.index
 
 ### The l-EDS check
 
-Before building, `biofmi-build` verifies that every **internal** non-degenerate
+Before building, `eds-biofmi-build` verifies that every **internal** non-degenerate
 segment — one with a degenerate symbol on both sides — is at least `l`
 characters long. Boundary segments at the very start or end of the EDS may be
 shorter and are handled correctly.
@@ -34,27 +34,27 @@ search depends on it: a chunk of `l+1` characters must never be able to span two
 degenerate symbols.
 
 !!! note "`l` must agree in three places"
-    The `l` given to `eds2leds`, the `l` given to `biofmi-build`, and the `l`
-    given to `biofmi-locate` must be the same number. Nothing checks this for
+    The `l` given to `eds2leds`, the `l` given to `eds-biofmi-build`, and the `l`
+    given to `eds-biofmi-locate` must be the same number. Nothing checks this for
     you across tool invocations, and a mismatch produces wrong answers rather
     than an error.
 
 ---
 
-## `biofmi-locate`
+## `eds-biofmi-locate`
 
 Queries an index. Reports one entry per valid path through the EDS.
 
 ```bash
-biofmi-locate -i data.l9.index -l 9 -p ACGTACGTACGT
-biofmi-locate -i data.l9.index -l 9 -P patterns.txt -o hits.txt
+eds-biofmi-locate -i data.l9.index -l 9 -p ACGTACGTACGT
+eds-biofmi-locate -i data.l9.index -l 9 -P patterns.txt -o hits.txt
 ```
 
 ### Input and output
 
 | Flag | Argument | Meaning |
 |---|---|---|
-| `-i`, `--index` | path | Index directory produced by `biofmi-build`. |
+| `-i`, `--index` | path | Index directory produced by `eds-biofmi-build`. |
 | `-l`, `--context-length` | integer | Must match the build. |
 | `-p`, `--pattern` | string | A single pattern. |
 | `-P`, `--pattern-file` | path | A file of patterns, one per line. Mutually useful with `-p`; use one or the other. |
@@ -118,7 +118,7 @@ which is why it is opt-in rather than part of the plain `--benchmark` path.
 
 ---
 
-## `biofmi-extract`
+## `eds-biofmi-extract`
 
 Spells stretches of individual genomes back out of an index plus its sources
 (a genome is a path through the panel). Coordinates are 0-based and half-open;
@@ -126,20 +126,20 @@ genomes are the 1-based path ids `--samples` reports. Output is FASTA, one
 record per region, headed `>g:i-j`.
 
 ```bash
-biofmi-extract -i data.l9.index -s data.l9.seds -r 3:1000-1100   # genome 3, [1000,1100)
-biofmi-extract -i data.l9.index -s data.l9.seds -r 3 -r 5 -o g.fa  # genomes 3 and 5, whole
-biofmi-extract -i data.l9.index -s data.l9.seds --lengths          # every genome's length
+eds-biofmi-extract -i data.l9.index -s data.l9.seds -r 3:1000-1100   # genome 3, [1000,1100)
+eds-biofmi-extract -i data.l9.index -s data.l9.seds -r 3 -r 5 -o g.fa  # genomes 3 and 5, whole
+eds-biofmi-extract -i data.l9.index -s data.l9.seds --lengths          # every genome's length
 ```
 
 | Flag | Argument | Meaning |
 |---|---|---|
-| `-i`, `--index` | path | Index directory produced by `biofmi-build`. |
+| `-i`, `--index` | path | Index directory produced by `eds-biofmi-build`. |
 | `-l`, `--context-length` | integer | Optional; checked against the index when given. |
-| `-s`, `--seds` / `-z`, `--edz` | path | Source file of the indexed l-EDS, as for `biofmi-locate`. Required. |
+| `-s`, `--seds` / `-z`, `--edz` | path | Source file of the indexed l-EDS, as for `eds-biofmi-locate`. Required. |
 | `-r`, `--region` | `g:i-j` or `g` | Region to extract (repeatable); `g` alone is the whole genome. |
 | `-R`, `--region-file` | path | Regions, one per line, as `g:i-j` or `g i j`. |
 | `--lengths` | — | Print every genome's length. |
-| `-b`, `--sample-rate` | integer | As `biofmi-locate --sample-rate` (default 32). |
+| `-b`, `--sample-rate` | integer | As `eds-biofmi-locate --sample-rate` (default 32). |
 | `-o`, `--output` | path | Write the FASTA here instead of stdout. |
 | `--benchmark` | N | Time N random extracts and N random coordinate lookups; one TSV row on stdout. |
 
@@ -227,7 +227,7 @@ both per character removed. On an 8 MB synthetic panel at `l=9`:
 Until 2026-10-01 every occurrence was materialised before the first line was
 written, so **memory was the binding constraint**: a one-character pattern on an
 8 MB panel wanted 9.2 GB, and under a memory cap that surfaced as an OOM rather
-than as a very common pattern. `biofmi-locate` now prints each entry as it is
+than as a very common pattern. `eds-biofmi-locate` now prints each entry as it is
 found and `--benchmark` counts without building any, so a pattern of at most
 `l+1` characters runs in the memory of the index alone, however often it occurs.
 Time still tracks the answer — each hit is located — so the table's wall column

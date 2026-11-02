@@ -35,7 +35,7 @@ using edsparser::SET_SEPARATOR;
 using edsparser::CHANGE_SEPARATOR;
 
 /**
- * BIO-FMI Index
+ * EDS-BIO-FMI Index
  *
  * Hybrid index combining FM-index structures for reference and changes.
  * Uses wavelet tree-based FM-index (SDSL library) for efficient pattern matching.
@@ -256,9 +256,9 @@ public:
 
     // Query operations
     //
-    // locate(pattern) materialises every occurrence and also keeps a copy as
-    // get_last_result(). For a short pattern that is the whole cost: on a
-    // panel of a few MB a one-character pattern has millions of entries.
+    // locate(pattern) materialises every occurrence. For a short pattern that
+    // is the whole cost: on a panel of a few MB a one-character pattern has
+    // millions of entries.
     ResultMap locate(const String& pattern);
 
     /**
@@ -272,10 +272,10 @@ public:
      * no earlier chunk and runs in memory independent of how often it matches.
      *
      * The Occurrence passed is only valid during the call; copy it to keep it.
-     * The callback must not search this index (the candidate maps are in use),
-     * and get_last_result() is not updated. The const genome-coordinate calls
+     * The callback must not search this index (the candidate maps are in use).
+     * The const genome-coordinate calls
      * (genome_positions(), genome_position(), extract()) read neither, and are
-     * safe from it — biofmi-locate --genome-coords prints through them there. An exception thrown by the callback
+     * safe from it — eds-biofmi-locate --genome-coords prints through them there. An exception thrown by the callback
      * propagates and abandons the search.
      */
     using OccurrenceCallback = std::function<void(const Occurrence&)>;
@@ -310,15 +310,12 @@ public:
         std::string changes_text;        // full changes file content (with '#' separators)
         std::vector<int> base_positions; // cumulative T0 length before each degenerate set
         std::vector<int> set_sizes;      // cumulative string count through each degenerate set
-        std::vector<int> offsets;        // length of each individual degenerate string
+        std::vector<int> lengths;        // length of each individual degenerate string (.aof)
         std::vector<size_t> tloc_ones;   // positions i where tloc[i] == 1
         std::vector<size_t> loc_ones;    // positions i where loc[i] == 1
         std::vector<size_t> iloc_ones;   // positions i where iloc[i] == 1
     };
     IndexSnapshot get_snapshot() const;
-
-    // Get the last query results
-    const ResultMap& get_last_result() const { return last_result_; }
 
     /**
      * Per-chunk cost trace for one locate() call.
@@ -435,7 +432,6 @@ private:
     Length context_length_;
     size_t tail_threshold_ = std::numeric_limits<size_t>::max();  // verify every tail
     EDS eds_;
-    ResultMap last_result_;
 
     // Source-aware search state. Null unless attach_sources() was called.
     std::shared_ptr<Sources> sources_;
@@ -444,7 +440,7 @@ private:
     // Degenerate-string number -> global string id.
     //
     // locate() works in `change_number`, a 1-based rank over degenerate strings
-    // only (cf. offsets[change_number - 1]). Sources is indexed by global string
+    // only (cf. lengths[change_number - 1]). Sources is indexed by global string
     // id over *all* strings, common symbols included; the two differ by the
     // number of non-degenerate symbols passed so far. That count is not
     // recoverable from the index artifacts, and a loaded index has no EDS to ask
@@ -492,7 +488,7 @@ private:
      * while it runs `final_sink_` is set and store() hands each survivor to it
      * instead. That map was the largest structure a short pattern built: one
      * hash node, two heap vectors and an OccurrenceInfo per entry, then copied
-     * twice more (the ResultMap and last_result_).
+     * twice more (the ResultMap and a last_result_ copy, since removed).
      *
      * `count_only_` additionally lets a first-and-final reference chunk be
      * counted from its suffix-array range without locating the hits, since
@@ -602,7 +598,7 @@ private:
     PathSet source_of_change(int change_number) const;
 
     // Content length of a degenerate alternative, by 1-based change_number.
-    int change_offset_of(int change_number) const;
+    int change_length_of(int change_number) const;
 
     // True when the EDS opens with a degenerate symbol, which shifts the
     // correspondence between a reference block and the sets around it by one.

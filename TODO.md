@@ -401,17 +401,16 @@ sampled per-genome prefix sums (`build_genome_map(b)`, default `b = 32`), `biofm
 
 ## 10. Code maintenance
 
-- **Rename `offsets` to `lengths` (paper notes #12, 2026-10-24).** `IndexData::offsets`
-  (`index.hpp:313`, file `.aof`) holds the length of each degenerate string; the paper now calls
-  the array `len`, because the original BIO-FMI's "offset" is the shift `q - p` between `T_i`
-  and `T_0`, which this array is not. Rename the member, its uses (`offsets[change_number - 1]`
-  …) and the comments; keep the `.aof` file name or bump the `.meta` format if it changes.
-  `base_positions` matches the original's base position and stays.
-
-- **Rename to EDS-BIO-FMI (paper notes #86, 2026-10-31).** The paper now calls this index
-  EDS-BIO-FMI, to tell it apart from the original BIO-FMI of Procházka and Holub (2014). An
-  improvement for when there is time, not a blocker: the tools (`biofmi-build`, `biofmi-locate`,
-  `biofmi-extract`), the library and the `COMMIT`/`DIRTY` provenance stamps are named in every
-  xbench spec and run directory under `~/Data/experiments/biofmi`, so a rename must keep the old
-  binary names working (symlinks or aliases) or the finished measurements stop being reproducible
-  as recorded. Until then the paper says it is implemented as `biofmi`.
+- **After the EDS-BIO-FMI rename (done 2026-11-02, paper notes #86).** The tools are
+  `eds-biofmi-build`/`-locate`/`-extract`, the old `biofmi-*` names are symlinks (build tree and
+  install), and all three take `--version` (`COMMIT`, `COMMIT_DATE`, `DIRTY`, this repo's tree).
+  Left outside this repository:
+  - **xbench specs** under `~/Data/experiments/biofmi/specs` still name `biofmi-*`, which works
+    through the symlinks. New specs can use the new names and gate BioFMI's own binaries with
+    `provenance.require_fields`; the comments in `kp_cost.yaml`, `kp_cost_tb.yaml` and
+    `tail_cost.yaml` that biofmi-locate has no `--version` are now out of date. Leave finished
+    specs alone.
+  - **The paper** says the index is implemented as `biofmi`; it can now name `eds-biofmi-*`.
+  - Not renamed, deliberately: the repository, `biofmi_lib`, the `biofmi` namespace, the
+    `BioFMI` class, index file names and the `BIOFMI_TOOLS_FROM_PATH` switch. Renaming them buys
+    nothing a reader of the paper sees.

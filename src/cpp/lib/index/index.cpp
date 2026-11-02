@@ -47,7 +47,7 @@ struct BioFMI::IndexData {
 
     std::vector<int> base_positions;
     std::vector<int> set_sizes;
-    std::vector<int> offsets;
+    std::vector<int> lengths;   // stored as .aof (name kept so existing indexes load)
 
     // Degenerate-string number -> global string id (see BioFMI::source_of_change).
     // Bit g is set iff global string g is a degenerate alternative, so
@@ -150,8 +150,8 @@ BioFMI::BioFMI(const std::filesystem::path& eds_file, Length context_length)
 
 BioFMI::BioFMI(const std::filesystem::path& index_dir)
     : data_(std::make_unique<IndexData>()),
-      index_dir_(index_dir),
       context_length_(0),
+      index_dir_(index_dir),
       n_(0), m_(0), N_(0) {
     // Load index from directory
     load(index_dir);
@@ -215,7 +215,7 @@ void BioFMI::save(const std::filesystem::path& output_dir) {
     // Save metadata arrays
     sdsl::store_to_file(data_->base_positions, base_name + ".abp");
     sdsl::store_to_file(data_->set_sizes, base_name + ".ss");
-    sdsl::store_to_file(data_->offsets, base_name + ".aof");
+    sdsl::store_to_file(data_->lengths, base_name + ".aof");
 
     // Degenerate-string -> global-string-id map, for source-aware search.
     {
@@ -348,7 +348,7 @@ void BioFMI::load(const std::filesystem::path& index_dir) {
     // Load metadata arrays
     require(data_->base_positions, ".abp");
     require(data_->set_sizes, ".ss");
-    require(data_->offsets, ".aof");
+    require(data_->lengths, ".aof");
 
     // Optional: indexes built before source-aware search have no .d2g. Leave the
     // map empty rather than failing — such an index still answers CARTESIAN
@@ -416,7 +416,7 @@ void BioFMI::attach_sources_impl(std::shared_ptr<Sources> src,
     if (!data_->d2g_present) {
         throw std::runtime_error(
             "Index has no .d2g map, so sources cannot be attached: it was built "
-            "before source-aware search existed. Rebuild it with biofmi-build.");
+            "before source-aware search existed. Rebuild it with eds-biofmi-build.");
     }
 
     // The sources must describe the same l-EDS that was indexed. m_ counts every
@@ -470,7 +470,7 @@ void BioFMI::empty_alternatives_of(int set_idx, std::vector<int>& out) const {
     const int first = (set_idx == 0) ? 1 : data_->set_sizes[set_idx - 1] + 1;
     const int last  = data_->set_sizes[set_idx];
     for (int cn = first; cn <= last; cn++)
-        if (data_->offsets[cn - 1] == 0) out.push_back(cn);
+        if (data_->lengths[cn - 1] == 0) out.push_back(cn);
 }
 
 void BioFMI::bridge_empty_sets(const OccurrenceInfo& occ, int target, int t0,
@@ -528,8 +528,8 @@ bool BioFMI::seed_is_empty(int change_number) {
     return known == 2;
 }
 
-int BioFMI::change_offset_of(int change_number) const {
-    return data_->offsets[change_number - 1];
+int BioFMI::change_length_of(int change_number) const {
+    return data_->lengths[change_number - 1];
 }
 
 PathSet BioFMI::source_of_change(int change_number) const {
@@ -575,7 +575,6 @@ BioFMI::ResultMap BioFMI::locate(const String& pattern) {
     // spec leaves undefined, is now the order they were found in.
     ResultMap result;
     locate(pattern, [&result](const Occurrence& occ) { result[0].push_back(occ); });
-    last_result_ = result;
     return result;
 }
 
@@ -620,14 +619,14 @@ size_t BioFMI::search(const String& pattern, const FinalSink& sink, bool count_o
     // Worked example — EDS "AAATTT{G,C}AAATTT", l=3, pattern "TTTGAAAT" (2 chunks):
     //
     //   changes_text = "#TTTGAAA#TTTCAAA#"
-    //   base_positions = [6, 12]   offsets = [1, 1]   (G and C each len 1)
+    //   base_positions = [6, 12]   lengths = [1, 1]   (G and C each len 1)
     //
     //   chunk 0 "TTTG": found in changes_text at file pos 1.
     //     change_number = rloc(1) = 1   (loc[0] is the only 1-bit before pos 1)
     //     pre_hash_loc  = sloc(1) = 0   (first 1-bit in loc)
     //     offset = 1 - (0 + 3 + 1) = -3;  previous_outside_change = true
     //     loc_new = base_positions[0] + (-3) = 6 - 3 = 3
-    //     key = loc_new - change_offset = 3 - 1 = 2;  origin = (3, {1})
+    //     key = loc_new - change_length = 3 - 1 = 2;  origin = (3, {1})
     //     → old_hash_map_ = { 2: [(3,{1})] }
     //
     //   chunk 1 "AAAT": found in reference_text at T0 pos 6.
@@ -795,7 +794,7 @@ BioFMI::IndexStats BioFMI::get_statistics() const {
 
     double metadata_size = sdsl::size_in_mega_bytes(data_->base_positions) +
                            sdsl::size_in_mega_bytes(data_->set_sizes) +
-                           sdsl::size_in_mega_bytes(data_->offsets) +
+                           sdsl::size_in_mega_bytes(data_->lengths) +
                            sdsl::size_in_mega_bytes(data_->d2g) +
                            sdsl::size_in_mega_bytes(data_->d2g_select);
 
@@ -812,8 +811,8 @@ BioFMI::IndexStats BioFMI::get_statistics() const {
 
     // Calculate total length of changes
     stats.changes_total_length = 0;
-    for (int offset : data_->offsets) {
-        stats.changes_total_length += offset;
+    for (int len : data_->lengths) {
+        stats.changes_total_length += len;
     }
 
     return stats;
@@ -822,7 +821,7 @@ BioFMI::IndexStats BioFMI::get_statistics() const {
 void BioFMI::print_statistics(std::ostream& os) const {
     auto stats = get_statistics();
 
-    os << "BIO-FMI Index Statistics:\n";
+    os << "EDS-BIO-FMI Index Statistics:\n";
     os << "  Context length: " << stats.context_length << "\n";
     os << "  Number of symbols: " << n_ << "\n";
     os << "  Total characters: " << N_ << "\n";
@@ -1022,7 +1021,7 @@ void BioFMI::parse_eds() {
                 // Pushed in degenerate order, so the array is indexed by
                 // (change_number - 1) at query time.
                 deg_to_global.push_back(chi + i);
-                data_->offsets.push_back(symbol[i].size());
+                data_->lengths.push_back(symbol[i].size());
 
                 // Write: left_context + string + right_context + separator
                 chan_file << context_left;
@@ -1120,7 +1119,7 @@ void BioFMI::extend_candidates(const String& tail, int step) {
             TailCursor at{state.first, 0, (int)key + step, state.second};
             if (at.in_change != 0) {
                 if (at.next_set >= (int)data_->base_positions.size()) continue;
-                const int alt_len = change_offset_of(at.in_change);
+                const int alt_len = change_length_of(at.in_change);
                 at.alt_off = at.t0 + alt_len - data_->base_positions[at.next_set];
                 // Stopped inside: at least one character spelled, not the last.
                 if (at.alt_off <= 0 || at.alt_off >= alt_len) continue;
@@ -1146,7 +1145,7 @@ void BioFMI::walk_tail(const String& tail, size_t done, TailCursor at, Position 
 
         if (at.in_change != 0) {
             // Inside an alternative: spell as much of the tail as it still holds.
-            const int alt_len = change_offset_of(at.in_change);
+            const int alt_len = change_length_of(at.in_change);
             const size_t take = std::min(want, (size_t)(alt_len - at.alt_off));
             const size_t pos  = data_->sloc(at.in_change) + context_length_ + 1 + at.alt_off;
             if (!spells(data_->changes_index, pos, take)) return;
@@ -1188,7 +1187,7 @@ void BioFMI::walk_tail(const String& tail, size_t done, TailCursor at, Position 
                 // only with a character still to spell, so an empty alternative
                 // after the tail's last character is rightly not in the match.
                 TailCursor next = at;
-                if (change_offset_of(cn) == 0) next.next_set = s + 1;
+                if (change_length_of(cn) == 0) next.next_set = s + 1;
                 else                           next.in_change = cn;
                 walk_tail(tail, done, next, key, std::move(branch));
             }
@@ -1311,7 +1310,7 @@ size_t BioFMI::process_changes_matches(const String& chunk, size_t chunk_idx, in
         // Change content starts at file byte (pre_hash_loc + 1 + cl) = pre_hash_loc + context_length_ + 1.
         // offset < 0: match starts in the left context (preceding reference).
         int offset = (int)loc - (pre_hash_loc + (int)context_length_ + 1);
-        const int alt_len   = change_offset_of(change_number);
+        const int alt_len   = change_length_of(change_number);
         const int chunk_len = (int)chunk.size();
 
         // The hit must actually touch the alternative, not sit entirely inside
@@ -1552,10 +1551,10 @@ void BioFMI::dump_readable(const std::filesystem::path& dump_path) const {
     }
     out << "]\n\n";
 
-    out << "offsets (aof) — length of each change string (excluding context):\n  [";
-    for (size_t i = 0; i < data_->offsets.size(); i++) {
+    out << "lengths (aof) — length of each change string (excluding context):\n  [";
+    for (size_t i = 0; i < data_->lengths.size(); i++) {
         if (i) out << ", ";
-        out << data_->offsets[i];
+        out << data_->lengths[i];
     }
     out << "]\n";
 }
@@ -1570,7 +1569,7 @@ BioFMI::IndexSnapshot BioFMI::get_snapshot() const {
 
     s.base_positions = data_->base_positions;
     s.set_sizes      = data_->set_sizes;
-    s.offsets        = data_->offsets;
+    s.lengths        = data_->lengths;
 
     for (size_t i = 0; i < data_->tloc.size(); i++)
         if (data_->tloc[i]) s.tloc_ones.push_back(i);
@@ -1637,10 +1636,10 @@ void BioFMI::require_genome_map(int g) const {
 // reference lies strictly before every set it crosses, and never lists an empty
 // alternative before its first character. Otherwise it starts at T0 `position`,
 // after every set placed at or before it.
-static int start_set(const std::vector<int>& bp, const std::vector<int>& offsets,
+static int start_set(const std::vector<int>& bp, const std::vector<int>& lengths,
                      int num_sets, int64_t p, const std::vector<int>& changes,
                      int first_change_set) {
-    if (!changes.empty() && offsets[changes[0]] > 0 && bp[first_change_set] <= p)
+    if (!changes.empty() && lengths[changes[0]] > 0 && bp[first_change_set] <= p)
         return first_change_set;
     return (int)(std::upper_bound(bp.begin(), bp.begin() + num_sets, p) - bp.begin());
 }
@@ -1677,7 +1676,7 @@ void BioFMI::build_genome_map(size_t sample_rate) {
         const int first = (s == 0) ? 1 : data_->set_sizes[s - 1] + 1;
         for (int cn = first; cn <= data_->set_sizes[s]; cn++) {
             const PathSet ps = sources_->read_source(data_->d2g_select((size_t)cn));
-            const int64_t len = data_->offsets[cn - 1];
+            const int64_t len = data_->lengths[cn - 1];
             if (!ps.empty() && ps.front() == 0) {
                 size_t ex = 1;
                 for (int g = 1; g <= (int)k; g++) {
@@ -1739,7 +1738,7 @@ int64_t BioFMI::genome_delta(int g, int s) const {
     const size_t t = (size_t)s / genome_rate_;
     int64_t d = data_->genome_samples[(size_t)(g - 1) * genome_samples_per_path_ + t];
     for (int x = (int)(t * genome_rate_); x < s; x++)
-        d += data_->offsets[choice_of(g, x) - 1];
+        d += data_->lengths[choice_of(g, x) - 1];
     return d;
 }
 
@@ -1782,7 +1781,7 @@ String BioFMI::extract(int g, size_t i, size_t j) const {
             int64_t c = start_of(lo - 1);   // where set s begins in genome g
             while (true) {
                 const int ch = choice_of(g, s);
-                const int64_t len = data_->offsets[ch - 1];
+                const int64_t len = data_->lengths[ch - 1];
                 if (want < c + len) { cn = ch; off = want - c; break; }
                 c += len;
                 const int64_t seg_end = (s + 1 < num_sets) ? bp[s + 1] : t0_len;
@@ -1797,7 +1796,7 @@ String BioFMI::extract(int g, size_t i, size_t j) const {
     while (out.size() < j - i) {
         const size_t rem = (j - i) - out.size();
         if (cn != 0) {
-            const int64_t len = data_->offsets[cn - 1];
+            const int64_t len = data_->lengths[cn - 1];
             const size_t take = std::min(rem, (size_t)(len - off));
             const size_t pos = data_->sloc((size_t)cn) + context_length_ + 1 + (size_t)off;
             out += sdsl::extract(data_->changes_index, pos, pos + take - 1);
@@ -1815,7 +1814,7 @@ String BioFMI::extract(int g, size_t i, size_t j) const {
         }
         if (s >= num_sets) throw std::logic_error("extract: spelled past the end of the genome");
         const int ch = choice_of(g, s);
-        if (data_->offsets[ch - 1] == 0) { s++; continue; }   // empty: nothing to spell
+        if (data_->lengths[ch - 1] == 0) { s++; continue; }   // empty: nothing to spell
         cn = ch; off = 0;
     }
     return out;
@@ -1829,7 +1828,7 @@ int64_t BioFMI::genome_position(int g, Position position, const std::vector<int>
 
     const int num_sets = (int)data_->set_sizes.size();
     const int first_set = changes.empty() ? 0 : set_of_change(changes[0] + 1);
-    const int s = start_set(data_->base_positions, data_->offsets, num_sets,
+    const int s = start_set(data_->base_positions, data_->lengths, num_sets,
                             (int64_t)position, changes, first_set);
     return (int64_t)position + genome_delta(g, s);
 }
@@ -1848,7 +1847,7 @@ std::vector<std::pair<int, int64_t>> BioFMI::genome_positions(const Occurrence& 
     const int num_sets = (int)data_->set_sizes.size();
     const int64_t p = (int64_t)occ.position;
     const int first_set = occ.changes.empty() ? 0 : set_of_change(occ.changes[0] + 1);
-    const int s = start_set(bp, data_->offsets, num_sets, p, occ.changes, first_set);
+    const int s = start_set(bp, data_->lengths, num_sets, p, occ.changes, first_set);
 
     if (s >= num_sets) {
         const int64_t t0_len = bp.empty() ? 0 : bp.back();
@@ -1866,7 +1865,7 @@ std::vector<std::pair<int, int64_t>> BioFMI::genome_positions(const Occurrence& 
     for (int x = (int)(t * genome_rate_); x < s; x++) {
         const int first = (x == 0) ? 1 : data_->set_sizes[x - 1] + 1;
         for (int cn = first; cn <= data_->set_sizes[x]; cn++) {
-            const int64_t len = data_->offsets[cn - 1];
+            const int64_t len = data_->lengths[cn - 1];
             if (len == 0) continue;
             const PathSet& ps = sources_->read_source_ref(data_->d2g_select((size_t)cn));
             for (int g : ids)

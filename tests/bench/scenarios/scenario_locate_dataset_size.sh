@@ -16,8 +16,8 @@ run_scenario_locate_dataset_size() {
     local gen_tool eds_tool build_tool locate_tool pat_tool
     gen_tool=$(find_edsparser_tool genrandomeds)          || { bench_err "genrandomeds not found";          return 1; }
     eds_tool=$(find_edsparser_tool eds2leds)              || { bench_err "eds2leds not found";              return 1; }
-    build_tool=$(find_biofmi_tool  biofmi-build)          || { bench_err "biofmi-build not found";          return 1; }
-    locate_tool=$(find_biofmi_tool biofmi-locate)         || { bench_err "biofmi-locate not found";         return 1; }
+    build_tool=$(find_biofmi_tool  eds-biofmi-build)          || { bench_err "eds-biofmi-build not found";          return 1; }
+    locate_tool=$(find_biofmi_tool eds-biofmi-locate)         || { bench_err "eds-biofmi-locate not found";         return 1; }
     pat_tool=$(find_edsparser_tool edsparser-genpatterns) || { bench_err "edsparser-genpatterns not found"; return 1; }
 
     # Fixed pattern length = 2 chunks. The chunk size is l+1, not l: at l=5 the
@@ -60,7 +60,7 @@ run_scenario_locate_dataset_size() {
             "$locate_tool" --benchmark -i "$index_dir" -l "$l" -P "$patterns_file"
 
         write_csv_row "$csv" "$ts" "$preset" "$scenario" "locate" \
-            "biofmi-locate" "$leds_size_mb" "$l" "$pat_len" \
+            "eds-biofmi-locate" "$leds_size_mb" "$l" "$pat_len" \
             "$BENCH_N_PATTERNS" "$BENCH_N_OCCURRENCES" "$n_reps"
         bench_log "  median=${BENCH_RUNTIME_MEDIAN_S}s  stddev=${BENCH_RUNTIME_STDDEV_S}s  p95=${BENCH_RUNTIME_P95_S}s" \
             " n_patterns=${BENCH_N_PATTERNS}  n_occurrences=${BENCH_N_OCCURRENCES}"

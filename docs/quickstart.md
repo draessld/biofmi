@@ -80,7 +80,7 @@ Zero iterations, because both internal blocks are already 10 characters and
 ## Step 2 — Build the index
 
 ```bash
-biofmi-build -i demo.l5.leds -l 5 -o demo.index
+eds-biofmi-build -i demo.l5.leds -l 5 -o demo.index
 ```
 
 ```
@@ -113,7 +113,7 @@ or a multiple of it is the cheap case.
 ### A match inside the reference, crossing one variable site
 
 ```bash
-biofmi-locate -i demo.index -l 5 -p CGTAAGTTTT
+eds-biofmi-locate -i demo.index -l 5 -p CGTAAGTTTT
 ```
 
 ```
@@ -127,7 +127,7 @@ alternative, then `TTTT` opens the next block. Correct.
 ### The combination no genome carries
 
 ```bash
-biofmi-locate -i demo.index -l 5 -p GTTTTGGGGACT
+eds-biofmi-locate -i demo.index -l 5 -p GTTTTGGGGACT
 ```
 
 ```
@@ -143,7 +143,7 @@ This is what CARTESIAN means, and why it is the wrong answer for a pangenome.
 ### The same query, source-aware
 
 ```bash
-biofmi-locate -i demo.index -l 5 -s demo.l5.seds --samples -p GTTTTGGGGACT
+eds-biofmi-locate -i demo.index -l 5 -s demo.l5.seds --samples -p GTTTTGGGGACT
 ```
 
 ```
@@ -156,7 +156,7 @@ the stitch and never becomes an occurrence.
 A pattern that *is* carried behaves as expected, and names its carrier:
 
 ```bash
-biofmi-locate -i demo.index -l 5 -s demo.l5.seds --samples -p GTTTTGGGGACA
+eds-biofmi-locate -i demo.index -l 5 -s demo.l5.seds --samples -p GTTTTGGGGACA
 ```
 
 ```
@@ -171,7 +171,7 @@ One genome carries it — genome 1. Without `--samples` the same line reads
 ## Step 4 — Query in bulk
 
 ```bash
-biofmi-locate -i demo.index -l 5 -s demo.l5.seds -P patterns.txt -o hits.txt
+eds-biofmi-locate -i demo.index -l 5 -s demo.l5.seds -P patterns.txt -o hits.txt
 ```
 
 For measurement rather than results, `--benchmark` prints `<pattern>\t<count>`
@@ -179,7 +179,7 @@ and summary counts, and `--chunk-stats` separates the cost of one chunk from the
 number of chunks a pattern survived:
 
 ```bash
-biofmi-locate -i demo.index -l 5 -P patterns.txt --chunk-stats chunks.csv -o /dev/null
+eds-biofmi-locate -i demo.index -l 5 -P patterns.txt --chunk-stats chunks.csv -o /dev/null
 ```
 
 See the [CLI reference](cli.md#measurement) for what the per-chunk metrics mean.
@@ -211,8 +211,8 @@ vcf2eds -i panel.vcf -r reference.fasta -o panel.eds -s panel.seds
 
 # then exactly as above
 eds2leds -i panel.eds -s panel.seds -l 9 -o panel.l9.leds
-biofmi-build  -i panel.l9.leds -l 9 -o panel.l9.index
-biofmi-locate -i panel.l9.index -l 9 -s panel.l9.seds -P patterns.txt
+eds-biofmi-build  -i panel.l9.leds -l 9 -o panel.l9.index
+eds-biofmi-locate -i panel.l9.index -l 9 -s panel.l9.seds -P patterns.txt
 ```
 
 `edsparser-genpatterns -s panel.seds` draws patterns that follow one genome's

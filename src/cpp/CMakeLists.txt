@@ -1,4 +1,4 @@
-# CMakeLists.txt for BIO-FMI
+# CMakeLists.txt for EDS-BIO-FMI
 cmake_minimum_required(VERSION 3.12)  # CXX_STANDARD 20 needs 3.12
 project(BioFMI VERSION 1.0.0 LANGUAGES CXX)
 

@@ -2,7 +2,7 @@
 # Benchmark: build FM-index across increasing context lengths.
 #
 # Uses a fixed-size (5 MB) EDS, converts it to l-EDS at each requested
-# context length l, then measures biofmi-build time and memory.
+# context length l, then measures eds-biofmi-build time and memory.
 # Larger l requires more merging (eds2leds) but may simplify the resulting
 # index structure — this scenario isolates the build cost of each l value.
 
@@ -14,7 +14,7 @@ run_scenario_build_context_sweep() {
     local gen_tool eds_tool build_tool
     gen_tool=$(find_edsparser_tool genrandomeds)  || { bench_err "genrandomeds not found";  return 1; }
     eds_tool=$(find_edsparser_tool eds2leds)      || { bench_err "eds2leds not found";      return 1; }
-    build_tool=$(find_biofmi_tool  biofmi-build)  || { bench_err "biofmi-build not found";  return 1; }
+    build_tool=$(find_biofmi_tool  eds-biofmi-build)  || { bench_err "eds-biofmi-build not found";  return 1; }
 
     local ref_size_mb=5
     local input_eds="$tmpdir/ctx_sweep_${ref_size_mb}mb.eds"
@@ -43,7 +43,7 @@ run_scenario_build_context_sweep() {
         size_mb=$(file_size_mb "$input_leds")
 
         write_csv_row "$csv" "$ts" "$preset" "$scenario" "build" \
-            "biofmi-build" "$size_mb" "$l" "" "" "" "$n_reps"
+            "eds-biofmi-build" "$size_mb" "$l" "" "" "" "$n_reps"
         bench_log "  median=${BENCH_RUNTIME_MEDIAN_S}s  stddev=${BENCH_RUNTIME_STDDEV_S}s  p95=${BENCH_RUNTIME_P95_S}s  memory=${BENCH_MEMORY_MEDIAN_MB}MB"
 
         rm -rf "$output_index"

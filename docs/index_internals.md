@@ -8,7 +8,7 @@ BioFMI builds two FM-indexes from an l-EDS file and combines them to answer patt
 
 ## 1. Prerequisites: the l-EDS constraint
 
-Before building, `biofmi-build` validates that every **internal** non-degenerate segment (one flanked by a degenerate symbol on both sides) has length ≥ `l`. Boundary segments at the very start or end of the EDS are exempt.
+Before building, `eds-biofmi-build` validates that every **internal** non-degenerate segment (one flanked by a degenerate symbol on both sides) has length ≥ `l`. Boundary segments at the very start or end of the EDS are exempt.
 
 This constraint guarantees that every degenerate alternative can be stored with exactly `l` characters of context on each side drawn purely from the adjacent non-degenerate segments, which is what the changes string relies on. See [file_formats.md](file_formats.md) for the changes-string layout.
 
@@ -57,7 +57,7 @@ For each **degenerate** symbol (a set of alternatives `{a₀, a₁, …, aₖ}`)
 
 - At the byte just before the `#`: `loc[tellp()] = 1`. (Marks end of `aᵢ`'s content.)
 - For the **last** alternative of the set: also `iloc[tellp()] = 1`.
-- Record `offsets[i] = len(aᵢ)` and `set_sizes[s]` as the cumulative count of alternatives through set `s`.
+- Record `lengths[i] = len(aᵢ)` and `set_sizes[s]` as the cumulative count of alternatives through set `s`.
 
 Boundary handling: when the EDS starts with a degenerate symbol, `context_left` is initialised to `l` separator characters so that every entry in the changes string has exactly `l` context chars on the left.
 
@@ -69,7 +69,7 @@ loc_ones     = [0, 8, 16]
 iloc_ones    = [0, 16]
 base_positions = [6, 12]
 set_sizes      = [2]
-offsets        = [1, 1]
+lengths        = [1, 1]
 ```
 
 ### 2.3 FM-index construction
@@ -150,7 +150,7 @@ points:
 | entry point | sink |
 |---|---|
 | `locate(p, callback)` | converts to a public `Occurrence` (reused, not reallocated) and calls back |
-| `locate(p)` | the above, appending to a `ResultMap` (and `last_result_`) |
+| `locate(p)` | the above, appending to a `ResultMap` |
 | `count(p)` | discards — and a first-and-final chunk never builds the entry at all |
 
 So what a query holds in memory is the candidate set the *earlier* chunks hand
@@ -203,10 +203,10 @@ For each `loc`:
    `loc = base_positions[block_number] + offset`
    (This is the T₀ position corresponding to the start of the matched chunk window.)
 
-4. **`change_offset = offsets[change_number − 1]`** (content length of this alternative).
+4. **`change_length = lengths[change_number − 1]`** (content length of this alternative).
 
 5. **chunk_idx == 0** (seed):
-   `new_hash_map_[loc - change_offset].push_back({loc, {change_number}})`.
+   `new_hash_map_[loc - change_length].push_back({loc, {change_number}})`.
 
 6. **chunk_idx > 0** (extend): call `validate_change_continuity()`.
 
@@ -214,17 +214,17 @@ For each `loc`:
 
 **Case 2 — previous chunk was inside the same alternative** (`!previous_outside_change`):
 
-Look up `old_hash_map_[loc - change_offset - (l+1)]`. Extend any candidate whose `changes.back() == change_number` (same alternative, continuing within it).
+Look up `old_hash_map_[loc - change_length - (l+1)]`. Extend any candidate whose `changes.back() == change_number` (same alternative, continuing within it).
 
 **Case 3 — previous chunk was outside this alternative, current starts at boundary** (`previous_outside_change`, `occ.changes` empty):
 
 Look up `old_hash_map_[loc - (l+1)]`. Extend any ref-only candidate by appending `change_number`:
-`new_hash_map_[loc - change_offset].push_back({origin, changes + [change_number]})`.
+`new_hash_map_[loc - change_length].push_back({origin, changes + [change_number]})`.
 
 **Case 4 — previous chunk was in a different change** (`previous_outside_change`, `occ.changes` non-empty):
 
 Same lookup as Case 3. Extend if `occ.changes.back() ≤ set_sizes[block_number]` (the previous change precedes this set):
-`new_hash_map_[loc - change_offset].push_back({origin, changes + [change_number]})`.
+`new_hash_map_[loc - change_length].push_back({origin, changes + [change_number]})`.
 
 ### 4.6 Result conversion (the final chunk's sink)
 
@@ -267,7 +267,7 @@ so that `cand_out` stays the number of distinct keys.
 ```
 changes_text  = "#TTTGAAA#TTTCAAA#"
 base_positions = [6, 12]
-offsets        = [1, 1]      (G and C each have length 1)
+lengths        = [1, 1]      (G and C each have length 1)
 loc_ones       = [0, 8, 16]
 ```
 
@@ -278,7 +278,7 @@ change_number = rloc(1) = 1        (loc[0] is the only 1-bit before pos 1)
 pre_hash_loc  = sloc(1) = 0
 offset        = 1 - (0 + 3 + 1) = -3   →  previous_outside_change = true
 loc_new       = base_positions[0] + (-3) = 6 - 3 = 3
-change_offset = offsets[0] = 1
+change_length = lengths[0] = 1
 key = 3 - 1 = 2;   origin = (3, {1})
 
 old_hash_map_ = { 2: [(3, {1})] }

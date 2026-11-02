@@ -180,7 +180,7 @@ EDS make_eds(const std::string& eds_str) {
 }
 
 // ---------------------------------------------------------------------------
-// Test 1: Invalid pattern length -> exception
+// Test 1: Pattern length -> only the empty pattern throws
 // ---------------------------------------------------------------------------
 void test_error_pattern_too_short() {
     std::cout << "Test 1a: only the empty pattern is refused... ";
@@ -348,12 +348,19 @@ void test_match_starts_in_change() {
         assert(got.begin()->changes == std::vector<int>{1});
     }
 
-    // "GGGGG" (5 chars, not multiple of 4) would throw — not tested here
     {
         auto expected = brute_force_locate(eds, "GGGG");
         auto got = collect_result(idx.locate("GGGG"));
         assert_equal(expected, got, "GGGG", "test_match_starts_in_change");
         assert(got.empty() && "GGGG should not be found (only 2 G's exist)");
+    }
+
+    // A length that is not a multiple of l+1 is searched, not rejected.
+    {
+        auto expected = brute_force_locate(eds, "GGGGG");
+        auto got = collect_result(idx.locate("GGGGG"));
+        assert_equal(expected, got, "GGGGG", "test_match_starts_in_change");
+        assert(got.empty());
     }
 
     std::cout << "PASSED\n";
@@ -365,60 +372,15 @@ void test_match_starts_in_change() {
 void test_match_spanning_two_changes() {
     std::cout << "Test 6: match spanning two degenerate sets... ";
 
-    // EDS: AAAA{T,G}TTTT{C,A}CCCC  l=4
-    // T0 = AAAATTTTCCCC
-    // Changes: 0=T, 1=G, 2=C, 3=A
-    // base_positions: after AAAA=4, after TTTT=8, after CCCC=12
-    //
-    // 8-char pattern "AAATTTCA" (2 chunks of 4):
-    //   A(T0[1])+A(T0[2])+A(T0[3])+T(change0)+T(T0[4])+T(T0[5])+T(T0[6])+...
-    //   Actually let me use a pattern we know exists:
-    //   "AAATTTCC" length 8 doesn't span two changes.
-    //
-    // Let's use a pattern that goes ref->change->ref->change:
-    //   "TTTTCCCC" length 8: pure reference T(4..7)+C(8..11) -> (4,[])
-    //
-    // For spanning changes, we need something like:
-    //   T(T0[3]) + T(change0) + T(T0[4]) + T(T0[5]) + T(T0[6]) + T(T0[7]) ...
-    //   or
-    //   A(T0[2]) + A(T0[3]) + T(change0) + T(T0[4]) + T(T0[5]) + T(T0[6]) + C(change2) + C(T0[8])
-    //   = "AATTTTTCC"? That's 9 chars. Not multiple of 4.
-    //
-    // Let's use l=3 instead for this test to get smaller chunks:
-    // EDS: AAA{T,G}TTT{C,A}CCC  l=3
-    // T0 = AAATTTCCC
-    // Changes: 0=T, 1=G, 2=C, 3=A
-    // base_positions: after AAA=3, after TTT=6, after CCC=9
-    //
-    // Pattern "TTCA" (not multiple of 3)... need 6-char patterns.
-    // "TTTCCC" = T(T0[3])+T(T0[4])+T(T0[5])+C(T0[6])+C(T0[7])+C(T0[8]) pure ref -> (3,[])
-    // "TTTACC" = T(T0[3..5]) + A(change3) + C(T0[6]) + C(T0[7]) -> (3,[3])
-    // "TTGCCC" = no: T0[3..5]=TTT, so "TTG" would need G (change1) in there
-    //   T(T0[3])+T(T0[4])+G(change1)+C(T0[6])+C(T0[7])+C(T0[8])
-    //   but that's TTG+CCC = "TTGCCC" - does this span two changes? No, only change1.
-    //   Wait: T(T0[3])+T(T0[4]) are references, G(change1) is a change, C+C+C are references.
-    //   Only change1 used. -> (3,[1])
-    //   Starts at T0[3]=T. Position=3. changes=[1]. -> (3,[1])
-    //
-    // For two changes: "ATGCCC" = A(T0[2])+T(change0)+G... no, only one change at each set.
-    //   Actually with l=3: {T,G} is one set (alternatives T and G). Can't use both T and G
-    //   in the same path. So for two changes, we need two different degenerate SETS.
-    //
-    // "ATTTCA" (6 chars): A(T0[2])+T(change0)+T(T0[3])+T(T0[4])+C(change2)+A?
-    //   Hmm: T0=AAATTTCCC. After {T,G} comes TTT. After TTT comes {C,A}. After {C,A} comes CCC.
-    //   So: A(T0[2]) + T(change0) + T(T0[3]) + T(T0[4]) + C(change2) + C(T0[6]) = "ATTTCC"?
-    //     Wait: A(T0[2])=A, T(change0)=T, T(T0[3])=T, T(T0[4])=T, C(change2)=C, C(T0[6])=C
-    //     = "ATTTCC" (6 chars) ✓  but T(T0[3]) is T0's 4th char (AAATTTCCC: T0[3]=T) and
-    //     T(T0[4])=T, T0[5]=T, T0[6]=C, T0[7]=C, T0[8]=C.
-    //     So the pattern traverses: ref(A) + change0(T) + ref(T,T) + change2(C) + ref(C)
-    //     = "ATTTCC". Uses changes [0,2].
-    //     Position: starts at T0[2]=A. -> (2,[0,2])
-
+    // EDS: AAA{T,G}TTT{C,A}CCC  l=3, chunk size 4
+    // T0 = AAATTTCCC; changes 0=T, 1=G (set 0), 2=C, 3=A (set 1)
+    // A match crossing both sets passes ref -> change -> ref -> change -> ref,
+    // and records one alternative from each set.
     const std::string eds_str = "AAA{T,G}TTT{C,A}CCC";
     BioFMI idx = build_index(eds_str, 3);
     EDS eds = make_eds(eds_str);
 
-    // chunk_size=4: use 8-char patterns (2 chunks).
+    // Two chunks each.
     // "AATTTTCC": A(T0[1])+A(T0[2])+T(change0)+T(T0[3])+T(T0[4])+T(T0[5])+C(change2)+C(T0[6])
     //   -> (1,[0,2])
     {
@@ -450,19 +412,10 @@ void test_match_spanning_two_changes() {
 void test_same_position_different_paths() {
     std::cout << "Test 7: same position, different change paths -> separate entries... ";
 
-    // EDS: AAATTT{G,C}AAATTT  l=3
-    // "TTG" -> (4,[0])  and  "TTC" -> (4,[1])  are different patterns.
-    // For same position with different changes, we need both alternatives to produce
-    // the same pattern string at the same position.
-    // EDS: AAA{A,A}TTT l=3 would be degenerate with identical alternatives (degenerate
-    // but same string) — not useful.
-    //
-    // Use: AAA{T,T}TTT — both alternatives are T, so same string, but change 0 and change 1
-    // are distinct indices. Pattern "ATTT" (l=3... hmm 4 chars not multiple of 3).
-    //
-    // AAATTT{GG,GG}AAATTT l=3, chunk_size=4: both alternatives identical.
-    // Pattern "TTGG" (4 chars): T(T0[4])+T(T0[5])+G(change,0)+G(change,1)
-    //   Via change0: (4,[0]); via change1: (4,[1]) -- two separate entries.
+    // Two alternatives spelling the same string are still distinct changes, so
+    // one position yields one entry per alternative.
+    // EDS: AAATTT{GG,GG}AAATTT  l=3, chunk size 4
+    // "TTGG" = T0[4..5] + GG -> (4,[0]) via change 0 and (4,[1]) via change 1.
     const std::string eds_str = "AAATTT{GG,GG}AAATTT";
     BioFMI idx = build_index(eds_str, 3);
     EDS eds = make_eds(eds_str);
@@ -489,21 +442,17 @@ void test_count_matches_locate() {
     const std::string eds_str = "AAA{T,G}TTT{C,A}CCC";
     BioFMI idx = build_index(eds_str, 3);
 
-    // chunk_size=4 for l=3: all patterns must be multiples of 4
-    for (const std::string& pat : {"AAAT", "ATTT", "TTTG", "TTTC", "AATTTTCC", "AATTTTAC"}) {
-        try {
-            auto result = idx.locate(pat);
-            size_t total = 0;
-            for (const auto& [seq_id, occs] : result) total += occs.size();
+    // chunk_size=4 for l=3: one and two whole chunks
+    for (const char* pat : {"AAAT", "ATTT", "TTTG", "TTTC", "AATTTTCC", "AATTTTAC"}) {
+        auto result = idx.locate(pat);
+        size_t total = 0;
+        for (const auto& [seq_id, occs] : result) total += occs.size();
 
-            size_t cnt = idx.count(pat);
-            if (cnt != total) {
-                std::cerr << "  FAIL: pattern='" << pat << "' locate gives "
-                          << total << " but count gives " << cnt << "\n";
-                assert(false && "count() does not match locate() entry count");
-            }
-        } catch (const std::runtime_error&) {
-            // Invalid length — skip
+        size_t cnt = idx.count(pat);
+        if (cnt != total) {
+            std::cerr << "  FAIL: pattern='" << pat << "' locate gives "
+                      << total << " but count gives " << cnt << "\n";
+            assert(false && "count() does not match locate() entry count");
         }
     }
     std::cout << "PASSED\n";
@@ -583,9 +532,9 @@ void test_broad_correctness_long_alternatives() {
 // Test 10: Boundary degenerate symbols — no false positives, correct positions
 //
 // The l-EDS property exempts the leading and trailing non-degenerate segments
-// from the length-≥l requirement.  When these segments are shorter than cl
-// (= l-1), parse_eds() must pad with sentinels so every stored entry has
-// exactly cl chars of context on each side.  Without padding, a chunk query
+// from the length-≥l requirement.  When these segments are shorter than l,
+// parse_eds() must pad with sentinels so every stored entry has exactly l
+// chars of context on each side.  Without padding, a chunk query
 // can hit a truncated entry at the wrong offset and return a spurious match.
 // ---------------------------------------------------------------------------
 void test_boundary_degenerate_no_false_positives() {
@@ -604,9 +553,9 @@ void test_boundary_degenerate_no_false_positives() {
 }
 
 void test_boundary_short_leading_segment() {
-    std::cout << "Test 10b: leading segment shorter than cl... ";
+    std::cout << "Test 10b: leading segment shorter than l... ";
 
-    // EDS: A{G,C}AAATTT  l=3  (leading "A" has length 1 < cl=3)
+    // EDS: A{G,C}AAATTT  l=3  (leading "A" has length 1 < l=3)
     // chunk_size=4
     {
         const std::string eds = "A{G,C}AAATTT";
@@ -619,9 +568,9 @@ void test_boundary_short_leading_segment() {
 }
 
 void test_boundary_short_trailing_segment() {
-    std::cout << "Test 10c: trailing segment shorter than cl... ";
+    std::cout << "Test 10c: trailing segment shorter than l... ";
 
-    // EDS: AAATTT{G,C}A  l=3  (trailing "A" has length 1 < cl=3)
+    // EDS: AAATTT{G,C}A  l=3  (trailing "A" has length 1 < l=3)
     // chunk_size=4
     {
         const std::string eds = "AAATTT{G,C}A";

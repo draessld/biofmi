@@ -5,7 +5,7 @@
  * exactly the expected values for known small EDS inputs:
  *   base_positions  — cumulative T0 length before each degenerate set
  *   set_sizes       — cumulative string count through each degenerate set
- *   offsets         — length of each individual degenerate string
+ *   lengths         — length of each individual degenerate string
  *   tloc / loc / iloc bit vectors — block boundary positions
  *
  * These tests catch regressions in parse_eds() that would produce silently
@@ -67,7 +67,7 @@ void assert_str(const std::string& got, const std::string& expected, const char*
 //
 // base_positions = [6, 12]   (T0 length before first set = 6; total T0 = 12)
 // set_sizes      = [2]       (one set of 2 alternatives)
-// offsets        = [1, 1]    (G has length 1, C has length 1)
+// lengths        = [1, 1]    (G has length 1, C has length 1)
 // ---------------------------------------------------------------------------
 void test_one_degenerate_set() {
     std::cout << "Test 1: AAATTT{G,C}AAATTT  l=3... ";
@@ -81,7 +81,7 @@ void test_one_degenerate_set() {
 
     assert_vec(s.base_positions, {6, 12},    "base_positions");
     assert_vec(s.set_sizes,      {2},        "set_sizes");
-    assert_vec(s.offsets,        {1, 1},     "offsets");
+    assert_vec(s.lengths,        {1, 1},     "lengths");
 
     assert_vec(s.tloc_ones, {0, 7, 14},      "tloc_ones");
     assert_vec(s.loc_ones,  {0, 8, 16},      "loc_ones");
@@ -111,7 +111,7 @@ void test_one_degenerate_set() {
 //
 // base_positions = [3, 6, 9]
 // set_sizes      = [2, 4]
-// offsets        = [1, 1, 1, 1]
+// lengths        = [1, 1, 1, 1]
 // ---------------------------------------------------------------------------
 void test_two_degenerate_sets() {
     std::cout << "Test 2: AAA{T,G}TTT{C,A}CCC  l=3... ";
@@ -129,7 +129,7 @@ void test_two_degenerate_sets() {
 
     assert_vec(s.base_positions, {3, 6, 9},       "base_positions");
     assert_vec(s.set_sizes,      {2, 4},           "set_sizes");
-    assert_vec(s.offsets,        {1, 1, 1, 1},     "offsets");
+    assert_vec(s.lengths,        {1, 1, 1, 1},     "lengths");
 
     assert_vec(s.tloc_ones, {0, 4, 8, 12},          "tloc_ones");
     assert_vec(s.loc_ones,  {0, 8, 16, 24, 32},     "loc_ones");
@@ -244,7 +244,7 @@ void test_two_degenerate_sets() {
 //   Before loop: is_degenerate[0]? EDS "AAAA{T,GGG}TTTT"
 //     Symbol 0 = "AAAA" (non-degen) → no pre-loop push
 //   x=0 "AAAA": base_pos=4, base_positions=[4], tloc at 5, ref="#AAAA#" pos=6
-//   x=1 {T,GGG}: set_sizes=[2], offsets=[1,3]
+//   x=1 {T,GGG}: set_sizes=[2], lengths=[1,3]
 //   x=2 "TTTT": base_pos=8, base_positions=[4,8], tloc at 10, ref="#AAAA#TTTT#" pos=11
 //
 // Hmm wait. Let me retrace for AAAA{T,GGG}TTTT:
@@ -261,10 +261,10 @@ void test_two_degenerate_sets() {
 // x=1 {T,GGG} (degen):
 //   set_sizes=[2]
 //   context_right: next = "TTTT", size=4 ≥ cl=3, context_right = "TTT"
-//   i=0 (T): offsets=[1]
+//   i=0 (T): lengths=[1]
 //     chan << "AAA" << "T" << "TTT": pos = 1+3+1+3 = 8, loc[8]=1
 //     chan << '#': pos=9
-//   i=1 (GGG): offsets=[1,3]
+//   i=1 (GGG): lengths=[1,3]
 //     chan << "AAA" << "GGG" << "TTT": pos = 9+3+3+3 = 18, loc[18]=1, iloc[18]=1
 //     chan << '#': pos=19
 //
@@ -278,7 +278,7 @@ void test_two_degenerate_sets() {
 // Final:
 //   base_positions = [4, 8]
 //   set_sizes = [2]
-//   offsets = [1, 3]
+//   lengths = [1, 3]
 //   ref_text = "#AAAA#TTTT#" (11 chars, positions 0-10)
 //   changes_text = "#AAATTTT#AAAGGGTTT#" (19 chars, positions 0-18)
 //   tloc_ones = [0, 5, 10]
@@ -299,7 +299,7 @@ void test_multi_char_alternative() {
 
     assert_vec(s.base_positions, {4, 8},   "base_positions");
     assert_vec(s.set_sizes,      {2},      "set_sizes");
-    assert_vec(s.offsets,        {1, 3},   "offsets");
+    assert_vec(s.lengths,        {1, 3},   "lengths");
 
     assert_vec(s.tloc_ones, {0, 5, 10},    "tloc_ones");
     assert_vec(s.loc_ones,  {0, 10, 22},   "loc_ones");
@@ -365,7 +365,7 @@ void test_boundary_first_degenerate_structure() {
 
     assert_vec(s.base_positions, {0, 6},  "base_positions");
     assert_vec(s.set_sizes,      {2},     "set_sizes");
-    assert_vec(s.offsets,        {1, 1},  "offsets");
+    assert_vec(s.lengths,        {1, 1},  "lengths");
 
     assert_vec(s.tloc_ones, {0, 7},       "tloc_ones");
     assert_vec(s.loc_ones,  {0, 8, 16},   "loc_ones");
@@ -394,7 +394,7 @@ void test_split_regular_symbols_structure() {
     assert_str(split.changes_text, merged.changes_text, "changes_text");
     assert_vec(split.base_positions, merged.base_positions, "base_positions");
     assert_vec(split.set_sizes,      merged.set_sizes,      "set_sizes");
-    assert_vec(split.offsets,        merged.offsets,        "offsets");
+    assert_vec(split.lengths,        merged.lengths,        "lengths");
     assert_vec(split.tloc_ones, merged.tloc_ones, "tloc_ones");
     assert_vec(split.loc_ones,  merged.loc_ones,  "loc_ones");
     assert_vec(split.iloc_ones, merged.iloc_ones, "iloc_ones");

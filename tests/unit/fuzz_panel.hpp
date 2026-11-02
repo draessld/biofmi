@@ -87,7 +87,7 @@ inline std::string random_dna(std::mt19937& rng, size_t len) {
  * A random l-EDS.
  *
  * Internal non-degenerate segments are at least l characters, which is what
- * biofmi-build validates. Boundary segments may be shorter — that asymmetry has
+ * eds-biofmi-build validates. Boundary segments may be shorter — that asymmetry has
  * its own history of bugs, so it is exercised rather than avoided.
  */
 inline Panel random_panel(std::mt19937& rng, int l) {

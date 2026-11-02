@@ -1,0 +1,10 @@
+// Generated from src/cpp/lib/build_info.hpp.in by edsparser's cmake/GitVersion.cmake — do not edit.
+#ifndef BIOFMI_BUILD_INFO_HPP
+#define BIOFMI_BUILD_INFO_HPP
+
+#define BIOFMI_VERSION     "@BIOFMI_VERSION@"
+#define BIOFMI_GIT_COMMIT  "@EDSPARSER_GIT_COMMIT@"
+#define BIOFMI_GIT_DATE    "@EDSPARSER_GIT_DATE@"
+#define BIOFMI_GIT_DIRTY   @EDSPARSER_GIT_DIRTY@
+
+#endif // BIOFMI_BUILD_INFO_HPP

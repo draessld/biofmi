@@ -61,7 +61,7 @@ Outputs:
 
 | Path | Contents |
 |---|---|
-| `build/tools/` | `biofmi-build`, `biofmi-locate`, and the test executables |
+| `build/tools/` | `eds-biofmi-build`, `eds-biofmi-locate`, and the test executables |
 | `build/lib/` | the static library the tools link against |
 
 Install to a prefix if you want the tools on `PATH`:

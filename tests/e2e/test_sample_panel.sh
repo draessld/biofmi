@@ -21,8 +21,8 @@ BIOFMI_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
 DATA_DIR="$BIOFMI_ROOT/tests/data"
-BUILD_TOOL=$(find_tool "biofmi-build")  || { echo "ERROR: biofmi-build not found"; exit 1; }
-LOCATE_TOOL=$(find_tool "biofmi-locate") || { echo "ERROR: biofmi-locate not found"; exit 1; }
+BUILD_TOOL=$(find_tool "eds-biofmi-build")  || { echo "ERROR: eds-biofmi-build not found"; exit 1; }
+LOCATE_TOOL=$(find_tool "eds-biofmi-locate") || { echo "ERROR: eds-biofmi-locate not found"; exit 1; }
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 

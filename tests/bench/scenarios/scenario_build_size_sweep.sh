@@ -3,7 +3,7 @@
 #
 # Generates a synthetic EDS of each requested size, converts to l-EDS
 # (l=5 fixed), then measures the time and memory needed to build the
-# BioFMI index with biofmi-build.
+# BioFMI index with eds-biofmi-build.
 
 run_scenario_build_size_sweep() {
     local tmpdir="$1" csv="$2" ts="$3" preset="$4" n_reps="$5"
@@ -13,7 +13,7 @@ run_scenario_build_size_sweep() {
     local gen_tool eds_tool build_tool
     gen_tool=$(find_edsparser_tool genrandomeds)  || { bench_err "genrandomeds not found";  return 1; }
     eds_tool=$(find_edsparser_tool eds2leds)      || { bench_err "eds2leds not found";      return 1; }
-    build_tool=$(find_biofmi_tool  biofmi-build)  || { bench_err "biofmi-build not found";  return 1; }
+    build_tool=$(find_biofmi_tool  eds-biofmi-build)  || { bench_err "eds-biofmi-build not found";  return 1; }
 
     local l=5   # context length fixed for size sweep
 
@@ -40,7 +40,7 @@ run_scenario_build_size_sweep() {
         size_mb=$(file_size_mb "$input_leds")
 
         write_csv_row "$csv" "$ts" "$preset" "$scenario" "build" \
-            "biofmi-build" "$size_mb" "$l" "" "" "" "$n_reps"
+            "eds-biofmi-build" "$size_mb" "$l" "" "" "" "$n_reps"
         bench_log "  median=${BENCH_RUNTIME_MEDIAN_S}s  stddev=${BENCH_RUNTIME_STDDEV_S}s  p95=${BENCH_RUNTIME_P95_S}s  memory=${BENCH_MEMORY_MEDIAN_MB}MB"
 
         # Clean up index directory to save disk space

@@ -1,4 +1,5 @@
 #include "index/index.hpp"
+#include "version.hpp"
 #include <edsparser/common.hpp>
 #include <boost/program_options.hpp>
 #include <iostream>
@@ -33,9 +34,10 @@ int main(int argc, char** argv) {
         Length context_length;
         bool dump_readable;
 
-        po::options_description desc("Build BIO-FMI index");
+        po::options_description desc("Build EDS-BIO-FMI index");
         desc.add_options()
             ("help,h", "Show help message")
+            ("version,V", "Print version and build provenance (COMMIT, COMMIT_DATE, DIRTY) and exit")
             ("input,i", po::value<std::filesystem::path>(&input_file)->required(), "Input l-EDS file")
             ("output,o", po::value<std::filesystem::path>(&output_file), "Output index directory")
             ("context-length,l", po::value<Length>(&context_length)->required(), "Context length")
@@ -50,6 +52,10 @@ int main(int argc, char** argv) {
             print_performance();
             return 0;
         }
+        if (vm.count("version")) {
+            biofmi::print_version("eds-biofmi-build");
+            return 0;
+        }
 
         po::notify(vm);
 
@@ -59,7 +65,7 @@ int main(int argc, char** argv) {
             output_file = input_file.parent_path() / (filename + ".index");
         }
 
-        std::cout << "Building BIO-FMI index...\n";
+        std::cout << "Building EDS-BIO-FMI index...\n";
         std::cout << "  Input file: " << input_file << "\n";
         std::cout << "  Output directory: " << output_file << "\n";
         std::cout << "  Context length: " << context_length << "\n\n";

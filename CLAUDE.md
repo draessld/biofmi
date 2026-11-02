@@ -8,7 +8,9 @@ BIO-FMI is a research implementation of an FM-index for Elastic-Degenerate Strin
 
 The project was split in November 2025 into:
 - **EDSParser** (`external/edsparser/`) — Git submodule; handles EDS parsing, format transformations (MSA/VCF→EDS), statistics, and pattern generation
-- **BioFMI** (this repo) — FM-index building (`biofmi-build`) and querying (`biofmi-locate`), benchmark suite
+- **BioFMI** (this repo) — FM-index building (`eds-biofmi-build`), querying (`eds-biofmi-locate`) and genome extraction (`eds-biofmi-extract`), benchmark suite
+
+**Naming (2026-11-02).** The paper calls the index **EDS-BIO-FMI**, apart from the original BIO-FMI of Procházka and Holub (2014), and the tools are `eds-biofmi-*`. The old `biofmi-build`/`-locate`/`-extract` names are symlinks made by the build and by `cmake --install`, because every xbench spec and run directory names them; notes below dated before the rename keep the old names. The repository, `biofmi_lib`, the `biofmi` namespace, the `BioFMI` class and the index files are unchanged.
 
 ## Build
 
@@ -65,7 +67,8 @@ The 2026-08-11 version of that claim was worth less than it looked. edsparser ne
 **Always rebuild before trusting a test result, and never trust `~/.local/bin`.** Both failures seen on 2026-08-11 were stale artifacts, and the dangerous direction is silent: the installed `eds2leds` was from Jul 6, predating the complement fix (Aug 4), so it produced l-EDS containing strings no genome carries *without erroring*. Tools now report provenance:
 
 ```bash
-eds2leds --version     # COMMIT=<sha> COMMIT_DATE=<iso8601> DIRTY=<0|1>
+eds2leds --version            # COMMIT=<sha> COMMIT_DATE=<iso8601> DIRTY=<0|1>
+eds-biofmi-locate --version   # the same, for this repo's tree (since 2026-11-02)
 ```
 
 `experiments/scripts/run_tb_experiment.sh` refuses to run on a binary whose `COMMIT_DATE` predates the complement fix. Both e2e harnesses now resolve tools from `build/tools/` before `PATH` (override with `EDSPARSER_TOOLS_FROM_PATH=1` / `BIOFMI_TOOLS_FROM_PATH=1`). BioFMI's was missed when edsparser's was fixed and only caught on 2026-09-02: it was running an Aug 11 `biofmi-locate` out of `~/.local/bin`, older than arbitrary `|P|` and the chunk stitch, and its eleven "failures" were that stale binary disagreeing with expectations the fresh one meets.
@@ -85,17 +88,17 @@ eds2leds -i data.eds -s data.seds -l 5 -o data.l5.leds
 eds2leds -i data.eds -l 5 -o data.l5.leds
 
 # 3. Build index
-biofmi-build -i data.l5.leds -l 5 -o data.l5.index
+eds-biofmi-build -i data.l5.leds -l 5 -o data.l5.index
 
 # 4. Query index
-biofmi-locate -i data.l5.index -l 5 -p "ACGTACGTAC"
-biofmi-locate -i data.l5.index -l 5 -P patterns.txt
-biofmi-locate --benchmark -i data.l5.index -l 5 -P patterns.txt
+eds-biofmi-locate -i data.l5.index -l 5 -p "ACGTACGTAC"
+eds-biofmi-locate -i data.l5.index -l 5 -P patterns.txt
+eds-biofmi-locate --benchmark -i data.l5.index -l 5 -P patterns.txt
 
 # 5. Genomes back out of the index (needs the sources; TODO §9)
-biofmi-extract -i data.l5.index -s data.seds -r 3:1000-1100     # genome 3, [1000,1100)
-biofmi-extract -i data.l5.index -s data.seds -r 3               # all of genome 3
-biofmi-locate  -i data.l5.index -l 5 -s data.seds --genome-coords -p ACGTACGTAC  # id:position
+eds-biofmi-extract -i data.l5.index -s data.seds -r 3:1000-1100     # genome 3, [1000,1100)
+eds-biofmi-extract -i data.l5.index -s data.seds -r 3               # all of genome 3
+eds-biofmi-locate  -i data.l5.index -l 5 -s data.seds --genome-coords -p ACGTACGTAC  # id:position
 ```
 
 ## Benchmarks
@@ -176,7 +179,7 @@ The `BioFMI` class (C++ namespace `biofmi`) holds two SDSL `csa_wt<>` compressed
 - **Reference index** (`.ri`): indexes the non-degenerate common sequence T₀, stored as `#seg1#seg2#...`
 - **Changes index** (`.ci`): indexes variable regions, each stored as `left_ctx + alt + right_ctx + #`
 
-Position mapping between the two indexes uses three SDSL bit vectors with rank/select support (`.loc`, `.iloc`, `.tloc`), plus metadata arrays for base positions, set sizes, and offsets (`.abp`, `.ss`, `.aof`). Despite its name, `IndexData::offsets` (`.aof`) holds the *length* of each degenerate string — the paper calls it `len`, and the original BIO-FMI's "offset" (the shift between `T_i` and `T_0`) is something else; rename pending, TODO §10.
+Position mapping between the two indexes uses three SDSL bit vectors with rank/select support (`.loc`, `.iloc`, `.tloc`), plus metadata arrays for base positions, set sizes, and lengths (`.abp`, `.ss`, `.aof`). `IndexData::lengths` holds the length of each degenerate string — the paper's `len`. It was called `offsets` until 2026-11-02, which is why its file is still `.aof`; the name was wrong because the original BIO-FMI's "offset" is the shift between `T_i` and `T_0`. The file name stays so existing indexes load.
 
 Query processing splits the pattern into chunks of size `l` and tracks matches across both indexes using hash maps, with early termination on empty intermediate results. `locate_short()`, `locate_long()`, and `validate_chunk_positions()` are stub methods (not yet called by `locate()`) — the main `locate()` loop handles all pattern lengths directly.
 
@@ -189,9 +192,9 @@ Query processing splits the pattern into chunks of size `l` and tracks matches a
 - **Nothing holds the answer (2026-10-01, `count-stream`).** `locate(pattern, callback)` streams each entry as the final chunk finds it and returns how many; `count()` runs the same search building none; `locate(pattern)` is the stream collected (plus `last_result_`). The final chunk's survivors go to a sink (`final_sink_`, via `store()`) instead of `new_hash_map_`, and hits come straight off the SA range (`for_each_hit()`) rather than an `sdsl::locate()` vector, so memory is the candidates the *earlier* chunks hand on — nothing per occurrence for `|P| <= l+1`. `biofmi-locate` prints through the stream and `--benchmark` uses `count()`. Entry **order changed** (undefined by spec; was final hash-map order): output is identical as a per-pattern line multiset, not byte for byte — sort before diffing.
 - Future work: EDS boundary edge cases.
 
-### l-EDS validation in `biofmi-build`
+### l-EDS validation in `eds-biofmi-build`
 
-`biofmi-build` validates the l-EDS property before building: every **internal** non-degenerate segment (one that has a degenerate symbol on both sides) must have length ≥ l. Boundary segments at the start/end of the EDS may be shorter and are handled correctly.
+`eds-biofmi-build` validates the l-EDS property before building: every **internal** non-degenerate segment (one that has a degenerate symbol on both sides) must have length ≥ l. Boundary segments at the start/end of the EDS may be shorter and are handled correctly.
 
 A **segment is a maximal run of regular symbols**, not one symbol: `{CGCG}{A}{TGCC}` is one context of 9 (2026-10-01). The check walks `metadata.is_degenerate[]` run by run, summing `string_lengths[]`, rejects an internal run shorter than l, and rejects two adjacent degenerate symbols (an internal segment of length 0). `parse_eds()` likewise writes one T0 block, one `base_positions` entry and one context window per run — before that a run got a `#` inside it and shifted every later base position, losing matches silently (TODO §7b). String ids (`chi`, `.d2g`) stay per symbol; they number the file.
 
@@ -234,13 +237,13 @@ each candidate match and prunes the branch the moment no path carries the whole 
 The paper (`tex/`, its own local repo) calls the two modes **PHASED** (= LINEAR) and **UNPHASED** (= CARTESIAN);
 the code and the docs keep LINEAR / CARTESIAN.
 
-Source-aware search is opt-in — pass the l-EDS's source file to `biofmi-locate`:
+Source-aware search is opt-in — pass the l-EDS's source file to `eds-biofmi-locate`:
 
 ```bash
-biofmi-locate -i data.index -l 9 -s merged.seds -P patterns.txt   # LINEAR, auto-detect
-biofmi-locate -i data.index -l 9 -z merged.edz -P patterns.txt    # LINEAR, forced EDZ
-biofmi-locate -i data.index -l 9 -z merged.edz --samples -p ACGT… # + carrying genome ids
-biofmi-locate -i data.index -l 9 -P patterns.txt                  # CARTESIAN (unchanged)
+eds-biofmi-locate -i data.index -l 9 -s merged.seds -P patterns.txt   # LINEAR, auto-detect
+eds-biofmi-locate -i data.index -l 9 -z merged.edz -P patterns.txt    # LINEAR, forced EDZ
+eds-biofmi-locate -i data.index -l 9 -z merged.edz --samples -p ACGT… # + carrying genome ids
+eds-biofmi-locate -i data.index -l 9 -P patterns.txt                  # CARTESIAN (unchanged)
 ```
 
 **Sample sets.** In LINEAR mode the surviving intersection *is* the set of genomes

@@ -9,8 +9,8 @@ biofmi/                          ← this repo
 ├── src/cpp/
 │   ├── lib/index/               ← BioFMI C++ library (BioFMI class)
 │   └── tools/
-│       ├── build.cpp            ← biofmi-build  (index construction)
-│       └── locate.cpp           ← biofmi-locate (pattern querying)
+│       ├── build.cpp            ← eds-biofmi-build  (index construction)
+│       └── locate.cpp           ← eds-biofmi-locate (pattern querying)
 ├── tests/
 │   ├── unit/                    ← C++ unit tests (cassert)
 │   ├── e2e/                     ← shell end-to-end tests
@@ -52,7 +52,7 @@ external/edsparser/              ← EDSParser submodule
                              │
                ┌─────────────┴──────────────┐
                ▼                            ▼
-        biofmi-build                 biofmi-locate
+        eds-biofmi-build                 eds-biofmi-locate
         (CLI tool)                   (CLI tool)
 ```
 
@@ -75,7 +75,7 @@ external/edsparser/              ← EDSParser submodule
                 └──► changes.txt    "#[ctx_L][alt][ctx_R]#..."
                      + loc bit vector  (1 at end of each alt's content)
                      + iloc bit vector (1 at last alt of each set)
-                     + base_positions[], set_sizes[], offsets[]
+                     + base_positions[], set_sizes[], lengths[]
 
   reference.txt  ──► SDSL construct() ──► csa_wt<> (in memory, saved as .ri)
   changes.txt    ──► SDSL construct() ──► csa_wt<> (in memory, saved as .ci)
@@ -160,7 +160,7 @@ Parses and stores an EDS. BioFMI imports it with `using edsparser::EDS`. The `ED
 | Executable | What it covers |
 |------------|---------------|
 | `test_build` | Index construction, save/load round-trip |
-| `test_build_structure` | `parse_eds()` internal arrays: `base_positions`, `set_sizes`, `offsets`, `tloc`/`loc`/`iloc` positions |
+| `test_build_structure` | `parse_eds()` internal arrays: `base_positions`, `set_sizes`, `lengths`, `tloc`/`loc`/`iloc` positions |
 | `test_locate` | Basic locate smoke test |
 | `test_locate_validation` | Random patterns generated from l-EDS are found |
 | `test_locate_correctness` | Brute-force oracle vs index for all spec cases |
@@ -194,7 +194,7 @@ reproduces. Skip it during a tight edit loop with `ctest -E fuzz`.
 |-----------|------|
 | SDSL-lite | FM-index (`csa_wt<>`), bit vectors, rank/select structures |
 | divsufsort / divsufsort64 | Suffix array construction (used by SDSL) |
-| Boost `program_options` | CLI argument parsing in `biofmi-build` / `biofmi-locate` |
+| Boost `program_options` | CLI argument parsing in `eds-biofmi-build` / `eds-biofmi-locate` |
 | OpenMP (optional) | Parallel processing |
 | CMake 3.12+ | Build system |
 | C++20 | Language standard |

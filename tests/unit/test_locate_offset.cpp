@@ -19,7 +19,7 @@
  *   pre_hash_loc  = sloc(1) = 0
  *   offset = 1 - (0+3+1) = -3  → previous_outside_change = true
  *   loc_new = base_positions[0] + (-3) = 6-3 = 3
- *   key = loc_new - offsets[0] = 3-1 = 2;  origin = (3, change 1)
+ *   key = loc_new - lengths[0] = 3-1 = 2;  origin = (3, change 1)
  *
  * Chunk "TTTC" found at file pos 9:
  *   change_number = rloc(9) = 2    (loc[0] and loc[8] precede pos 9)
@@ -77,7 +77,7 @@ void test_offset_arithmetic() {
     // Verify the byte layout assumed in the worked example above.
     assert(snap.changes_text == "#TTTGAAA#TTTCAAA#");
     assert((snap.base_positions == std::vector<int>{6, 12}));
-    assert((snap.offsets == std::vector<int>{1, 1}));
+    assert((snap.lengths == std::vector<int>{1, 1}));
     assert((snap.loc_ones == std::vector<size_t>{0, 8, 16}));
 
     // Pure-reference: "AAAT" appears at T0[0] and T0[6].
