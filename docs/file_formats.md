@@ -20,7 +20,7 @@ AGCTAGGTACC
 AGCTTACGGTACC
 ```
 
-Characters used internally by the parser (`{`, `}`, `,`) must not appear in sequence content. The null character `\0` is reserved for SDSL's internal sentinel. The separator character `#` (ASCII 1) is used by BioFMI's reference and changes strings as a block delimiter.
+Characters used internally by the parser (`{`, `}`, `,`) must not appear in sequence content. The null character `\0` is reserved for SDSL's internal sentinel. The separator character `#` (`CHANGE_SEPARATOR`, `common.hpp`) is used by BioFMI's reference and changes strings as a block delimiter, so it must not appear in sequence content or in a pattern either.
 
 ---
 
@@ -215,4 +215,4 @@ lengths (aof) — length of each change string (excluding context):
   [1, 1]
 ```
 
-Separator characters (`#`, ASCII 1) are displayed as `$` for readability.
+Separator characters (`#`) are printed as they are; only control characters (the SDSL sentinel included) are displayed as `$`.

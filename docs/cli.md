@@ -24,7 +24,7 @@ eds-biofmi-build -i data.l9.leds -l 9 -o data.l9.index
 
 ### The l-EDS check
 
-Before building, `eds-biofmi-build` verifies that every **internal** non-degenerate
+Before building, the library (`BioFMI::check_leds()`, called by `build()`) verifies that every **internal** non-degenerate
 segment — one with a degenerate symbol on both sides — is at least `l`
 characters long. Boundary segments at the very start or end of the EDS may be
 shorter and are handled correctly.
@@ -35,9 +35,11 @@ degenerate symbols.
 
 !!! note "`l` must agree in three places"
     The `l` given to `eds2leds`, the `l` given to `eds-biofmi-build`, and the `l`
-    given to `eds-biofmi-locate` must be the same number. Nothing checks this for
-    you across tool invocations, and a mismatch produces wrong answers rather
-    than an error.
+    given to `eds-biofmi-locate` must be the same number. Since 2026-11-02
+    `eds-biofmi-locate` and `eds-biofmi-extract` compare their `-l` with the
+    index's `.meta` and exit 1 on a mismatch. Nothing compares the build's `l`
+    with the one `eds2leds` merged at: the l-EDS check catches an `l` larger
+    than the file supports, but a smaller one builds without complaint.
 
 ---
 
