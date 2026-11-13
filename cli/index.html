@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -671,15 +671,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#biofmi-build" class="md-nav__link">
+  <a href="#eds-biofmi-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        biofmi-build
+        eds-biofmi-build
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="biofmi-build">
+    <nav class="md-nav" aria-label="eds-biofmi-build">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -699,15 +699,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#biofmi-locate" class="md-nav__link">
+  <a href="#eds-biofmi-locate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        biofmi-locate
+        eds-biofmi-locate
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="biofmi-locate">
+    <nav class="md-nav" aria-label="eds-biofmi-locate">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -749,10 +749,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#biofmi-extract" class="md-nav__link">
+  <a href="#eds-biofmi-extract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        biofmi-extract
+        eds-biofmi-extract
       
     </span>
   </a>
@@ -1008,15 +1008,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#biofmi-build" class="md-nav__link">
+  <a href="#eds-biofmi-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        biofmi-build
+        eds-biofmi-build
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="biofmi-build">
+    <nav class="md-nav" aria-label="eds-biofmi-build">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1036,15 +1036,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#biofmi-locate" class="md-nav__link">
+  <a href="#eds-biofmi-locate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        biofmi-locate
+        eds-biofmi-locate
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="biofmi-locate">
+    <nav class="md-nav" aria-label="eds-biofmi-locate">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1086,10 +1086,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#biofmi-extract" class="md-nav__link">
+  <a href="#eds-biofmi-extract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        biofmi-extract
+        eds-biofmi-extract
       
     </span>
   </a>
@@ -1155,13 +1155,13 @@
 
 
 <h1 id="command-line-reference">Command-line reference<a class="headerlink" href="#command-line-reference" title="Permanent link">&para;</a></h1>
-<p>Two tools: <code>biofmi-build</code> turns an l-EDS into an index, <code>biofmi-locate</code> queries
+<p>Two tools: <code>eds-biofmi-build</code> turns an l-EDS into an index, <code>eds-biofmi-locate</code> queries
 it. Both live in <code>build/tools/</code> after a build, and both print a
 <code>[Performance] Runtime / Peak Memory</code> line to stderr when they finish.</p>
 <hr />
-<h2 id="biofmi-build"><code>biofmi-build</code><a class="headerlink" href="#biofmi-build" title="Permanent link">&para;</a></h2>
+<h2 id="eds-biofmi-build"><code>eds-biofmi-build</code><a class="headerlink" href="#eds-biofmi-build" title="Permanent link">&para;</a></h2>
 <p>Builds the dual FM-index from an l-EDS file.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>biofmi-build<span class="w"> </span>-i<span class="w"> </span>data.l9.leds<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-o<span class="w"> </span>data.l9.index
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>eds-biofmi-build<span class="w"> </span>-i<span class="w"> </span>data.l9.leds<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-o<span class="w"> </span>data.l9.index
 </code></pre></div>
 <table>
 <thead>
@@ -1185,7 +1185,7 @@ it. Both live in <code>build/tools/</code> after a build, and both print a
 <tr>
 <td><code>-l</code>, <code>--context-length</code></td>
 <td>integer</td>
-<td>Context length <code>l</code>. Minimum 3. Must match the <code>l</code> the l-EDS was merged at, and the <code>l</code> used at query time.</td>
+<td>Context length <code>l</code>, at least 1 (0 is refused; it was accepted and answered wrongly before 2026-11-02). Must match the <code>l</code> the l-EDS was merged at, and the <code>l</code> used at query time.</td>
 </tr>
 <tr>
 <td><code>--dump</code></td>
@@ -1200,25 +1200,30 @@ it. Both live in <code>build/tools/</code> after a build, and both print a
 </tbody>
 </table>
 <h3 id="the-l-eds-check">The l-EDS check<a class="headerlink" href="#the-l-eds-check" title="Permanent link">&para;</a></h3>
-<p>Before building, <code>biofmi-build</code> verifies that every <strong>internal</strong> non-degenerate
+<p>Before building, the library (<code>BioFMI::check_leds()</code>, called by <code>build()</code>) verifies that every <strong>internal</strong> non-degenerate
 segment — one with a degenerate symbol on both sides — is at least <code>l</code>
 characters long. Boundary segments at the very start or end of the EDS may be
 shorter and are handled correctly.</p>
+<p>A segment is a maximal run of regular symbols, not one symbol: <code>{CGCG}{A}{TGCC}</code>
+is one context of 9. Two degenerate symbols with nothing between them are an
+internal segment of length 0 and are rejected at any <code>l</code>.</p>
 <p>A file that fails this is rejected rather than indexed, because the chunked
 search depends on it: a chunk of <code>l+1</code> characters must never be able to span two
 degenerate symbols.</p>
 <div class="admonition note">
 <p class="admonition-title"><code>l</code> must agree in three places</p>
-<p>The <code>l</code> given to <code>eds2leds</code>, the <code>l</code> given to <code>biofmi-build</code>, and the <code>l</code>
-given to <code>biofmi-locate</code> must be the same number. Nothing checks this for
-you across tool invocations, and a mismatch produces wrong answers rather
-than an error.</p>
+<p>The <code>l</code> given to <code>eds2leds</code>, the <code>l</code> given to <code>eds-biofmi-build</code>, and the <code>l</code>
+given to <code>eds-biofmi-locate</code> must be the same number. Since 2026-11-02
+<code>eds-biofmi-locate</code> and <code>eds-biofmi-extract</code> compare their <code>-l</code> with the
+index's <code>.meta</code> and exit 1 on a mismatch. Nothing compares the build's <code>l</code>
+with the one <code>eds2leds</code> merged at: the l-EDS check catches an <code>l</code> larger
+than the file supports, but a smaller one builds without complaint.</p>
 </div>
 <hr />
-<h2 id="biofmi-locate"><code>biofmi-locate</code><a class="headerlink" href="#biofmi-locate" title="Permanent link">&para;</a></h2>
+<h2 id="eds-biofmi-locate"><code>eds-biofmi-locate</code><a class="headerlink" href="#eds-biofmi-locate" title="Permanent link">&para;</a></h2>
 <p>Queries an index. Reports one entry per valid path through the EDS.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-p<span class="w"> </span>ACGTACGTACGT
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-P<span class="w"> </span>patterns.txt<span class="w"> </span>-o<span class="w"> </span>hits.txt
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>eds-biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-p<span class="w"> </span>ACGTACGTACGT
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>eds-biofmi-locate<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-P<span class="w"> </span>patterns.txt<span class="w"> </span>-o<span class="w"> </span>hits.txt
 </code></pre></div>
 <h3 id="input-and-output">Input and output<a class="headerlink" href="#input-and-output" title="Permanent link">&para;</a></h3>
 <table>
@@ -1233,12 +1238,12 @@ than an error.</p>
 <tr>
 <td><code>-i</code>, <code>--index</code></td>
 <td>path</td>
-<td>Index directory produced by <code>biofmi-build</code>.</td>
+<td>Index directory produced by <code>eds-biofmi-build</code>.</td>
 </tr>
 <tr>
 <td><code>-l</code>, <code>--context-length</code></td>
 <td>integer</td>
-<td>Must match the build.</td>
+<td>Must match the build; checked against the index's <code>.meta</code>, and a mismatch exits 1.</td>
 </tr>
 <tr>
 <td><code>-p</code>, <code>--pattern</code></td>
@@ -1375,14 +1380,14 @@ executed</strong> rather than chunks planned:</p>
 <p>The per-chunk timer costs two clock reads per chunk (~3% at typical sizes),
 which is why it is opt-in rather than part of the plain <code>--benchmark</code> path.</p>
 <hr />
-<h2 id="biofmi-extract"><code>biofmi-extract</code><a class="headerlink" href="#biofmi-extract" title="Permanent link">&para;</a></h2>
+<h2 id="eds-biofmi-extract"><code>eds-biofmi-extract</code><a class="headerlink" href="#eds-biofmi-extract" title="Permanent link">&para;</a></h2>
 <p>Spells stretches of individual genomes back out of an index plus its sources
 (a genome is a path through the panel). Coordinates are 0-based and half-open;
 genomes are the 1-based path ids <code>--samples</code> reports. Output is FASTA, one
 record per region, headed <code>&gt;g:i-j</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>-r<span class="w"> </span><span class="m">3</span>:1000-1100<span class="w">   </span><span class="c1"># genome 3, [1000,1100)</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>-r<span class="w"> </span><span class="m">3</span><span class="w"> </span>-r<span class="w"> </span><span class="m">5</span><span class="w"> </span>-o<span class="w"> </span>g.fa<span class="w">  </span><span class="c1"># genomes 3 and 5, whole</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>--lengths<span class="w">          </span><span class="c1"># every genome's length</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>eds-biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>-r<span class="w"> </span><span class="m">3</span>:1000-1100<span class="w">   </span><span class="c1"># genome 3, [1000,1100)</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>eds-biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>-r<span class="w"> </span><span class="m">3</span><span class="w"> </span>-r<span class="w"> </span><span class="m">5</span><span class="w"> </span>-o<span class="w"> </span>g.fa<span class="w">  </span><span class="c1"># genomes 3 and 5, whole</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>eds-biofmi-extract<span class="w"> </span>-i<span class="w"> </span>data.l9.index<span class="w"> </span>-s<span class="w"> </span>data.l9.seds<span class="w"> </span>--lengths<span class="w">          </span><span class="c1"># every genome's length</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1396,7 +1401,7 @@ record per region, headed <code>&gt;g:i-j</code>.</p>
 <tr>
 <td><code>-i</code>, <code>--index</code></td>
 <td>path</td>
-<td>Index directory produced by <code>biofmi-build</code>.</td>
+<td>Index directory produced by <code>eds-biofmi-build</code>.</td>
 </tr>
 <tr>
 <td><code>-l</code>, <code>--context-length</code></td>
@@ -1406,7 +1411,7 @@ record per region, headed <code>&gt;g:i-j</code>.</p>
 <tr>
 <td><code>-s</code>, <code>--seds</code> / <code>-z</code>, <code>--edz</code></td>
 <td>path</td>
-<td>Source file of the indexed l-EDS, as for <code>biofmi-locate</code>. Required.</td>
+<td>Source file of the indexed l-EDS, as for <code>eds-biofmi-locate</code>. Required.</td>
 </tr>
 <tr>
 <td><code>-r</code>, <code>--region</code></td>
@@ -1426,7 +1431,7 @@ record per region, headed <code>&gt;g:i-j</code>.</p>
 <tr>
 <td><code>-b</code>, <code>--sample-rate</code></td>
 <td>integer</td>
-<td>As <code>biofmi-locate --sample-rate</code> (default 32).</td>
+<td>As <code>eds-biofmi-locate --sample-rate</code> (default 32).</td>
 </tr>
 <tr>
 <td><code>-o</code>, <code>--output</code></td>
@@ -1588,7 +1593,7 @@ both per character removed. On an 8 MB synthetic panel at <code>l=9</code>:</p>
 <p>Until 2026-10-01 every occurrence was materialised before the first line was
 written, so <strong>memory was the binding constraint</strong>: a one-character pattern on an
 8 MB panel wanted 9.2 GB, and under a memory cap that surfaced as an OOM rather
-than as a very common pattern. <code>biofmi-locate</code> now prints each entry as it is
+than as a very common pattern. <code>eds-biofmi-locate</code> now prints each entry as it is
 found and <code>--benchmark</code> counts without building any, so a pattern of at most
 <code>l+1</code> characters runs in the memory of the index alone, however often it occurs.
 Time still tracks the answer — each hit is located — so the table's wall column
@@ -1669,10 +1674,10 @@ stands. See <a href="../locate_spec/#cost-a-short-pattern-is-not-a-short-tail"><
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

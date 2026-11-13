@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1136,13 +1136,14 @@
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>AGCTAGGTACC
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>AGCTTACGGTACC
 </code></pre></div></p>
-<p>Characters used internally by the parser (<code>{</code>, <code>}</code>, <code>,</code>) must not appear in sequence content. The null character <code>\0</code> is reserved for SDSL's internal sentinel. The separator character <code>#</code> (ASCII 1) is used by BioFMI's reference and changes strings as a block delimiter.</p>
+<p>Characters used internally by the parser (<code>{</code>, <code>}</code>, <code>,</code>) must not appear in sequence content. The null character <code>\0</code> is reserved for SDSL's internal sentinel. The separator character <code>#</code> (<code>CHANGE_SEPARATOR</code>, <code>common.hpp</code>) is used by BioFMI's reference and changes strings as a block delimiter, so it must not appear in sequence content or in a pattern either.</p>
 <hr />
 <h2 id="2-l-eds-constraint">2. l-EDS constraint<a class="headerlink" href="#2-l-eds-constraint" title="Permanent link">&para;</a></h2>
-<p>A valid input to <code>biofmi-build</code> must satisfy the <strong>l-EDS property</strong>: every <em>internal</em> non-degenerate segment (one that has a degenerate symbol on both its left and right sides) must have length ≥ <code>l</code>.</p>
+<p>A valid input to <code>eds-biofmi-build</code> must satisfy the <strong>l-EDS property</strong>: every <em>internal</em> non-degenerate segment (one that has a degenerate symbol on both its left and right sides) must have length ≥ <code>l</code>.</p>
 <p><strong>Boundary segments</strong> at the very start or end of the EDS may be shorter (or absent entirely).</p>
+<p>A <strong>segment</strong> is a maximal run of regular symbols, not one symbol: <code>{CGCG}{A}{TGCC}</code> is one context of 9, and is indexed as one T₀ block. Two adjacent degenerate symbols form an internal segment of length 0 and are rejected.</p>
 <p>This constraint guarantees that each degenerate alternative can be stored with exactly <code>l</code> characters of context on each side drawn purely from the adjacent non-degenerate segments — which is what the changes-string layout depends on.</p>
-<p><strong>Validation</strong>: <code>biofmi-build</code> checks the l-EDS property at startup. If a segment is too short it prints the offending symbol index and exits with an error. Use <code>eds2leds -l &lt;l&gt;</code> from EDSParser to produce a conforming l-EDS from any EDS.</p>
+<p><strong>Validation</strong>: <code>eds-biofmi-build</code> checks the l-EDS property at startup. If a segment is too short it prints the offending symbol index and exits with an error. Use <code>eds2leds -l &lt;l&gt;</code> from EDSParser to produce a conforming l-EDS from any EDS.</p>
 <hr />
 <h2 id="3-index-files">3. Index files<a class="headerlink" href="#3-index-files" title="Permanent link">&para;</a></h2>
 <p>All index files are written to a directory (default: <code>&lt;input&gt;.index/</code>). The base name inside the directory is always <code>index</code>.</p>
@@ -1193,7 +1194,7 @@
 <tr>
 <td><code>.aof</code></td>
 <td>SDSL</td>
-<td><code>offsets[]</code> — content length of each individual alternative (excluding context)</td>
+<td><code>lengths[]</code> — content length of each individual alternative (excluding context); the file keeps its old name, from when the array was called <code>offsets</code></td>
 </tr>
 <tr>
 <td><code>.d2g</code></td>
@@ -1208,8 +1209,9 @@
 </tbody>
 </table>
 <p>The SDSL binary files are produced and consumed by <code>sdsl::store_to_file</code> / <code>sdsl::load_from_file</code>, except <code>.d2g</code>, which carries the magic header above. The <code>.meta</code> file is plain text and human-readable.</p>
+<p><code>.abp</code>, <code>.ss</code> and <code>.aof</code> are <code>sdsl::int_vector&lt;&gt;</code>s bit-compressed to the widest value each holds (format 3, 2026-11-02), so their width follows the panel: 23 bits a T₀ coordinate for an 8 Mbp reference, 32 for a human genome. Formats 1–2 stored them as <code>std::vector&lt;int&gt;</code>, which silently overflowed once T₀ or the changes text passed 2³¹; <code>load()</code> still reads those, choosing the layout by the format version, and compresses them in memory. Coordinates are 64-bit throughout the search. Alternatives and sets are still counted in <code>int</code> (change numbers, <code>Occurrence::changes</code>), and the build refuses a panel with more than 2³¹ − 1 degenerate strings. On an 8 Mbp <code>genrandomeds</code> panel at <code>l=9</code> the three files went from 9.6 MB to 3.7 MB; every other file is byte-identical.</p>
 <h3 id="why-d2g-exists">Why <code>.d2g</code> exists<a class="headerlink" href="#why-d2g-exists" title="Permanent link">&para;</a></h3>
-<p><code>locate()</code> works in <code>change_number</code>, a 1-based rank over <strong>degenerate strings only</strong> — the index <code>offsets[change_number - 1]</code> is keyed by. A <code>Sources</code> file is indexed by a <strong>global string id</strong> over <em>all</em> strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.</p>
+<p><code>locate()</code> works in <code>change_number</code>, a 1-based rank over <strong>degenerate strings only</strong> — the index <code>lengths[change_number - 1]</code> is keyed by. A <code>Sources</code> file is indexed by a <strong>global string id</strong> over <em>all</em> strings, common symbols included. The two differ by the number of non-degenerate symbols passed so far.</p>
 <p>That count is not recoverable from the other index artifacts, and a loaded index has no EDS to ask, because <code>load()</code> never populates <code>eds_</code>. So the mapping is built during <code>parse_eds()</code> — where the walk is left-to-right and the counter is free — and persisted.</p>
 <p>Until 2026-09-12 it was a <code>std::vector&lt;int64_t&gt;</code>: 64 bits an entry for a strictly increasing sequence, 6.3–7.1% of every <code>tb_scaling</code> index and 3.1–11.4% of <code>l_sweep</code>'s (a constant 227 KB). As an Elias-Fano bit vector it is <strong>15 KB where it was 287 KB</strong> on <code>tb_p100_norm</code> (0.4% of the 3.9 MB index); every other index file is byte-identical. <code>load()</code> still reads the old layout — the magic tells them apart, since the old file opens with an entry count — and compacts it in memory; rebuilding rewrites the file. A binary older than the change cannot read the new layout.</p>
 <p>An index built before <code>.d2g</code> existed cannot have sources attached; <code>attach_sources()</code> throws rather than mis-associating path sets. See <a href="../search_modes/#4-where-the-sources-live">Search modes</a>.</p>
@@ -1267,7 +1269,7 @@
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>7        ← n  (number of EDS symbols)
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>12       ← m  (total number of strings across all symbols)
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>64       ← N  (total character count across all strings)
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>format 2 ← index format version
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>format 3 ← index format version
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>sdsl v2  ← SDSL line the index was written by: v2 = simongog, v3 = xxsds
 </code></pre></div>
 <p><code>load()</code> reads <code>.meta</code> before any SDSL file and refuses, by name, an index whose
@@ -1282,13 +1284,15 @@ before the fields existed (2026-10-01). Its other files are identical to format
 binary refuses it naming SDSL v2 — the same both-layouts reading <code>.d2g</code> gets. The
 fields follow the counts rather than precede them so that a binary from before
 them, which reads four integers and stops, still loads a format-2 v2 index.</p>
+<p>Format 3 (2026-11-02) changed the layout of <code>.abp</code>, <code>.ss</code> and <code>.aof</code> (above). A
+format-2 binary refuses a format-3 index by name; this one reads all three.</p>
 <hr />
 <h2 id="4-reference-string-layout">4. Reference string layout<a class="headerlink" href="#4-reference-string-layout" title="Permanent link">&para;</a></h2>
 <p><code>parse_eds()</code> writes <code>reference.txt</code> during build (deleted after the SDSL index is built in memory). The format is:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>#seg0#seg1#seg2#...#segK#
 </code></pre></div>
 <ul>
-<li><code>#</code> is <code>CHANGE_SEPARATOR</code> (ASCII 1, not in any valid sequence).</li>
+<li><code>#</code> is <code>CHANGE_SEPARATOR</code> (<code>'#'</code>, <code>common.hpp</code>). No indexed string and no pattern may contain it (<code>check_pattern()</code>, <code>parse_eds()</code>).</li>
 <li>Every non-degenerate symbol is written as a single segment.</li>
 <li><code>tloc[i] = 1</code> at every position <code>i</code> that holds a <code>#</code>.</li>
 </ul>
@@ -1324,7 +1328,7 @@ them, which reads four integers and stops, still loads a format-2 v2 index.</p>
 <p>The <code>sloc(k)</code> select operation returns the file byte offset of the preceding <code>#</code> for alternative <code>k</code> (1-based). In the example above, <code>sloc(1) = 0</code> and <code>sloc(2) = 8</code>.</p>
 <hr />
 <h2 id="6-human-readable-dump">6. Human-readable dump<a class="headerlink" href="#6-human-readable-dump" title="Permanent link">&para;</a></h2>
-<p><code>biofmi-build --dump</code> (or <code>BioFMI::dump_readable()</code>) writes a text file <code>index.dump.txt</code> inside the index directory. It shows:</p>
+<p><code>eds-biofmi-build --dump</code> (or <code>BioFMI::dump_readable()</code>) writes a text file <code>index.dump.txt</code> inside the index directory. It shows:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>=== BioFMI Index Dump ===
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>context_length:  3
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>n (symbols):     3
@@ -1353,10 +1357,10 @@ them, which reads four integers and stops, still loads a format-2 v2 index.</p>
 <a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a>set_sizes (ss) — cumulative string count through each degenerate set:
 <a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a>  [2]
 <a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a>
-<a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a>offsets (aof) — length of each change string (excluding context):
+<a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a>lengths (aof) — length of each change string (excluding context):
 <a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a>  [1, 1]
 </code></pre></div>
-<p>Separator characters (<code>#</code>, ASCII 1) are displayed as <code>$</code> for readability.</p>
+<p>Separator characters (<code>#</code>) are printed as they are; only control characters (the SDSL sentinel included) are displayed as <code>$</code>.</p>
 
 
 
@@ -1412,10 +1416,10 @@ them, which reads four integers and stops, still loads a format-2 v2 index.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

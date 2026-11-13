@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -29,10 +29,10 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1108,10 +1108,10 @@ behave, including their limits.</p>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>            │  eds2leds -l N [-s]           (EDSParser)
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>            ▼
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>      panel.lN.leds + .seds                  l-EDS: internal segments ≥ N
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>            │  biofmi-build -l N
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>            │  eds-biofmi-build -l N
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>            ▼
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>      panel.lN.index/                        dual FM-index + metadata
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>            │  biofmi-locate -l N [-s]
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>            │  eds-biofmi-locate -l N [-s]
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>            ▼
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>      occurrences: position, changes, carrying genomes
 </code></pre></div>
@@ -1121,7 +1121,7 @@ and the query.</p>
 <h2 id="two-constraints-worth-knowing-immediately">Two constraints worth knowing immediately<a class="headerlink" href="#two-constraints-worth-knowing-immediately" title="Permanent link">&para;</a></h2>
 <p><strong>The l-EDS property.</strong> Every <em>internal</em> non-degenerate segment — one with a
 degenerate symbol on both sides — must be at least <code>l</code> characters. Boundary
-segments at the start or end may be shorter. <code>biofmi-build</code> verifies this and
+segments at the start or end may be shorter. <code>eds-biofmi-build</code> verifies this and
 refuses input that fails it, because the chunked search depends on a chunk of
 <code>l+1</code> characters never spanning two degenerate symbols.</p>
 <p><strong>Pattern length.</strong> Only the empty pattern is refused. <code>|P|</code> need <em>not</em> be a
@@ -1171,7 +1171,7 @@ large answer, which has to be held in memory. See
 <tbody>
 <tr>
 <td><a href="cli/">CLI reference</a></td>
-<td><code>biofmi-build</code> and <code>biofmi-locate</code>, flag by flag</td>
+<td><code>eds-biofmi-build</code> and <code>eds-biofmi-locate</code>, flag by flag</td>
 </tr>
 <tr>
 <td><a href="locate_spec/"><code>locate()</code> specification</a></td>
@@ -1198,8 +1198,8 @@ large answer, which has to be held in memory. See
 <li><strong><a href="https://github.com/draessld/EDSParser">EDSParser</a></strong> (<code>external/edsparser/</code>,
   a submodule) — EDS parsing, format transformations (MSA/VCF → EDS, EDS →
   l-EDS), statistics, pattern generation.</li>
-<li><strong>BioFMI</strong> (this repository) — index building (<code>biofmi-build</code>), querying
-  (<code>biofmi-locate</code>), and the benchmark suite.</li>
+<li><strong>BioFMI</strong> (this repository) — index building (<code>eds-biofmi-build</code>), querying
+  (<code>eds-biofmi-locate</code>), and the benchmark suite.</li>
 </ul>
 
 
@@ -1256,10 +1256,10 @@ large answer, which has to be held in memory. See
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

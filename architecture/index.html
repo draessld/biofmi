@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1161,8 +1161,8 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── src/cpp/
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   ├── lib/index/               ← BioFMI C++ library (BioFMI class)
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   └── tools/
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│       ├── build.cpp            ← biofmi-build  (index construction)
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│       └── locate.cpp           ← biofmi-locate (pattern querying)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│       ├── build.cpp            ← eds-biofmi-build  (index construction)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│       └── locate.cpp           ← eds-biofmi-locate (pattern querying)
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── tests/
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── unit/                    ← C++ unit tests (cassert)
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   ├── e2e/                     ← shell end-to-end tests
@@ -1200,7 +1200,7 @@
 <a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>                             │
 <a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>               ┌─────────────┴──────────────┐
 <a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>               ▼                            ▼
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>        biofmi-build                 biofmi-locate
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>        eds-biofmi-build                 eds-biofmi-locate
 <a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>        (CLI tool)                   (CLI tool)
 </code></pre></div>
 <hr />
@@ -1218,7 +1218,7 @@
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>                └──► changes.txt    "#[ctx_L][alt][ctx_R]#..."
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>                     + loc bit vector  (1 at end of each alt's content)
 <a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>                     + iloc bit vector (1 at last alt of each set)
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>                     + base_positions[], set_sizes[], offsets[]
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>                     + base_positions[], set_sizes[], lengths[]
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
 <a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>  reference.txt  ──► SDSL construct() ──► csa_wt&lt;&gt; (in memory, saved as .ri)
 <a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>  changes.txt    ──► SDSL construct() ──► csa_wt&lt;&gt; (in memory, saved as .ci)
@@ -1374,7 +1374,7 @@ the full layout.</p>
 </tr>
 <tr>
 <td><code>test_build_structure</code></td>
-<td><code>parse_eds()</code> internal arrays: <code>base_positions</code>, <code>set_sizes</code>, <code>offsets</code>, <code>tloc</code>/<code>loc</code>/<code>iloc</code> positions</td>
+<td><code>parse_eds()</code> internal arrays: <code>base_positions</code>, <code>set_sizes</code>, <code>lengths</code>, <code>tloc</code>/<code>loc</code>/<code>iloc</code> positions</td>
 </tr>
 <tr>
 <td><code>test_locate</code></td>
@@ -1442,7 +1442,7 @@ printed <code>PASSED</code>, and verified nothing.</p>
 </tr>
 <tr>
 <td>Boost <code>program_options</code></td>
-<td>CLI argument parsing in <code>biofmi-build</code> / <code>biofmi-locate</code></td>
+<td>CLI argument parsing in <code>eds-biofmi-build</code> / <code>eds-biofmi-locate</code></td>
 </tr>
 <tr>
 <td>OpenMP (optional)</td>
@@ -1513,10 +1513,10 @@ printed <code>PASSED</code>, and verified nothing.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

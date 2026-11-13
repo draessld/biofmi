@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1512,7 +1512,7 @@
 <p><strong>A symbol may offer more than one empty alternative</strong>, and each is its own occurrence. <code>{ATG,,}</code> is legal EDS: the second and third alternatives spell the same (empty) text but are distinct alternatives with distinct source sets, so a match crossing that symbol is reported once per empty alternative, differing only in <code>changes</code>. Collapsing them to the first is a recall bug, not a deduplication — under LINEAR the genomes carrying the two are generally different.</p>
 <hr />
 <h2 id="search-modes-what-counts-as-a-valid-path">Search modes: what counts as a "valid path"<a class="headerlink" href="#search-modes-what-counts-as-a-valid-path" title="Permanent link">&para;</a></h2>
-<p><code>locate()</code> has two modes, selected by whether source (haplotype) sets are attached with <code>BioFMI::attach_sources()</code> — <code>biofmi-locate -s &lt;file&gt;</code> or <code>-z &lt;file&gt;</code>.</p>
+<p><code>locate()</code> has two modes, selected by whether source (haplotype) sets are attached with <code>BioFMI::attach_sources()</code> — <code>eds-biofmi-locate -s &lt;file&gt;</code> or <code>-z &lt;file&gt;</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1758,7 +1758,7 @@ materialised before <code>locate()</code> returned — the final chunk's candida
 above needed 9.2 GB, and under the harness's <code>policy.mem_cap: 8G</code> that was an OOM looking
 like a tool failure. Now the final chunk's survivors are never stored: <code>count()</code> counts
 them, <code>locate(pattern, callback)</code> hands each to the caller as it is found, and
-<code>biofmi-locate</code> uses those two. What a query holds is the candidate set the <em>earlier</em>
+<code>eds-biofmi-locate</code> uses those two. What a query holds is the candidate set the <em>earlier</em>
 chunks pass on; a pattern of at most <code>l+1</code> characters has no earlier chunk and holds
 nothing per occurrence. On a <code>genrandomeds --ref-size-mb 8 --seed 42</code> panel at <code>l=9</code>
 (peak RSS, <code>/usr/bin/time -v</code>; best wall of 2, old and new binaries interleaved):</p>
@@ -1849,6 +1849,10 @@ streaming overload.</p>
 <tr>
 <td>Characters not in the index alphabet</td>
 <td>No match — an empty result, not an error</td>
+</tr>
+<tr>
+<td><code>#</code> (<code>CHANGE_SEPARATOR</code>), NUL or whitespace anywhere in <code>P</code></td>
+<td><strong>Error</strong> — throws <code>std::runtime_error</code> naming the character and its offset (<code>BioFMI::check_pattern()</code>, 2026-11-02). <code>#</code> delimits and pads both texts, so it used to match there and report positions no genome has; whitespace matched nothing and said so. <code>eds-biofmi-locate</code> strips a trailing <code>\r</code> from each line of a pattern file and exits 1 if any pattern was refused</td>
 </tr>
 </tbody>
 </table>
@@ -1993,7 +1997,7 @@ streaming overload.</p>
 of entries. The entries are exactly those <code>locate(pattern)</code> returns, with the same <code>paths</code>;
 none is stored, so memory is bounded by the candidates the earlier chunks carry, not by the
 answer. The <code>Occurrence</code> is reused between calls — copy it to keep it. The callback must
-not query the same index, and <code>get_last_result()</code> is not updated. An exception from the
+not query the same index. An exception from the
 callback propagates and leaves the index usable.</p>
 <hr />
 <h2 id="count-behaviour"><code>count()</code> behaviour<a class="headerlink" href="#count-behaviour" title="Permanent link">&para;</a></h2>
@@ -2161,7 +2165,7 @@ once for every carrier. Building the map is one pass over the sources, 0.07–0.
 EDZ sources measured the same as SEDS. <strong><code>b = 32</code> is the default</strong> — under 3% of the index for
 a coordinate in ~13 µs; full sums are 88% of it even bit-compressed.</p>
 <p>Validated against <code>bcftools consensus</code> genomes, which share no code with this one: all 100
-genomes extracted whole are byte-identical, and <code>biofmi-locate --genome-coords</code> on 200 random
+genomes extracted whole are byte-identical, and <code>eds-biofmi-locate --genome-coords</code> on 200 random
 patterns names exactly the 85,307 <code>(genome, offset)</code> pairs a scan of the FASTA finds.</p>
 <hr />
 <h2 id="future-improvements-out-of-scope-for-now">Future improvements (out of scope for now)<a class="headerlink" href="#future-improvements-out-of-scope-for-now" title="Permanent link">&para;</a></h2>
@@ -2231,10 +2235,10 @@ against the surviving candidates instead of searched, across symbol boundaries
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

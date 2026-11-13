@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1121,6 +1121,11 @@
 
 
 <h1 id="search-modes-linear-and-cartesian">Search modes: LINEAR and CARTESIAN<a class="headerlink" href="#search-modes-linear-and-cartesian" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Naming in the paper.</strong> The paper calls these modes <strong>PHASED</strong> (= LINEAR) and <strong>UNPHASED</strong>
+(= CARTESIAN), after the phased language $\mathcal{L}_{\mathrm{ph}}$ they answer; the code, the CLI and
+this documentation keep LINEAR and CARTESIAN.</p>
+</blockquote>
 <p>An elastic-degenerate string describes a <em>set</em> of strings. Before you can ask
 "does this pattern occur", you have to answer a prior question: <strong>which set?</strong>
 BioFMI supports two answers, and the difference is not a tuning knob — it
@@ -1176,7 +1181,7 @@ wrong is the single most common source of confusion.</p>
 </tr>
 <tr>
 <td><strong>How the index is searched</strong></td>
-<td><code>biofmi-locate -s</code> / <code>-z</code> (or not)</td>
+<td><code>eds-biofmi-locate -s</code> / <code>-z</code> (or not)</td>
 <td>With sources, a running intersection prunes any match no single genome carries. Without, every alternative pairs with every other.</td>
 </tr>
 </tbody>
@@ -1184,11 +1189,11 @@ wrong is the single most common source of confusion.</p>
 <p>That gives three meaningful configurations:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># LINEAR merge, source-aware search — the pangenomic answer</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>eds2leds<span class="w">  </span>-i<span class="w"> </span>panel.eds<span class="w"> </span>-s<span class="w"> </span>panel.seds<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-o<span class="w"> </span>linear_l9.leds
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>biofmi-build<span class="w">  </span>-i<span class="w"> </span>linear_l9.leds<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-o<span class="w"> </span>idx
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>idx<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-s<span class="w"> </span>linear_l9.seds<span class="w"> </span>-P<span class="w"> </span>patterns.txt
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>eds-biofmi-build<span class="w">  </span>-i<span class="w"> </span>linear_l9.leds<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-o<span class="w"> </span>idx
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>eds-biofmi-locate<span class="w"> </span>-i<span class="w"> </span>idx<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-s<span class="w"> </span>linear_l9.seds<span class="w"> </span>-P<span class="w"> </span>patterns.txt
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># LINEAR merge, source-free search — over-reports; useful only as a control</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>biofmi-locate<span class="w"> </span>-i<span class="w"> </span>idx<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-P<span class="w"> </span>patterns.txt
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>eds-biofmi-locate<span class="w"> </span>-i<span class="w"> </span>idx<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-P<span class="w"> </span>patterns.txt
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># CARTESIAN merge, source-free search — the cross product, consistently</span>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>eds2leds<span class="w">  </span>-i<span class="w"> </span>panel.eds<span class="w"> </span>-l<span class="w"> </span><span class="m">9</span><span class="w"> </span>-o<span class="w"> </span>cartesian_l9.leds
@@ -1433,10 +1438,10 @@ that consume one do so as their <code>prepare</code> stage.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

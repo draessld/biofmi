@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -29,10 +29,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1333,7 +1333,7 @@
 <p>BioFMI builds two FM-indexes from an l-EDS file and combines them to answer pattern queries. The key idea is to split the input into a <strong>reference string</strong> (the non-degenerate backbone) and a <strong>changes string</strong> (the degenerate alternatives with <code>l</code>-character context windows on each side), index each separately, then stitch matches back together chunk by chunk at query time.</p>
 <hr />
 <h2 id="1-prerequisites-the-l-eds-constraint">1. Prerequisites: the l-EDS constraint<a class="headerlink" href="#1-prerequisites-the-l-eds-constraint" title="Permanent link">&para;</a></h2>
-<p>Before building, <code>biofmi-build</code> validates that every <strong>internal</strong> non-degenerate segment (one flanked by a degenerate symbol on both sides) has length ≥ <code>l</code>. Boundary segments at the very start or end of the EDS are exempt.</p>
+<p>Before building, <code>eds-biofmi-build</code> validates that every <strong>internal</strong> non-degenerate segment (one flanked by a degenerate symbol on both sides) has length ≥ <code>l</code>. Boundary segments at the very start or end of the EDS are exempt. A segment is a maximal run of regular symbols (<code>{CGCG}{A}{TGCC}</code> is one context of 9, one T₀ block, one base position); two adjacent degenerate symbols are an internal segment of length 0 and are rejected.</p>
 <p>This constraint guarantees that every degenerate alternative can be stored with exactly <code>l</code> characters of context on each side drawn purely from the adjacent non-degenerate segments, which is what the changes string relies on. See <a href="../file_formats/">file_formats.md</a> for the changes-string layout.</p>
 <hr />
 <h2 id="2-building-the-index-build">2. Building the index (<code>build()</code>)<a class="headerlink" href="#2-building-the-index-build" title="Permanent link">&para;</a></h2>
@@ -1367,7 +1367,7 @@
 <ul>
 <li>At the byte just before the <code>#</code>: <code>loc[tellp()] = 1</code>. (Marks end of <code>aᵢ</code>'s content.)</li>
 <li>For the <strong>last</strong> alternative of the set: also <code>iloc[tellp()] = 1</code>.</li>
-<li>Record <code>offsets[i] = len(aᵢ)</code> and <code>set_sizes[s]</code> as the cumulative count of alternatives through set <code>s</code>.</li>
+<li>Record <code>lengths[i] = len(aᵢ)</code> and <code>set_sizes[s]</code> as the cumulative count of alternatives through set <code>s</code>.</li>
 </ul>
 <p>Boundary handling: when the EDS starts with a degenerate symbol, <code>context_left</code> is initialised to <code>l</code> separator characters so that every entry in the changes string has exactly <code>l</code> context chars on the left.</p>
 <p>Example — <code>AAATTT{G,C}AAATTT</code>, l=3:</p>
@@ -1376,7 +1376,7 @@
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>iloc_ones    = [0, 16]
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>base_positions = [6, 12]
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>set_sizes      = [2]
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>offsets        = [1, 1]
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>lengths        = [1, 1]
 </code></pre></div>
 <h3 id="23-fm-index-construction">2.3 FM-index construction<a class="headerlink" href="#23-fm-index-construction" title="Permanent link">&para;</a></h3>
 <p>SDSL's <code>construct()</code> builds a wavelet-tree FM-index (<code>csa_wt&lt;&gt;</code>) from each text file. After construction the temp files are deleted; the in-memory SDSL objects are the only copy. They are persisted via <code>save()</code>.</p>
@@ -1495,7 +1495,7 @@ points:</p>
 </tr>
 <tr>
 <td><code>locate(p)</code></td>
-<td>the above, appending to a <code>ResultMap</code> (and <code>last_result_</code>)</td>
+<td>the above, appending to a <code>ResultMap</code></td>
 </tr>
 <tr>
 <td><code>count(p)</code></td>
@@ -1555,11 +1555,11 @@ the suffix-array range (<code>for_each_hit()</code>), not collected first into t
    (This is the T₀ position corresponding to the start of the matched chunk window.)</p>
 </li>
 <li>
-<p><strong><code>change_offset = offsets[change_number − 1]</code></strong> (content length of this alternative).</p>
+<p><strong><code>change_length = lengths[change_number − 1]</code></strong> (content length of this alternative).</p>
 </li>
 <li>
 <p><strong>chunk_idx == 0</strong> (seed):
-   <code>new_hash_map_[loc - change_offset].push_back({loc, {change_number}})</code>.</p>
+   <code>new_hash_map_[loc - change_length].push_back({loc, {change_number}})</code>.</p>
 </li>
 <li>
 <p><strong>chunk_idx &gt; 0</strong> (extend): call <code>validate_change_continuity()</code>.</p>
@@ -1567,13 +1567,13 @@ the suffix-array range (<code>for_each_hit()</code>), not collected first into t
 </ol>
 <h3 id="45-continuity-validation-validate_change_continuity">4.5 Continuity validation (<code>validate_change_continuity</code>)<a class="headerlink" href="#45-continuity-validation-validate_change_continuity" title="Permanent link">&para;</a></h3>
 <p><strong>Case 2 — previous chunk was inside the same alternative</strong> (<code>!previous_outside_change</code>):</p>
-<p>Look up <code>old_hash_map_[loc - change_offset - (l+1)]</code>. Extend any candidate whose <code>changes.back() == change_number</code> (same alternative, continuing within it).</p>
+<p>Look up <code>old_hash_map_[loc - change_length - (l+1)]</code>. Extend any candidate whose <code>changes.back() == change_number</code> (same alternative, continuing within it).</p>
 <p><strong>Case 3 — previous chunk was outside this alternative, current starts at boundary</strong> (<code>previous_outside_change</code>, <code>occ.changes</code> empty):</p>
 <p>Look up <code>old_hash_map_[loc - (l+1)]</code>. Extend any ref-only candidate by appending <code>change_number</code>:
-<code>new_hash_map_[loc - change_offset].push_back({origin, changes + [change_number]})</code>.</p>
+<code>new_hash_map_[loc - change_length].push_back({origin, changes + [change_number]})</code>.</p>
 <p><strong>Case 4 — previous chunk was in a different change</strong> (<code>previous_outside_change</code>, <code>occ.changes</code> non-empty):</p>
 <p>Same lookup as Case 3. Extend if <code>occ.changes.back() ≤ set_sizes[block_number]</code> (the previous change precedes this set):
-<code>new_hash_map_[loc - change_offset].push_back({origin, changes + [change_number]})</code>.</p>
+<code>new_hash_map_[loc - change_length].push_back({origin, changes + [change_number]})</code>.</p>
 <h3 id="46-result-conversion-the-final-chunks-sink">4.6 Result conversion (the final chunk's sink)<a class="headerlink" href="#46-result-conversion-the-final-chunks-sink" title="Permanent link">&para;</a></h3>
 <p>There is no final hash map to flatten. Each survivor of the last chunk is converted
 as it is found: internal change indices are <strong>1-based</strong> (SDSL rank values) and are
@@ -1602,7 +1602,7 @@ so that <code>cand_out</code> stays the number of distinct keys.</p>
 <strong>Pattern</strong>: <code>"TTTGAAAT"</code> (length 8, 2 chunks).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>changes_text  = "#TTTGAAA#TTTCAAA#"
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>base_positions = [6, 12]
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>offsets        = [1, 1]      (G and C each have length 1)
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>lengths        = [1, 1]      (G and C each have length 1)
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>loc_ones       = [0, 8, 16]
 </code></pre></div>
 <p><strong>Chunk 0 — <code>"TTTG"</code></strong> (found in changes_text at file pos 1):</p>
@@ -1610,7 +1610,7 @@ so that <code>cand_out</code> stays the number of distinct keys.</p>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>pre_hash_loc  = sloc(1) = 0
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>offset        = 1 - (0 + 3 + 1) = -3   →  previous_outside_change = true
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>loc_new       = base_positions[0] + (-3) = 6 - 3 = 3
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>change_offset = offsets[0] = 1
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>change_length = lengths[0] = 1
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>key = 3 - 1 = 2;   origin = (3, {1})
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>
 <a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>old_hash_map_ = { 2: [(3, {1})] }
@@ -1702,10 +1702,10 @@ so that <code>cand_out</code> stays the number of distinct keys.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>
