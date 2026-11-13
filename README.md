@@ -41,8 +41,9 @@ biofmi/
 ├── src/cpp/
 │   ├── lib/index/          # BioFMI class — build, save/load, locate, count
 │   └── tools/
-│       ├── build.cpp       # eds-biofmi-build  — index construction
-│       └── locate.cpp      # eds-biofmi-locate — pattern search
+│       ├── build.cpp       # eds-biofmi-build   — index construction
+│       ├── locate.cpp      # eds-biofmi-locate  — pattern search
+│       └── extract.cpp     # eds-biofmi-extract — genomes back out of the index
 ├── external/edsparser/     # Git submodule — EDS parsing & data preparation
 │   └── src/cpp/tools/
 │       ├── eds2leds        # EDS → l-EDS transformation
@@ -159,6 +160,18 @@ eds-biofmi-locate -i <index_dir> -l <context_length> (-p PATTERN | -P FILE)
   occurrences to stderr (used by the bench suite)
 - Output format: `position [ change_idx ... ]` per occurrence; see
   `docs/locate_spec.md` for full position semantics
+- `-s/-z <sources>` searches source-aware (LINEAR); `--samples` lists the carrying
+  genomes, `--genome-coords` prints them as `id:position`
+
+### `eds-biofmi-extract`
+
+Spell genomes (or regions of them) back out of an index, given the l-EDS's sources.
+
+```
+eds-biofmi-extract -i <index_dir> -s <sources.seds> -r <g[:i-j]> [-r ...] [-o out.fa]
+```
+
+- See `docs/cli.md` for `--lengths`, `--sample-rate` and `--benchmark`
 
 ### EDSParser tools (submodule)
 
