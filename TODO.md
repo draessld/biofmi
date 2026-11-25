@@ -410,7 +410,21 @@ sampled per-genome prefix sums (`build_genome_map(b)`, default `b = 32`), `biofm
     `provenance.require_fields`; the comments in `kp_cost.yaml`, `kp_cost_tb.yaml` and
     `tail_cost.yaml` that biofmi-locate has no `--version` are now out of date. Leave finished
     specs alone.
-  - **The paper** says the index is implemented as `biofmi`; it can now name `eds-biofmi-*`.
+  - **The paper** names the implementation `eds-biofmi` in Experiments (done 2026-11-15, notes #154).
   - Not renamed, deliberately: the repository, `biofmi_lib`, the `biofmi` namespace, the
     `BioFMI` class, index file names and the `BIOFMI_TOOLS_FROM_PATH` switch. Renaming them buys
     nothing a reader of the paper sees.
+
+- **Coordinates as the paper now defines them (paper notes #152, 2026-11-15).** The paper's
+  T0-coordinate counts the separator of each degenerate symbol: a position in `C_0 # C_1 # ...`
+  (`T0` without its leading `#`), so `R_i` occupies the one coordinate `tau(R_i) = sum_{j<=i}|C_j| + i`
+  and the positions just before and after it are `tau(R_i)` and `tau(R_i) + 1`. An occurrence is
+  reported as `(coordinate, offset)`, the offset into the option when it starts inside one, `0`
+  otherwise; the stitch keys a candidate by the position where the next chunk starts, and
+  `next_set` is redundant with that key (only `in_change` remains, for a key inside an option).
+  The code still uses T0 positions without the separators (`base + offset` for a start inside an
+  option, `.abp` the old `base`) and carries `next_set`, so `eds-biofmi-locate` output does not
+  match `def:occ` / `fig:occurrence` / `ex:construction`. Align it: either change the key, the
+  reported `pos` and `.abp` (an index-format bump; `test_locate_offset`, `docs/locate_spec.md`, the
+  e2e expected outputs and `--genome-coords` all follow), or keep the internals and convert at the
+  output only (`pos + set_number`, offset split off) — the cheaper step, enough for the paper.
